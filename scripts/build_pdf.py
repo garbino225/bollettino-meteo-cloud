@@ -143,8 +143,8 @@ def make_table(headers, rows, ss, col_widths=None, risk_col=None):
         data.append(cells)
     t = Table(data, colWidths=col_widths, repeatRows=1)
     style = [
-        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E9ECEF")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
         ("FONTSIZE", (0, 0), (-1, 0), 9),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#ced4da")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT]),
