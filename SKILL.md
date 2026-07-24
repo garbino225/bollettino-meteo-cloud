@@ -229,7 +229,8 @@ ECMWF — vedi punto 5): copia la lista `sequences` da `ecmwf_manifest.json`
 rinominando `caption`→`title` per ciascuna voce, i `frames` restano
 identici.
 
-Stile obbligatorio (vale per tutto il testo che scrivi):
+Stile obbligatorio (vale per tutto il testo che scrivi, incluso il
+riassunto in chat del punto 9 — non solo report.json):
 - Mai frasi generiche ("tempo variabile", "possibili precipitazioni" senza
   altro) — motiva sempre con i dati che hai raccolto.
 - Quando i modelli divergono, dillo e spiega quale scenario ritieni piu'
@@ -238,6 +239,14 @@ Stile obbligatorio (vale per tutto il testo che scrivi):
 - Usa tabelle ove possibile invece di elenchi puntati generici.
 - Unita' di misura: temperatura °C, vento kn, pioggia mm, neve cm (gia'
   cosi' nei dati scaricati).
+- **Ogni volta che scrivi una data** (period_label, didascalie di grafici
+  e cartine, titoli di sezione, tabelle, testo dell'analisi, riassunto in
+  chat) **affianca sempre il giorno della settimana abbreviato in 3
+  lettere minuscole**: lun, mar, mer, gio, ven, sab, dom. Es. "ven 24/07",
+  "dom 26/07 (12 UTC)", period_label "ven 24 - dom 26 luglio 2026". Vale
+  anche per le date nei nomi/captions delle cartine ECMWF e nelle tabelle
+  di confronto modelli (es. intestazione colonna "T.max ven 24/07 (°C)"
+  invece di "T.max ven (°C)").
 
 ```bash
 python3 build_pdf.py /tmp/meteo_<slug>/report.json --charts-dir /tmp/meteo_<slug>/charts --logo ../assets/logo.png --out /tmp/meteo_<slug>/bollettino_<slug>.pdf
@@ -286,14 +295,10 @@ riassunto testuale ben leggibile (sintesi + tabella rischi +
 affidabilita'): l'utente non deve dover aprire un file per sapere se
 domani piove.
 
-## 10. Invio su Telegram (su richiesta, non automatico)
+## 10. Invio su Telegram
 
-Nessuna schedulazione automatica per ora (deciso esplicitamente
-dall'utente il 2026-07-23 per motivi di riservatezza: una routine cloud
-schedulata dovrebbe salvare il token del bot Telegram in chiaro nella
-configurazione della routine, e l'utente ha preferito evitarlo — vedi
-MANUTENZIONE.md). Se l'utente chiede esplicitamente in una conversazione
-di inviare il bollettino appena generato su Telegram, usa:
+**Manuale** (in sessione locale interattiva, su richiesta esplicita
+dell'utente in conversazione):
 
 ```bash
 python3 send_telegram.py --pdf bollettino_<slug>.pdf --caption "Bollettino <Citta> - <data>" --message "<sintesi breve>"
@@ -301,9 +306,20 @@ python3 send_telegram.py --pdf bollettino_<slug>.pdf --caption "Bollettino <Citt
 
 Token e chat id vanno chiesti all'utente (o letti da variabili
 d'ambiente locali `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` se le ha gia'
-configurate sul suo Mac) — mai hardcodarli nella skill. Non proporre di
-automatizzare l'invio con una routine schedulata a meno che l'utente non
-lo richieda di nuovo esplicitamente.
+configurate sul suo Mac) — mai hardcodarli nella skill.
+
+**Automatico** (dal 2026-07-24): esiste una routine cloud schedulata
+("Bollettino Meteo Imola e Punta Marina") che ogni mattina genera e
+invia il bollettino per Imola e Punta Marina. Il token Telegram vero
+non e' mai nel prompt della routine: passa da un relay Cloudflare
+Worker che lo tiene cifrato nel suo secret store (vedi MANUTENZIONE.md
+per l'architettura completa e come modificarla). La routine, essendo
+un'esecuzione cloud non presidiata, usa `scripts/relay_send.py` invece
+di `send_telegram.py`, e salta le sequenze animate ECMWF/l'HTML (solo
+PDF, solo istanti singoli) per stare nei tempi. Se l'utente chiede di
+automatizzare l'invio per una NUOVA localita' o con un secret diverso,
+riproponi lo stesso pattern relay invece di ripartire dal dubbio se
+sia possibile in modo riservato — lo e', vedi MANUTENZIONE.md.
 
 ## Note tecniche
 
@@ -337,6 +353,7 @@ lo richieda di nuovo esplicitamente.
   ridistribuzione chiara (no a Blitzortung/lightningmaps scraping):
   non implementarli finche' non emerge un provider con API pubblica
   chiara (es. un servizio a pagamento che l'utente scelga esplicitamente).
-- `send_telegram.py` non contiene mai credenziali: legge
-  `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` da env o da `--token`/`--chat-id`.
-  Nessuna automazione schedulata per ora (vedi punto 10 e MANUTENZIONE.md).
+- `send_telegram.py` (uso manuale locale) non contiene mai credenziali:
+  legge `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` da env o da
+  `--token`/`--chat-id`. Per l'uso automatico via routine cloud vedi
+  `relay_send.py` e punto 10 — architettura completa in MANUTENZIONE.md.

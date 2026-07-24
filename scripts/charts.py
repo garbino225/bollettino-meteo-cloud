@@ -51,14 +51,21 @@ plt.rcParams.update({
 
 PROFILE_LEVELS = [1000, 975, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 150, 100]
 
+GIORNI_IT = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
+
 
 def parse_times(strs):
     return [dt.datetime.fromisoformat(s) for s in strs]
 
 
+def _day_label(x, pos=None):
+    d = mdates.num2date(x)
+    return f"{GIORNI_IT[d.weekday()]} {d.strftime('%d/%m')}"
+
+
 def fmt_time_axis(ax):
     ax.xaxis.set_major_locator(mdates.DayLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
+    ax.xaxis.set_major_formatter(mdates.FuncFormatter(_day_label))
     ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=[6, 12, 18]))
     ax.xaxis.set_minor_formatter(mdates.DateFormatter("%Hh"))
     ax.tick_params(axis="x", which="minor", labelsize=7, colors="#777777")
@@ -240,7 +247,8 @@ def chart_skewt(profile, indices, outdir):
         else:
             idx = int(np.argmax(capes))
 
-    t_label = hourly["time"][idx]
+    t_dt = dt.datetime.fromisoformat(hourly["time"][idx])
+    t_label = f"{GIORNI_IT[t_dt.weekday()]} {t_dt.strftime('%d/%m %H:%M')}"
     pressures, temps, rhs, wspd, wdir = [], [], [], [], []
     for lvl in PROFILE_LEVELS:
         t = hourly.get(f"temperature_{lvl}hPa", [None])[idx]
