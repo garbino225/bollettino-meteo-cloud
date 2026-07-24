@@ -1,0 +1,6 @@
+requests
+matplotlib
+numpy
+reportlab
+metpy
+Pillow
