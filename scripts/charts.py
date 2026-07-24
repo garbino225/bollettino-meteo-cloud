@@ -26,6 +26,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.ticker import FuncFormatter
 import numpy as np
 
 warnings.filterwarnings("ignore")
@@ -65,7 +66,7 @@ def _day_label(x, pos=None):
 
 def fmt_time_axis(ax):
     ax.xaxis.set_major_locator(mdates.DayLocator())
-    ax.xaxis.set_major_formatter(mdates.FuncFormatter(_day_label))
+    ax.xaxis.set_major_formatter(FuncFormatter(_day_label))
     ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=[6, 12, 18]))
     ax.xaxis.set_minor_formatter(mdates.DateFormatter("%Hh"))
     ax.tick_params(axis="x", which="minor", labelsize=7, colors="#777777")
