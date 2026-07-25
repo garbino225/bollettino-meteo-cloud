@@ -248,6 +248,22 @@ riassunto in chat del punto 9 — non solo report.json):
   di confronto modelli (es. intestazione colonna "T.max ven 24/07 (°C)"
   invece di "T.max ven (°C)").
 
+Aggiungi sempre anche la sezione finale **Outlook 7 Giorni**: uno sguardo
+esteso, meno dettagliato, oltre il periodo principale del bollettino (usa
+un solo modello, `best_match`, non il confronto multi-modello):
+
+```bash
+python3 fetch_outlook.py --lat <LAT> --lon <LON> --start <data_oggi> --days 7 --out /tmp/meteo_<slug>/outlook.json
+```
+
+Copia l'array `days` prodotto in `report.json` sotto la chiave `outlook_7d`
+(vedi schema completo in `build_pdf.py`): una tabella con colonne Giorno
+(usa il campo `label`, gia' con giorno della settimana abbreviato),
+T.min/T.max (°C), Umidita' media (%), Pressione media (hPa), Raffica
+massima (kn), Pioggia totale (mm). E' una tabella, non serve testo
+aggiuntivo: la nota di minore affidabilita' (singolo modello) e' gia'
+scritta automaticamente da `build_pdf.py`/`build_html.py`.
+
 ```bash
 python3 build_pdf.py /tmp/meteo_<slug>/report.json --charts-dir /tmp/meteo_<slug>/charts --logo ../assets/logo.png --out /tmp/meteo_<slug>/bollettino_<slug>.pdf
 ```

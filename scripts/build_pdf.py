@@ -27,7 +27,10 @@ Formato atteso di report.json:
   "charts": [{"file": "temperatura.png", "caption": "Temperatura a 2m - confronto modelli"}, ...],
   "infographic": "infografica.png",
   "conclusione": "sintesi finale, massimo 15 righe",
-  "editoriali": "testo con citazioni di meteorologi esperti e link/fonti"
+  "editoriali": "testo con citazioni di meteorologi esperti e link/fonti",
+  "outlook_7d": {"headers": ["Giorno", "T.min (C)", "T.max (C)", "Umidita' (%)",
+                              "Pressione (hPa)", "Raffica max (kn)", "Pioggia (mm)"],
+                 "rows": [["ven 25/07", "18", "27", "62", "1015.2", "14", "0.0"], ...]}
 }
 """
 import argparse
@@ -267,6 +270,17 @@ def main():
     if data.get("conclusione"):
         story.append(Paragraph("Conclusioni", ss["SectionHeading"]))
         story += paragraphs_from_body(data["conclusione"], ss)
+
+    if data.get("outlook_7d"):
+        story.append(PageBreak())
+        story.append(Paragraph("Outlook 7 Giorni", ss["SectionHeading"]))
+        story.append(Paragraph(
+            "Tendenza estesa a colpo d'occhio (modello best_match, singolo modello: "
+            "affidabilita' minore rispetto all'analisi multi-modello dei giorni precedenti).",
+            ss["Body"]))
+        ot = data["outlook_7d"]
+        story.append(make_table(ot["headers"], ot["rows"], ss))
+        story.append(Spacer(1, 10))
 
     doc.build(story)
     print(f"OK -> {args.out}")

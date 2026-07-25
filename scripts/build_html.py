@@ -250,6 +250,11 @@ def main():
         risk_idx = at["headers"].index("Rischio") if "Rischio" in at["headers"] else 1
         activities_html = render_table(at["headers"], at["rows"], risk_col=risk_idx)
 
+    outlook_html = ""
+    if data.get("outlook_7d"):
+        ot = data["outlook_7d"]
+        outlook_html = render_table(ot["headers"], ot["rows"])
+
     html = f"""<!doctype html>
 <html lang="it">
 <head>
@@ -354,6 +359,8 @@ def main():
   <h2>Conclusioni</h2>
   {render_paragraphs(data.get('conclusione',''))}
 </section>
+
+{"<section><h2>Outlook 7 Giorni</h2><p class='note'>Tendenza estesa a colpo d'occhio (modello best_match, singolo modello: affidabilita' minore rispetto all'analisi multi-modello dei giorni precedenti).</p>" + outlook_html + "</section>" if outlook_html else ""}
 
 </main>
 <footer>Generato con meteoP@d0 &middot; dati modelli numerici pubblici (Open-Meteo, ECMWF OpenCharts CC BY 4.0, RainViewer)</footer>
