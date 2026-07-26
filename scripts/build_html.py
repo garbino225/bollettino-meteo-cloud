@@ -33,8 +33,11 @@ uguale).
 """
 import argparse
 import base64
+import io
 import json
 import os
+
+from PIL import Image
 
 NAVY = "#1a1a2e"
 ORANGE = "#F59F00"
@@ -49,6 +52,22 @@ def esc(s):
 def b64_file(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("ascii")
+
+
+def img_data_uri(path, quality=82, max_dim=1600):
+    # Ricomprime in WebP (con canale alpha se presente) prima di incorporare:
+    # le cartine ECMWF sono PNG da 1-2MB l'una e con 30+ immagini/animazioni
+    # per bollettino l'HTML autonomo superava facilmente i 50MB (limite
+    # Telegram sendDocument). WebP q82 riduce ~5-8x restando leggibile.
+    im = Image.open(path)
+    has_alpha = "A" in im.getbands()
+    im = im.convert("RGBA" if has_alpha else "RGB")
+    if max(im.size) > max_dim:
+        ratio = max_dim / max(im.size)
+        im = im.resize((max(1, int(im.width * ratio)), max(1, int(im.height * ratio))), Image.LANCZOS)
+    buf = io.BytesIO()
+    im.save(buf, "WEBP", quality=quality, method=6)
+    return f"data:image/webp;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
 
 
 def risk_span(level):
@@ -158,7 +177,10 @@ async function initRadarMap(lat, lon) {
 
 def render_animation(anim, idx):
     player_id = f"anim{idx}"
-    frames_js = json.dumps([{"file": os.path.basename(f["file"]), "label": f.get("label", "")}
+    # f["file"] e' gia' una data URI base64 (vedi chart_src in main): non va
+    # passata da os.path.basename, che troncherebbe l'immagine al primo '/'
+    # incontrato nel payload base64 (l'alfabeto base64 include '/')
+    frames_js = json.dumps([{"file": f["file"], "label": f.get("label", "")}
                              for f in anim["frames"]])
     n = len(anim["frames"])
     return f"""
@@ -193,12 +215,13 @@ def main():
     with open(args.report_json, encoding="utf-8") as f:
         data = json.load(f)
 
-    out_dir = os.path.dirname(os.path.abspath(args.out))
     charts_dir = os.path.abspath(args.charts_dir)
 
     def chart_src(fname):
-        # path relativo dalla posizione del file html alla cartella charts
-        return os.path.relpath(os.path.join(charts_dir, fname), out_dir)
+        # base64 data URI: l'HTML deve restare un file singolo autonomo
+        # (es. inviato via Telegram), non puo' contare su una cartella
+        # charts/ che lo accompagni
+        return img_data_uri(os.path.join(charts_dir, fname))
 
     logo_b64 = b64_file(args.logo)
 
@@ -327,11 +350,9 @@ def main():
   {"".join(sections_html)}
 </section>
 
-{"<section><h2>Animazioni modelli (ECMWF ufficiale, CC BY 4.0)</h2>" + animations_html + "</section>" if animations_html else ""}
-
 <section>
-  <h2>Radar e satellite in tempo reale</h2>
-  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): radar RainViewer, ultime ~2 ore disponibili ogni 10 minuti. Satellite infrarosso incluso quando la fonte gratuita lo rende disponibile in quel momento. I fulmini non sono inclusi: non esiste una fonte gratuita con licenza di ridistribuzione chiara (vedi MANUTENZIONE.md della skill).</p>
+  <h2>Radar e satellite osservato (ultime ore)</h2>
+  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): radar RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti: non esiste una fonte gratuita con storico piu' lungo e licenza di ridistribuzione chiara gia' validata (vedi MANUTENZIONE.md). Satellite infrarosso incluso quando la fonte gratuita lo rende disponibile in quel momento. I fulmini non sono inclusi per lo stesso motivo di licenza.</p>
   <div id="radarmap"></div>
   <div class="player-controls">
     <button id="radar_playbtn" class="btn">&#9208; Pausa</button>
@@ -340,6 +361,8 @@ def main():
   </div>
   <p id="radar_status" class="note"></p>
 </section>
+
+{"<section><h2>Animazioni modelli previsti (ECMWF ufficiale, CC BY 4.0)</h2>" + animations_html + "</section>" if animations_html else ""}
 
 <section>
   <h2>Grafici</h2>

@@ -10,6 +10,9 @@ Uso:
         --pdf bollettino.pdf --caption "Bollettino Imola - 24/07/2026"
 
     python3 relay_send.py --url https://tuo-worker.workers.dev --secret RELAY_SECRET \
+        --html bollettino.html --caption "Bollettino Imola - 24/07/2026"
+
+    python3 relay_send.py --url https://tuo-worker.workers.dev --secret RELAY_SECRET \
         --message "Testo semplice"
 """
 import argparse
@@ -24,8 +27,9 @@ def main():
     ap.add_argument("--secret", default=os.environ.get("RELAY_SECRET"),
                      help="Valore di X-Relay-Secret (default: variabile d'ambiente RELAY_SECRET)")
     ap.add_argument("--pdf", help="Percorso del PDF da inviare come documento")
-    ap.add_argument("--message", help="Testo semplice da inviare (alternativo a --pdf)")
-    ap.add_argument("--caption", default="", help="Didascalia per il documento PDF")
+    ap.add_argument("--html", help="Percorso del report HTML (autonomo, senza dipendenze esterne) da inviare come documento")
+    ap.add_argument("--message", help="Testo semplice da inviare (alternativo a --pdf/--html)")
+    ap.add_argument("--caption", default="", help="Didascalia per il documento")
     args = ap.parse_args()
 
     if not args.secret:
@@ -34,15 +38,21 @@ def main():
 
     headers = {"X-Relay-Secret": args.secret}
 
+    doc_path, content_type = None, None
     if args.pdf:
-        with open(args.pdf, "rb") as f:
-            files = {"document": (os.path.basename(args.pdf), f, "application/pdf")}
+        doc_path, content_type = args.pdf, "application/pdf"
+    elif args.html:
+        doc_path, content_type = args.html, "text/html"
+
+    if doc_path:
+        with open(doc_path, "rb") as f:
+            files = {"document": (os.path.basename(doc_path), f, content_type)}
             data = {"caption": args.caption} if args.caption else {}
             r = requests.post(args.url, headers=headers, files=files, data=data, timeout=120)
     elif args.message:
         r = requests.post(args.url, headers=headers, json={"message": args.message}, timeout=30)
     else:
-        print("Serve --pdf o --message", file=sys.stderr)
+        print("Serve --pdf, --html o --message", file=sys.stderr)
         sys.exit(1)
 
     print(r.status_code, r.text[:500])
