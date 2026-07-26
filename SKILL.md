@@ -43,6 +43,32 @@ Periodo:
   confronto multi-modello, no profilo verticale/CAPE) — informane
   l'utente nel bollettino.
 
+## 0.5 Centralina personale (solo se la localita' ne ha una associata)
+
+Per le localita' che hanno una centralina Weathercloud personale nota,
+scarica la lettura reale in tempo reale (non un dato di modello) e
+mettila in cima al bollettino (punto 7):
+
+```bash
+python3 fetch_weathercloud.py --code <CODICE> --out /tmp/meteo_<slug>/weathercloud.json
+```
+
+Mappa localita' -> codice nota ad oggi (2026-07-26): Imola -> `1172679827`,
+Punta Marina -> `9848353651` (il codice e' la sequenza numerica nell'URL
+`app.weathercloud.net/d<codice>`; se l'utente ne indica una nuova,
+aggiungila qui). **Nota importante**: l'endpoint usato
+(`app.weathercloud.net/device/values`) non e' un'API ufficiale
+documentata da Weathercloud, e' stato reverse-engineered da un progetto
+terzo (vedi commento in testa allo script) — funziona e restituisce dati
+reali dello strumento, ma potrebbe smettere di funzionare senza preavviso
+se Weathercloud cambia il backend. Se lo script segnala un errore, non
+insistere con tentativi ripetuti: ometti semplicemente la sezione "Dati
+in Tempo Reale" dal bollettino invece di bloccare l'intera generazione o
+inventare valori.
+
+Se la localita' non ha una centralina nota, salta questo passo (nessuna
+sezione "Dati in Tempo Reale" nel bollettino).
+
 ## 1. Raccolta dati reali
 
 ```bash
@@ -136,29 +162,41 @@ copyright). Questo e' il modo in cui rispondi alla richiesta dell'utente
 di "cartine vere" per pressione/geopotenziale/CAPE/shear/umidita' in
 quota, non solo grafici tuoi.
 
-Scrivi tu `ecmwf_requests.json` scegliendo con criterio editoriale quali
-istanti scaricare (non tutti i giorni per tutti i parametri: sarebbero
-troppe immagini). Schema e lista prodotti completa nella docstring dello
-script; in sintesi, per ogni oggetto della lista specifica `product`,
-`valid_time` (ISO `YYYY-MM-DDTHH:00:00Z`), opzionale `level` (hPa, solo
-per `medium-uv-rh`/`medium-t-z`), e `caption`. Criterio consigliato:
-- 1 cartina `medium-mslp-rain` + 1 `medium-z500-t850` per il/i giorno/i
-  chiave dell'evoluzione sinottica (12 UTC) — per l'Analisi Sinottica.
+**Regola di default (dal 2026-07-26): ogni prodotto ECMWF che decidi di
+usare va scaricato SEMPRE come sequenza animata (`series_start`/
+`series_end`/`interval_hours`), mai come singolo `valid_time` isolato.**
+Cosi' sia il PDF (che pesca un frame rappresentativo da ogni sequenza,
+vedi punto 7) sia l'HTML (che mostra la sequenza intera animata) danno un
+quadro completo dell'evoluzione, non un'istantanea. Scrivi tu
+`ecmwf_requests.json` scegliendo con criterio editoriale quali prodotti
+scaricare (non serve scaricarli tutti: sarebbero troppe immagini e tempi
+lunghi). Schema e lista prodotti completa nella docstring dello script;
+in sintesi, per ogni oggetto della lista specifica `product`,
+`series_start`/`series_end` (ISO `YYYY-MM-DDTHH:00:00Z`, tipicamente
+l'intero periodo del bollettino), `interval_hours` (6h e' un buon
+compromesso tra copertura e tempo di download; usa 3h solo se il periodo
+e' breve, 1-2 giorni), opzionale `level` (hPa, solo per
+`medium-uv-rh`/`medium-t-z`), e `caption`. Criterio consigliato su quali
+prodotti includere:
+- `medium-mslp-rain` + `medium-z500-t850` per tutto il periodo — per
+  l'Analisi Sinottica e il Confronto Modelli.
 - `medium-cape-cin`, `medium-bulk-shear`, `medium-uv-rh` (level 700 o
-  850), `medium-indices` per l'ora di picco convettivo individuata —
-  per i Parametri Avanzati (e come cross-check indipendente dei tuoi
-  calcoli MetPy: se il CAPE ECMWF diverge molto da quello calcolato,
-  dillo).
+  850), `medium-indices` per tutto il periodo (o almeno per la finestra
+  del giorno/dei giorni a rischio convettivo) — per i Parametri Avanzati
+  (e come cross-check indipendente dei tuoi calcoli MetPy: se il CAPE
+  ECMWF diverge molto da quello calcolato, dillo).
 - `medium-zero-level`/`medium-snowfall` solo se pertinenti al periodo.
 
-Per il report **HTML** (punto 8) genera anche animazioni: nello stesso
-`ecmwf_requests.json` aggiungi oggetti con `series_start`/`series_end`/
-`interval_hours` invece di `valid_time` singolo (vedi docstring dello
-script) — un frame ogni 3-6h per l'intero periodo, per i prodotti che piu'
-aiutano a "vedere" l'evoluzione (pressione+pioggia, geopotenziale, CAPE,
-temperatura+vento, umidita' in quota). Lo script scrive queste sequenze
-in `ecmwf_manifest.json` sotto la chiave `"sequences"`, pronte per
-`report.json`/`build_html.py`.
+Lo script scrive ogni sequenza in `ecmwf_manifest.json` sotto la chiave
+`"sequences"` (lista di frame con `file`/`valid_time`/`label`), pronte
+per `report.json`/`build_html.py`. **Tempi**: con 6+ prodotti su 3 giorni
+a 6h di intervallo puoi arrivare a 60-70 richieste HTTP: lancia il
+comando con un timeout generoso (l'API ECMWF va occasionalmente in
+timeout su singole richieste sotto carico, normale, non serve
+rilanciare tutto: lo script prosegue con gli altri frame e segnala con
+`ERR` quelli falliti — se un frame manca in una sequenza l'animazione
+funziona comunque con i frame restanti) o dividi in piu' chiamate per
+gruppi di prodotti se rischi di superare il timeout disponibile.
 
 La proiezione geografica e' scelta automaticamente da lat/lon (euristica
 per regione europea/continentale); leggi l'output dello script — se una
@@ -211,7 +249,12 @@ python3 infographic.py /tmp/meteo_<slug>/data.json /tmp/meteo_<slug>/content.jso
 ## 7. Scrivi l'analisi e assembla il report
 
 Scrivi `/tmp/meteo_<slug>/report.json` (vedi lo schema completo in testa a
-`scripts/build_pdf.py`). Contiene: `sintesi`, `risk_table`,
+`scripts/build_pdf.py`). Contiene: opzionale `live_station` (solo se hai
+eseguito il punto 0.5: `{"label": "...", "updated_at": "26/07 16:45 locale",
+"temperature_c", "humidity_pct", "pressure_hpa", "dewpoint_c",
+"wind_speed_kn", "wind_gust_kn", "wind_dir_deg", "rain_today_mm"}`,
+copiati/derivati da `weathercloud.json` — questa sezione viene mostrata
+per prima, prima della Sintesi, sia nel PDF sia nell'HTML), `sintesi`, `risk_table`,
 `sections` (Analisi Sinottica, Confronto Modelli Numerici — con tabella
 per-modello e giudizio esplicito su accordo/divergenza/scenario piu'
 probabile —, Parametri Convettivi Avanzati, Convezione e Rischio Temporali

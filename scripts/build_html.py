@@ -4,11 +4,13 @@ Genera il report HTML del bollettino: stesso contenuto testuale/tabelle del
 PDF (build_pdf.py, stesso report.json) ma con IN PIU':
   - animazioni (loop) delle cartine ECMWF su piu' istanti temporali, per
     tutti i prodotti scaricati come "series" da fetch_ecmwf_charts.py;
-  - una mappa radar live (RainViewer, dati reali, ultime ~2 ore, aggiornate
-    ogni 10 minuti) centrata sulla localita', con loop play/pause;
-  - satellite (infrarosso, RainViewer) nella stessa mappa quando la fonte
-    gratuita lo rende disponibile in quel momento (non sempre presente:
-    vedi nota nello script).
+  - due mappe live separate (RainViewer, dati reali, ultime ~2 ore,
+    aggiornate ogni 10 minuti) centrate sulla localita', ciascuna con
+    loop play/pause propria: prima il satellite infrarosso, poi il
+    radar precipitazioni (sezioni distinte, non sovrapposte sulla
+    stessa mappa, cosi' il satellite non resta nascosto sotto il
+    radar). Il satellite non e' sempre disponibile: vedi nota nello
+    script.
   - NON include fulmini: non esiste una fonte gratuita con licenza chiara
     per la ridistribuzione (vedi MANUTENZIONE.md).
 
@@ -70,6 +72,43 @@ def img_data_uri(path, quality=82, max_dim=1600):
     return f"data:image/webp;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
 
 
+COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"]
+
+
+def compass(deg):
+    if deg is None:
+        return ""
+    return COMPASS[round(deg / 22.5) % 16]
+
+
+def render_live_station(live):
+    if not live:
+        return ""
+    def stat(label, value):
+        if value is None or value == "":
+            return ""
+        return f'<div class="live-stat"><span class="live-val">{esc(value)}</span><span class="live-lbl">{esc(label)}</span></div>'
+    wdir = live.get("wind_dir_deg")
+    wdir_txt = f"{wdir}° {compass(wdir)}" if wdir is not None else None
+    stats = "".join([
+        stat("Temperatura", f"{live['temperature_c']}°C" if live.get("temperature_c") is not None else None),
+        stat("Umidita'", f"{live['humidity_pct']}%" if live.get("humidity_pct") is not None else None),
+        stat("Pressione", f"{live['pressure_hpa']} hPa" if live.get("pressure_hpa") is not None else None),
+        stat("Punto di rugiada", f"{live['dewpoint_c']}°C" if live.get("dewpoint_c") is not None else None),
+        stat("Vento", f"{live['wind_speed_kn']} kn" if live.get("wind_speed_kn") is not None else None),
+        stat("Raffica", f"{live['wind_gust_kn']} kn" if live.get("wind_gust_kn") is not None else None),
+        stat("Direzione vento", wdir_txt),
+        stat("Pioggia oggi", f"{live['rain_today_mm']} mm" if live.get("rain_today_mm") is not None else None),
+    ])
+    return f"""
+<section class="live-station">
+  <h2>Dati in Tempo Reale (centralina locale)</h2>
+  <p class="note">{esc(live.get('label', ''))} &mdash; aggiornato {esc(live.get('updated_at', ''))}. Lettura strumentale reale, non un dato di modello: puo' differire localmente dai valori di modello usati nel resto del bollettino.</p>
+  <div class="live-grid">{stats}</div>
+</section>
+"""
+
+
 def risk_span(level):
     color = RISK_COLORS.get(level, "#868e96")
     return f'<span class="risk" style="color:{color};font-weight:700">{esc(level)}</span>'
@@ -122,54 +161,62 @@ function initPlayer(id, frames, intervalMs) {
 """
 
 RADAR_JS = """
-async function initRadarMap(lat, lon) {
-  const map = L.map('radarmap').setView([lat, lon], 7);
+let _rainviewerData = null;
+async function _getRainviewerData() {
+  if (_rainviewerData) return _rainviewerData;
+  const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+  _rainviewerData = await res.json();
+  return _rainviewerData;
+}
+
+// kind: 'satellite' (infrarosso, data.satellite.infrared, tile /0/0_0.png)
+//    o  'radar' (precipitazione, data.radar.past, tile /2/1_1.png)
+async function initLiveMap(prefix, lat, lon, kind) {
+  const map = L.map(prefix + 'map').setView([lat, lon], 7);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors', maxZoom: 12
   }).addTo(map);
   L.marker([lat, lon]).addTo(map);
-  const statusEl = document.getElementById('radar_status');
+  const statusEl = document.getElementById(prefix + '_status');
+  const label = document.getElementById(prefix + '_label');
+  const slider = document.getElementById(prefix + '_slider');
+  const btn = document.getElementById(prefix + '_playbtn');
+  const tileSuffix = kind === 'satellite' ? '/256/{z}/{x}/{y}/0/0_0.png' : '/256/{z}/{x}/{y}/2/1_1.png';
+  const opacity = kind === 'satellite' ? 0.85 : 0.75;
+  const humanName = kind === 'satellite' ? 'Satellite infrarosso' : 'Radar';
   try {
-    const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
-    const data = await res.json();
+    const data = await _getRainviewerData();
     const host = data.host;
-    const frames = (data.radar && data.radar.past) ? data.radar.past : [];
-    const satFrames = (data.satellite && data.satellite.infrared) ? data.satellite.infrared : [];
+    const frames = kind === 'satellite'
+      ? ((data.satellite && data.satellite.infrared) ? data.satellite.infrared : [])
+      : ((data.radar && data.radar.past) ? data.radar.past : []);
     if (frames.length === 0) {
-      statusEl.textContent = 'Radar non disponibile al momento dalla fonte gratuita (RainViewer).';
+      statusEl.textContent = humanName + ' non disponibile al momento dalla fonte gratuita (RainViewer).';
       return;
     }
-    let radarLayers = frames.map(f => L.tileLayer(host + f.path + '/256/{z}/{x}/{y}/2/1_1.png', {opacity: 0.75, zIndex: 5}));
-    let satLayers = satFrames.map(f => L.tileLayer(host + f.path + '/256/{z}/{x}/{y}/0/0_0.png', {opacity: 0.6, zIndex: 4}));
+    let layers = frames.map(f => L.tileLayer(host + f.path + tileSuffix, {opacity: opacity, zIndex: 5}));
     let idx = frames.length - 1;
-    let currentRadar = radarLayers[idx].addTo(map);
-    let currentSat = satLayers.length ? satLayers[Math.min(idx, satLayers.length - 1)].addTo(map) : null;
+    let current = layers[idx].addTo(map);
     let playing = true, timer = null;
-    const label = document.getElementById('radar_label');
-    const slider = document.getElementById('radar_slider');
     slider.max = frames.length - 1;
     function showFrame(i) {
-      map.removeLayer(currentRadar);
-      if (currentSat) map.removeLayer(currentSat);
-      currentRadar = radarLayers[i].addTo(map);
-      if (satLayers.length) currentSat = satLayers[Math.min(i, satLayers.length - 1)].addTo(map);
+      map.removeLayer(current);
+      current = layers[i].addTo(map);
       idx = i;
       const d = new Date(frames[i].time * 1000);
-      label.textContent = 'Radar: ' + d.toLocaleString('it-IT', {hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'}) + ' locale';
+      label.textContent = humanName + ': ' + d.toLocaleString('it-IT', {hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'}) + ' locale';
       slider.value = i;
     }
     function tick() { showFrame((idx + 1) % frames.length); }
-    const btn = document.getElementById('radar_playbtn');
     function play() { if (timer) return; timer = setInterval(tick, 600); playing = true; btn.textContent = '\\u23F8 Pausa'; }
     function pause() { clearInterval(timer); timer = null; playing = false; btn.textContent = '\\u25B6 Play'; }
     btn.addEventListener('click', () => playing ? pause() : play());
     slider.addEventListener('input', (e) => { pause(); showFrame(parseInt(e.target.value)); });
     showFrame(idx);
     play();
-    statusEl.textContent = 'Radar: ultimi ' + frames.length + ' frame (~' + Math.round(frames.length * 10 / 60 * 10) / 10 + ' min, ogni 10 min) - fonte RainViewer.'
-      + (satLayers.length ? ' Satellite infrarosso disponibile.' : ' Satellite infrarosso non disponibile in questo momento dalla fonte gratuita.');
+    statusEl.textContent = humanName + ': ultimi ' + frames.length + ' frame (~' + Math.round(frames.length * 10 / 60 * 10) / 10 + ' min, ogni 10 min, massimo storico offerto dalla fonte gratuita RainViewer).';
   } catch (e) {
-    statusEl.textContent = 'Impossibile caricare il radar live (serve connessione internet nel browser che apre questo file). Dettaglio: ' + e;
+    statusEl.textContent = 'Impossibile caricare ' + humanName.toLowerCase() + ' live (serve connessione internet nel browser che apre questo file). Dettaglio: ' + e;
   }
 }
 """
@@ -320,12 +367,20 @@ def main():
   .btn {{ background:var(--navy); color:#fff; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:.9rem; }}
   .btn:hover {{ opacity:.85; }}
   .label {{ font-size:.85rem; color:var(--muted); min-width:140px; text-align:right; }}
-  #radarmap {{ height:460px; width:100%; border-radius:8px; }}
+  #radarmap, #satmap {{ height:460px; width:100%; border-radius:8px; }}
   .risk {{ font-weight:700; }}
+  .live-grid {{ display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }}
+  .live-stat {{ background:rgba(76,110,245,.08); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:120px; display:flex; flex-direction:column; align-items:center; }}
+  .live-val {{ font-size:1.25rem; font-weight:700; color:var(--navy); }}
+  @media (prefers-color-scheme: dark) {{ .live-val {{ color:#fff; }} }}
+  .live-lbl {{ font-size:.78rem; color:var(--muted); margin-top:2px; }}
   footer {{ text-align:center; color:var(--muted); font-size:.8rem; padding:20px; }}
 </style>
 </head>
 <body>
+<script>
+{PLAYER_JS_ONCE}
+</script>
 <header>
   <img src="data:image/png;base64,{logo_b64}" />
   <h1>{esc(data.get('title', 'Bollettino Meteorologico Professionale'))}</h1>
@@ -334,6 +389,7 @@ def main():
 </header>
 <main>
 
+{render_live_station(data.get('live_station'))}
 <section>
   <h2>Sintesi</h2>
   <p>{esc(data.get('sintesi',''))}</p>
@@ -351,8 +407,20 @@ def main():
 </section>
 
 <section>
-  <h2>Radar e satellite osservato (ultime ore)</h2>
-  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): radar RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti: non esiste una fonte gratuita con storico piu' lungo e licenza di ridistribuzione chiara gia' validata (vedi MANUTENZIONE.md). Satellite infrarosso incluso quando la fonte gratuita lo rende disponibile in quel momento. I fulmini non sono inclusi per lo stesso motivo di licenza.</p>
+  <h2>Satellite osservato (ultime ore)</h2>
+  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): satellite infrarosso RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti. Non sempre disponibile: la fonte gratuita non garantisce copertura continua.</p>
+  <div id="satmap"></div>
+  <div class="player-controls">
+    <button id="sat_playbtn" class="btn">&#9208; Pausa</button>
+    <input id="sat_slider" type="range" min="0" max="12" value="12" step="1" style="flex:1" />
+    <span id="sat_label" class="label"></span>
+  </div>
+  <p id="sat_status" class="note"></p>
+</section>
+
+<section>
+  <h2>Radar osservato (ultime ore)</h2>
+  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): radar precipitazioni RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti: non esiste una fonte gratuita con storico piu' lungo e licenza di ridistribuzione chiara gia' validata (vedi MANUTENZIONE.md). I fulmini non sono inclusi per lo stesso motivo di licenza.</p>
   <div id="radarmap"></div>
   <div class="player-controls">
     <button id="radar_playbtn" class="btn">&#9208; Pausa</button>
@@ -389,9 +457,9 @@ def main():
 <footer>Generato con meteoP@d0 &middot; dati modelli numerici pubblici (Open-Meteo, ECMWF OpenCharts CC BY 4.0, RainViewer)</footer>
 
 <script>
-{PLAYER_JS_ONCE}
 {RADAR_JS}
-initRadarMap({args.lat}, {args.lon});
+initLiveMap("sat", {args.lat}, {args.lon}, "satellite");
+initLiveMap("radar", {args.lat}, {args.lon}, "radar");
 </script>
 </body>
 </html>

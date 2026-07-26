@@ -198,6 +198,29 @@ def main():
     story.append(NextPageTemplate("content"))
     story.append(PageBreak())
 
+    live = data.get("live_station")
+    if live:
+        story.append(Paragraph("Dati in Tempo Reale (centralina locale)", ss["SectionHeading"]))
+        story.append(Paragraph(
+            f"{live.get('label', '')} &mdash; aggiornato {live.get('updated_at', '')}. "
+            "Lettura strumentale reale, non un dato di modello.", ss["Body"]))
+        rows = []
+        pairs = [
+            ("Temperatura", f"{live['temperature_c']}°C" if live.get("temperature_c") is not None else None),
+            ("Umidita'", f"{live['humidity_pct']}%" if live.get("humidity_pct") is not None else None),
+            ("Pressione", f"{live['pressure_hpa']} hPa" if live.get("pressure_hpa") is not None else None),
+            ("Punto di rugiada", f"{live['dewpoint_c']}°C" if live.get("dewpoint_c") is not None else None),
+            ("Vento", f"{live['wind_speed_kn']} kn" if live.get("wind_speed_kn") is not None else None),
+            ("Raffica", f"{live['wind_gust_kn']} kn" if live.get("wind_gust_kn") is not None else None),
+            ("Pioggia oggi", f"{live['rain_today_mm']} mm" if live.get("rain_today_mm") is not None else None),
+        ]
+        pairs = [p for p in pairs if p[1] is not None]
+        for i in range(0, len(pairs), 2):
+            chunk = pairs[i:i + 2]
+            rows.append([x for pair in chunk for x in pair] if len(chunk) == 2 else [chunk[0][0], chunk[0][1], "", ""])
+        story.append(make_table(["Parametro", "Valore", "Parametro", "Valore"], rows, ss))
+        story.append(Spacer(1, 10))
+
     story.append(Paragraph("Sintesi", ss["SectionHeading"]))
     story.append(Paragraph(data.get("sintesi", ""), ss["Sintesi"]))
     story.append(Spacer(1, 6))
