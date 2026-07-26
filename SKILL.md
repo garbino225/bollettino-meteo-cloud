@@ -18,7 +18,8 @@ vere (MetPy, non stime a occhio), e scaricano le **cartine sinottiche
 ufficiali ECMWF** (OpenCharts, licenza CC-BY-4.0) per pressione,
 geopotenziale, CAPE, shear e umidita' in quota. Il risultato finale e'
 **sia un PDF sia un report HTML** (quest'ultimo con animazioni delle
-cartine e una mappa radar/satellite live).
+cartine e satellite/radar/fulmini reali, tutto incorporato senza
+dipendenze da rete/JavaScript per chi lo apre).
 
 Struttura della skill (percorsi sempre relativi alla cartella radice
 della skill stessa, cosi' funziona invariata sia in Claude Code locale
@@ -270,9 +271,11 @@ scritto in `ecmwf_requests.json`, arricchita con "Fonte: ECMWF (CC BY 4.0)"),
 `infographic`, e opzionale `animations` (solo se hai generato sequenze
 ECMWF — vedi punto 5): copia la lista `sequences` da `ecmwf_manifest.json`
 rinominando `caption`→`title` per ciascuna voce, i `frames` restano
-identici. Opzionale anche `satellite` (solo per l'HTML, punto 8): copia
-il contenuto del manifest prodotto da `fetch_meteoam_satellite.py`
-(`{"product": "...", "frames": [{"file", "label"}, ...]}`).
+identici. Opzionali anche `satellite` e `radar` (solo per l'HTML, punto
+8): copia il contenuto dei manifest prodotti da due chiamate a
+`fetch_meteoam_satellite.py` (`--product ITALIA24` per `satellite`,
+`--product RADSATLAM` per `radar`) — schema
+`{"product": "...", "frames": [{"file", "label"}, ...]}` per entrambi.
 
 Stile obbligatorio (vale per tutto il testo che scrivi, incluso il
 riassunto in chat del punto 9 — non solo report.json):
@@ -313,52 +316,57 @@ scritta automaticamente da `build_pdf.py`/`build_html.py`.
 python3 build_pdf.py /tmp/meteo_<slug>/report.json --charts-dir /tmp/meteo_<slug>/charts --logo ../assets/logo.png --out /tmp/meteo_<slug>/bollettino_<slug>.pdf
 ```
 
-## 8. Report HTML con animazioni, satellite reale e radar live (di default, sempre)
+## 8. Report HTML con animazioni, satellite e radar/fulmini reali (di default, sempre)
 
 Oltre al PDF genera **sempre anche la versione HTML**, piu' efficace per
 mostrare l'evoluzione temporale (loop) invece di singole immagini statiche:
 
 ```bash
-python3 fetch_meteoam_satellite.py --frames 8 --outdir /tmp/meteo_<slug>/charts --prefix <slug>
-python3 build_html.py /tmp/meteo_<slug>/report.json --charts-dir /tmp/meteo_<slug>/charts --logo ../assets/logo.png --lat <LAT> --lon <LON> --out /tmp/meteo_<slug>/bollettino_<slug>.html
+python3 fetch_meteoam_satellite.py --product ITALIA24 --frames 8 --outdir /tmp/meteo_<slug>/charts --prefix <slug>
+python3 fetch_meteoam_satellite.py --product RADSATLAM --frames 8 --outdir /tmp/meteo_<slug>/charts --prefix <slug>_radar
+python3 build_html.py /tmp/meteo_<slug>/report.json --charts-dir /tmp/meteo_<slug>/charts --logo ../assets/logo.png --out /tmp/meteo_<slug>/bollettino_<slug>.html
 ```
 
 Usa lo stesso `report.json` del PDF (stesso contenuto testuale/tabelle),
-con in piu' i campi opzionali `animations` e `satellite` (vedi punto 7).
-Genera anche **quante piu' sequenze animate ha senso mostrare** per
-rendere l'analisi piu' chiara: tipicamente pressione+pioggia,
-geopotenziale 500/850hPa, CAPE/CIN, temperatura+vento, vento+umidita' a
-un livello di quota — ognuna come "series" in `ecmwf_requests.json`
-(punto 4), non solo istantanee singole. **Le animazioni sono GIF
-multi-frame incorporate (non un player JS)**: giocano ovunque, incluse
-le anteprime in-app di app di messaggistica (Telegram inclusa) che
-disabilitano JavaScript e/o non supportano il WebP animato — verificato
-il problema concretamente su iPhone/Telegram prima di arrivare al GIF
-come soluzione definitiva, non e' una scelta preventiva.
+con in piu' i campi opzionali `animations`, `satellite` e `radar` (vedi
+punto 7). Genera anche **quante piu' sequenze animate ECMWF ha senso
+mostrare** per rendere l'analisi piu' chiara: tipicamente pressione+
+pioggia, geopotenziale 500/850hPa, CAPE/CIN, temperatura+vento, vento+
+umidita' a un livello di quota — ognuna come "series" in
+`ecmwf_requests.json` (punto 4), non solo istantanee singole.
 
-Il file HTML e' **completamente autonomo** (tutte le immagini, statiche
-e animate, incorporate come base64/data URI — nessuna cartella `charts/`
-da spostare insieme al file), con l'eccezione della mappa radar (vedi
-sotto), l'unica parte che richiede ancora rete/JavaScript nel browser di
-chi apre il file:
-- **Satellite Meteosat REALE** (`fetch_meteoam_satellite.py`, CNMCA -
-  Aeronautica Militare / EUMETSAT, dati "Essential" a uso libero):
-  immagini vere scaricate in fase di generazione, non una mappa live.
-  Prodotto di default `ITALIA24` (combo HRV/IR, funziona di giorno e di
-  notte — importante per la routine automatica che gira all'alba).
-- **Radar** reale (RainViewer, gratuito, ultime ~2 ore ogni 10 minuti) su
-  una mappa Leaflet centrata sulla localita', con play/pause — questa
-  parte rimane JS+rete perche' mostra dati che cambiano in continuazione
-  e non si possono "congelare" in un'immagine come il satellite; se
-  l'utente segnala che non si vede in un'app di messaggistica, la
-  soluzione e' aprire il file in un browser esterno, non un fix di
-  codice (e' un limite strutturale, non un bug).
-- **Fulmini: non inclusi.** Non esiste una fonte gratuita con licenza di
-  ridistribuzione chiara per i fulmini in tempo reale (Blitzortung/
-  lightningmaps.org non hanno un'API pubblica redistribuibile) — non
-  costruire un fetcher per questo finche' non cambia la situazione.
-  Dillo esplicitamente all'utente se lo richiede, invece di ometterlo in
-  silenzio o inventare dati.
+**Tutto e' GIF animata incorporata (nessun player JS, nessuna mappa
+live)**: giocano ovunque, incluse le anteprime HTML in-app di app di
+messaggistica (Telegram inclusa) che disabilitano JavaScript e/o non
+supportano il WebP animato — entrambi i problemi verificati
+concretamente su iPhone (prima il player JS non partiva mai, poi il WebP
+animato non veniva riprodotto nell'anteprima in-app) prima di arrivare
+al GIF come soluzione definitiva, non e' stata una scelta preventiva.
+Il file HTML e' quindi **completamente autonomo**: nessuna dipendenza da
+rete/JavaScript per chi lo apre (a differenza delle versioni precedenti
+di questa skill, che usavano una mappa Leaflet+RainViewer live per
+radar/satellite — architettura abbandonata perche' irrisolvibile lato
+codice per lo stesso motivo).
+
+- **Satellite** (`fetch_meteoam_satellite.py --product ITALIA24`): combo
+  HRV/IR, funziona di giorno e di notte — importante per la routine
+  automatica che gira all'alba.
+- **Radar e fulmini** (`fetch_meteoam_satellite.py --product RADSATLAM`):
+  radar precipitazioni (SRI mm/h) + satellite IR + **fulmini reali della
+  rete LAMPINET** dell'Aeronautica Militare, tutti sovrapposti nella
+  stessa immagine ufficiale. Risolve anche il problema storico dei
+  fulmini (prima non disponibili gratuitamente, vedi nota sotto): non
+  serve piu' un fetcher separato per quelli.
+- Entrambi: fonte CNMCA (Aeronautica Militare) / EUMETSAT, dati
+  "Essential" classificati a uso libero senza restrizioni (vedi
+  meteoam.it/it/licenze-uso-eumetsat). Immagini vere scaricate in fase
+  di generazione (non mappe live): non si aggiornano riaprendo il file
+  piu' tardi, mostrano l'ultima situazione disponibile al momento della
+  generazione del bollettino.
+- Se `fetch_meteoam_satellite.py` fallisce (rete non disponibile in
+  quella sessione, cambio di endpoint lato meteoam.it), salta
+  semplicemente il campo `satellite`/`radar` in report.json invece di
+  bloccare l'intera generazione — segnalalo nel bollettino.
 
 Copia sia il PDF sia l'HTML in una posizione comoda per l'utente (es.
 Desktop o la cartella del progetto corrente); l'HTML puo' essere spostato
@@ -420,27 +428,26 @@ sia possibile in modo riservato — lo e', vedi MANUTENZIONE.md.
   rispondono piu' con pattern statici. Non inventare URL per questi siti:
   o li trovi con una WebSearch puntuale al momento della richiesta, o ti
   affidi al confronto numerico multi-modello di Open-Meteo.
-- `build_html.py` usa Leaflet (via CDN unpkg) e l'API pubblica gratuita
-  di RainViewer (`api.rainviewer.com`) solo per il **radar**: e' JS che
-  gira nel browser di chi APRE il file, quindi funziona anche se tu
-  (l'agente) non hai piu' accesso a internet dopo aver generato il file
-  — ma smette di funzionare se l'utente apre l'HTML offline, o se
-  l'anteprima in cui lo apre disabilita JavaScript (es. anteprima
-  documenti in-app di Telegram: in quel caso va aperto in un browser
-  esterno, vedi punto 8).
-- Il **satellite** invece usa immagini Meteosat reali scaricate da
-  `fetch_meteoam_satellite.py` (CNMCA/Aeronautica Militare) e incorporate
-  come GIF animata: non serve piu' rete/JS lato utente per vederlo,
-  funziona anche offline e in anteprime che bloccano JavaScript. Cambio
-  fatto il 2026-07-26 dopo che l'utente ha verificato che ne' il player
-  JS ne' il WebP animato (entrambi provati prima) funzionavano
-  nell'anteprima HTML di Telegram su iPhone — il GIF e' risultato il
-  formato piu' universalmente compatibile. Stessa tecnica (GIF) usata
-  anche per le animazioni ECMWF del punto 5/8.
-- I fulmini in tempo reale NON hanno una fonte gratuita con licenza di
-  ridistribuzione chiara (no a Blitzortung/lightningmaps scraping):
-  non implementarli finche' non emerge un provider con API pubblica
-  chiara (es. un servizio a pagamento che l'utente scelga esplicitamente).
+- **Radar, satellite e fulmini** in `build_html.py` NON usano piu'
+  Leaflet/RainViewer (rimosso il 2026-07-26): usano immagini Meteosat
+  reali scaricate da `fetch_meteoam_satellite.py` (CNMCA/Aeronautica
+  Militare) e incorporate come GIF animata. Nessuna rete/JS lato utente
+  per vederle, funzionano anche offline e in anteprime che bloccano
+  JavaScript (es. anteprima documenti in-app di Telegram). Cambio fatto
+  dopo che l'utente ha verificato, in sequenza, che ne' un player JS ne'
+  il WebP animato (entrambi provati prima) funzionavano nell'anteprima
+  HTML di Telegram su iPhone: il GIF e' risultato il formato piu'
+  universalmente compatibile, usato anche per le animazioni ECMWF del
+  punto 5/8. **Se in futuro emerge un problema simile su un'altra app di
+  messaggistica, il fix e' sempre lo stesso pattern**: dati reali
+  precotti in un formato immagine nativo (GIF), mai un player JS o un
+  formato immagine di nicchia, per un file destinato ad app che
+  potrebbero disabilitare JavaScript o non supportare formati recenti.
+- **Fulmini**: risolti gratuitamente tramite RADSATLAM (rete LAMPINET
+  dell'Aeronautica Militare, inclusa nell'immagine radar/satellite
+  ufficiale) — non serve piu' cercare un provider a pagamento come
+  ipotizzato in passato (Blitzortung/lightningmaps.org restano scartati,
+  non serve riconsiderarli).
 - `send_telegram.py` (uso manuale locale) non contiene mai credenziali:
   legge `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` da env o da
   `--token`/`--chat-id`. Per l'uso automatico via routine cloud vedi

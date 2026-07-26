@@ -1,30 +1,27 @@
 #!/usr/bin/env python3
 """
 Genera il report HTML del bollettino: stesso contenuto testuale/tabelle del
-PDF (build_pdf.py, stesso report.json) ma con IN PIU':
-  - animazioni (loop) delle cartine ECMWF su piu' istanti temporali, per
-    tutti i prodotti scaricati come "series" da fetch_ecmwf_charts.py, e
-    del satellite Meteosat (fetch_meteoam_satellite.py) - incorporate
-    come GIF animate multi-frame (non JS): giocano ovunque, incluse le
-    anteprime HTML in-app di app come Telegram che disabilitano
-    JavaScript e/o non riproducono il WebP animato (verificato su
-    iPhone: entrambi i motivi hanno impedito la riproduzione in passato,
-    il GIF e' il formato piu' universalmente supportato);
-  - una mappa radar live (RainViewer, dati reali, ultime ~2 ore,
-    aggiornate ogni 10 minuti) centrata sulla localita', con loop
-    play/pause: questa SI' richiede JavaScript e rete al momento
-    dell'apertura (per natura, mostra dati che cambiano in continuazione
-    e non possono essere "congelati" in un'immagine) - se non compare
-    in un'anteprima in-app, va aperta in un browser esterno.
-  - NON include fulmini: non esiste una fonte gratuita con licenza chiara
-    per la ridistribuzione (vedi MANUTENZIONE.md).
-
-A differenza del PDF, il report HTML e' un file completamente autonomo:
-tutte le immagini (statiche e animate) sono incorporate, solo la mappa
-radar richiede connessione internet nel browser che lo apre.
+PDF (build_pdf.py, stesso report.json) ma con IN PIU' animazioni (loop) di:
+  - cartine ECMWF su piu' istanti temporali, per tutti i prodotti
+    scaricati come "series" da fetch_ecmwf_charts.py;
+  - satellite Meteosat (fetch_meteoam_satellite.py, prodotto ITALIA24);
+  - radar precipitazioni + fulmini reali rete LAMPINET (stesso script,
+    prodotto RADSATLAM).
+Tutte incorporate come GIF animate multi-frame (non un player JS, non
+mappe live): giocano ovunque, incluse le anteprime HTML in-app di app
+come Telegram che disabilitano JavaScript e/o non riproducono il WebP
+animato (entrambi i problemi verificati concretamente su iPhone prima di
+arrivare al GIF come soluzione definitiva - vedi MANUTENZIONE.md). Il
+file e' quindi **completamente autonomo**: nessuna dipendenza da
+rete/JavaScript per chi lo apre, a differenza delle versioni precedenti
+di questa skill che usavano mappe Leaflet+RainViewer live.
+NON include un satellite/radar "live" nel senso stretto (dati che
+cambiano mentre guardi): le immagini sono quelle piu' recenti disponibili
+al momento della generazione del report, non si aggiornano riaprendo il
+file piu' tardi.
 
 Uso:
-    python3 build_html.py report.json --charts-dir charts/ --logo logo.png --lat 44.44 --lon 12.29 --out bollettino.html
+    python3 build_html.py report.json --charts-dir charts/ --logo logo.png --out bollettino.html
 
 report.json: stesso schema di build_pdf.py, con in piu' (opzionale):
   "animations": [
@@ -32,12 +29,14 @@ report.json: stesso schema di build_pdf.py, con in piu' (opzionale):
      "note": "ECMWF ufficiale, CC BY 4.0",
      "frames": [{"file": "ecmwf_..._anim.png", "label": "23/07 12:00 UTC"}, ...]}
   ],
-  "satellite": {"product": "ITALIA24", "frames": [{"file": "..._meteosat_..._00.jpg", "label": "13:30 UTC il 26/07"}, ...]}
+  "satellite": {"product": "ITALIA24", "frames": [{"file": "..._meteosat_..._00.jpg", "label": "13:30 UTC il 26/07"}, ...]},
+  "radar": {"product": "RADSATLAM", "frames": [{"file": "..._meteosat_..._00.jpg", "label": "..."}, ...]}
 Le "animations" si costruiscono leggendo "sequences" da ecmwf_manifest.json
 (prodotto da fetch_ecmwf_charts.py quando usi "series" in requests.json) e
 copiandole quasi identiche (rinomina "caption" -> "title" e "frames" resta
-uguale). "satellite" si costruisce copiando il contenuto del manifest
-prodotto da fetch_meteoam_satellite.py.
+uguale). "satellite" e "radar" si costruiscono copiando il contenuto dei
+manifest prodotti da due chiamate a fetch_meteoam_satellite.py (una con
+--product ITALIA24, una con --product RADSATLAM).
 """
 import argparse
 import base64
@@ -143,66 +142,23 @@ def render_paragraphs(body):
     return "\n".join(parts)
 
 
-RADAR_JS = """
-async function initRadarMap(lat, lon) {
-  const map = L.map('radarmap').setView([lat, lon], 7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors', maxZoom: 12
-  }).addTo(map);
-  L.marker([lat, lon]).addTo(map);
-  const statusEl = document.getElementById('radar_status');
-  const label = document.getElementById('radar_label');
-  const slider = document.getElementById('radar_slider');
-  const btn = document.getElementById('radar_playbtn');
-  try {
-    const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
-    const data = await res.json();
-    const host = data.host;
-    const frames = (data.radar && data.radar.past) ? data.radar.past : [];
-    if (frames.length === 0) {
-      statusEl.textContent = 'Radar non disponibile al momento dalla fonte gratuita (RainViewer).';
-      return;
-    }
-    let layers = frames.map(f => L.tileLayer(host + f.path + '/256/{z}/{x}/{y}/2/1_1.png', {opacity: 0.75, zIndex: 5}));
-    let idx = frames.length - 1;
-    let current = layers[idx].addTo(map);
-    let playing = true, timer = null;
-    slider.max = frames.length - 1;
-    function showFrame(i) {
-      map.removeLayer(current);
-      current = layers[i].addTo(map);
-      idx = i;
-      const d = new Date(frames[i].time * 1000);
-      label.textContent = 'Radar: ' + d.toLocaleString('it-IT', {hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'}) + ' locale';
-      slider.value = i;
-    }
-    function tick() { showFrame((idx + 1) % frames.length); }
-    function play() { if (timer) return; timer = setInterval(tick, 600); playing = true; btn.textContent = '\\u23F8 Pausa'; }
-    function pause() { clearInterval(timer); timer = null; playing = false; btn.textContent = '\\u25B6 Play'; }
-    btn.addEventListener('click', () => playing ? pause() : play());
-    slider.addEventListener('input', (e) => { pause(); showFrame(parseInt(e.target.value)); });
-    showFrame(idx);
-    play();
-    statusEl.textContent = 'Radar: ultimi ' + frames.length + ' frame (~' + Math.round(frames.length * 10 / 60 * 10) / 10 + ' min, ogni 10 min, massimo storico offerto dalla fonte gratuita RainViewer).';
-  } catch (e) {
-    statusEl.textContent = 'Impossibile caricare il radar live (serve connessione internet nel browser che apre questo file). Dettaglio: ' + e;
-  }
-}
-"""
-
-
-def render_satellite(sat, charts_dir):
-    if not sat or not sat.get("frames"):
+def render_meteoam_gallery(title, note, gallery, charts_dir):
+    # Usato sia per il satellite (ITALIA24) sia per il radar/fulmini
+    # (RADSATLAM): entrambi sono immagini REALI scaricate da meteoam.it
+    # (CNMCA - Aeronautica Militare) in fase di generazione, non mappe
+    # live via JS - giocano ovunque, incluse le anteprime che
+    # disabilitano JavaScript.
+    if not gallery or not gallery.get("frames"):
         return ""
-    paths = [os.path.join(charts_dir, fr["file"]) for fr in sat["frames"]]
+    paths = [os.path.join(charts_dir, fr["file"]) for fr in gallery["frames"]]
     data_uri = animated_webp_data_uri(paths)
     n = len(paths)
-    first_label = sat["frames"][0].get("label", "")
-    last_label = sat["frames"][-1].get("label", "")
+    first_label = gallery["frames"][0].get("label", "")
+    last_label = gallery["frames"][-1].get("label", "")
     return f"""
 <section>
-  <h2>Satellite osservato (ultime ore)</h2>
-  <p class="note">Immagini Meteosat REALI e ufficiali (CNMCA - Aeronautica Militare / EUMETSAT, dati "Essential" a uso libero), non generate/previste: {esc(n)} istanti da {esc(first_label)} a {esc(last_label)}, animazione automatica in loop. Prodotto: {esc(sat.get('product', ''))}.</p>
+  <h2>{esc(title)}</h2>
+  <p class="note">{note} {esc(n)} istanti da {esc(first_label)} a {esc(last_label)}, animazione automatica in loop. Prodotto: {esc(gallery.get('product', ''))}.</p>
   <img class="player-img" src="{data_uri}" />
 </section>
 """
@@ -257,8 +213,6 @@ def main():
     ap.add_argument("report_json")
     ap.add_argument("--charts-dir", required=True)
     ap.add_argument("--logo", required=True)
-    ap.add_argument("--lat", type=float, required=True)
-    ap.add_argument("--lon", type=float, required=True)
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -334,8 +288,6 @@ def main():
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>{esc(data.get('title', 'Bollettino Meteorologico'))} - {esc(data.get('location_label',''))}</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root {{ --navy:{NAVY}; --orange:{ORANGE}; --blue:{BLUE}; --bg:#f8f9fa; --card:#ffffff; --text:#1a1a2e; --muted:#495057; --border:#dee2e6; }}
   @media (prefers-color-scheme: dark) {{
@@ -370,7 +322,6 @@ def main():
   .btn {{ background:var(--navy); color:#fff; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:.9rem; }}
   .btn:hover {{ opacity:.85; }}
   .label {{ font-size:.85rem; color:var(--muted); min-width:140px; text-align:right; }}
-  #radarmap {{ height:460px; width:100%; border-radius:8px; }}
   .risk {{ font-weight:700; }}
   .live-grid {{ display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }}
   .live-stat {{ background:rgba(76,110,245,.08); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:120px; display:flex; flex-direction:column; align-items:center; }}
@@ -406,18 +357,13 @@ def main():
   {"".join(sections_html)}
 </section>
 
-{render_satellite(data.get('satellite'), charts_dir)}
-<section>
-  <h2>Radar osservato (ultime ore)</h2>
-  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): radar precipitazioni RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti: non esiste una fonte gratuita con storico piu' lungo e licenza di ridistribuzione chiara gia' validata (vedi MANUTENZIONE.md). I fulmini non sono inclusi per lo stesso motivo di licenza. Richiede JavaScript attivo: se non compare nell'anteprima di un'app di messaggistica, apri il file in un browser (Safari/Chrome).</p>
-  <div id="radarmap"></div>
-  <div class="player-controls">
-    <button id="radar_playbtn" class="btn">&#9208; Pausa</button>
-    <input id="radar_slider" type="range" min="0" max="12" value="12" step="1" style="flex:1" />
-    <span id="radar_label" class="label"></span>
-  </div>
-  <p id="radar_status" class="note"></p>
-</section>
+{render_meteoam_gallery("Satellite osservato (ultime ore)",
+                         'Immagini Meteosat REALI e ufficiali (CNMCA - Aeronautica Militare / EUMETSAT, dati "Essential" a uso libero), non generate/previste:',
+                         data.get('satellite'), charts_dir)}
+
+{render_meteoam_gallery("Radar e fulmini osservati (ultime ore)",
+                         'Immagini REALI e ufficiali CNMCA (Aeronautica Militare): radar precipitazioni (SRI mm/h) + satellite IR + fulmini reali rete LAMPINET sovrapposti, non generate/previste:',
+                         data.get('radar'), charts_dir)}
 
 {"<section><h2>Animazioni modelli previsti (ECMWF ufficiale, CC BY 4.0)</h2>" + animations_html + "</section>" if animations_html else ""}
 
@@ -443,12 +389,8 @@ def main():
 {"<section><h2>Outlook 7 Giorni</h2><p class='note'>Tendenza estesa a colpo d'occhio (modello best_match, singolo modello: affidabilita' minore rispetto all'analisi multi-modello dei giorni precedenti).</p>" + outlook_html + "</section>" if outlook_html else ""}
 
 </main>
-<footer>Generato con meteoP@d0 &middot; dati modelli numerici pubblici (Open-Meteo, ECMWF OpenCharts CC BY 4.0, RainViewer)</footer>
+<footer>Generato con meteoP@d0 &middot; dati modelli numerici pubblici (Open-Meteo, ECMWF OpenCharts CC BY 4.0, CNMCA/Aeronautica Militare - EUMETSAT)</footer>
 
-<script>
-{RADAR_JS}
-initRadarMap({args.lat}, {args.lon});
-</script>
 </body>
 </html>
 """

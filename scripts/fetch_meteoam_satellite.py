@@ -18,11 +18,16 @@ attribuzione "CNMCA - Aeronautica Militare / EUMETSAT" comunque inclusa.
 Prodotto di default: ITALIA24 (combo HRV di giorno / IR 10.8um di notte,
 utilizzabile a qualunque ora, importante per la routine automatica che
 gira all'alba). Altri prodotti disponibili in PRODOTTI sotto - passa
---product per usarne un altro (es. TRUECOLORRGB per un'immagine a colori
-naturali, solo diurna).
+--product per usarne un altro, in particolare **RADSATLAM** (radar
+precipitazioni reale SRI mm/h + satellite IR + fulmini reali rete
+LAMPINET, ~20 min): usalo per il bollettino al posto della vecchia mappa
+radar live RainViewer/Leaflet, stesso motivo (JS che non funziona in
+anteprime che lo disabilitano) e con il vantaggio aggiuntivo di includere
+i fulmini, che prima non avevamo nessuna fonte gratuita per mostrare.
 
 Uso:
     python3 fetch_meteoam_satellite.py --frames 8 --outdir /tmp/meteo_<slug>/charts --prefix imola
+    python3 fetch_meteoam_satellite.py --product RADSATLAM --frames 8 --outdir /tmp/meteo_<slug>/charts --prefix imola_radar
 """
 import argparse
 import json
@@ -39,6 +44,7 @@ PRODOTTI = {
     "EUROPA108": "186d2a613a844ab9994a318c6f042fbb",       # infrarosso 10.8um, Europa, giorno e notte
     "TRUECOLORRGB": "432fdc6873734a2b9a5886655e9a2eec",    # colori naturali, solo diurna
     "NEFOITALIA": "fec9cc38633e4afea3689b19fe7ef08a",       # analisi nubi Italia
+    "RADSATLAM": "265296ba8be0410caa87a18186bcbb43",        # radar precipitazioni (SRI mm/h) + IR + fulmini reali (rete LAMPINET), ~20 min
 }
 
 
