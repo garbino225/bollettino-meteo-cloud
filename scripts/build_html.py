@@ -137,29 +137,6 @@ def render_paragraphs(body):
     return "\n".join(parts)
 
 
-PLAYER_JS_ONCE = """
-function initPlayer(id, frames, intervalMs) {
-  const img = document.getElementById(id + '_img');
-  const label = document.getElementById(id + '_label');
-  const slider = document.getElementById(id + '_slider');
-  const btn = document.getElementById(id + '_playbtn');
-  let idx = 0, playing = true, timer = null;
-  function show(i) {
-    idx = i;
-    img.src = frames[i].file;
-    label.textContent = frames[i].label;
-    slider.value = i;
-  }
-  function tick() { show((idx + 1) % frames.length); }
-  function play() { if (timer) return; timer = setInterval(tick, intervalMs); playing = true; btn.textContent = '\\u23F8 Pausa'; }
-  function pause() { clearInterval(timer); timer = null; playing = false; btn.textContent = '\\u25B6 Play'; }
-  btn.addEventListener('click', () => playing ? pause() : play());
-  slider.addEventListener('input', (e) => { pause(); show(parseInt(e.target.value)); });
-  show(0);
-  play();
-}
-"""
-
 RADAR_JS = """
 let _rainviewerData = null;
 async function _getRainviewerData() {
@@ -222,30 +199,44 @@ async function initLiveMap(prefix, lat, lon, kind) {
 """
 
 
-def render_animation(anim, idx):
-    player_id = f"anim{idx}"
-    # f["file"] e' gia' una data URI base64 (vedi chart_src in main): non va
-    # passata da os.path.basename, che troncherebbe l'immagine al primo '/'
-    # incontrato nel payload base64 (l'alfabeto base64 include '/')
-    frames_js = json.dumps([{"file": f["file"], "label": f.get("label", "")}
-                             for f in anim["frames"]])
-    n = len(anim["frames"])
+def animated_webp_data_uri(paths, quality=78, max_dim=1400, duration_ms=900):
+    # WebP animato (come una GIF): l'animazione e' nel formato immagine
+    # stesso, gioca ovunque senza JavaScript. Necessario perche' molte app
+    # di messaggistica (Telegram inclusa) disabilitano gli script
+    # nell'anteprima interna di un documento HTML: un player JS a base di
+    # <img src> cambiato via script restava fermo sul primo frame.
+    frames = []
+    size = None
+    for p in paths:
+        im = Image.open(p)
+        has_alpha = "A" in im.getbands()
+        im = im.convert("RGBA" if has_alpha else "RGB")
+        if max(im.size) > max_dim:
+            ratio = max_dim / max(im.size)
+            im = im.resize((max(1, int(im.width * ratio)), max(1, int(im.height * ratio))), Image.LANCZOS)
+        if size is None:
+            size = im.size
+        elif im.size != size:
+            im = im.resize(size, Image.LANCZOS)
+        frames.append(im)
+    buf = io.BytesIO()
+    frames[0].save(buf, "WEBP", save_all=True, append_images=frames[1:],
+                    duration=duration_ms, loop=0, quality=quality, method=6)
+    return f"data:image/webp;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
+
+
+def render_animation(anim, paths):
+    data_uri = animated_webp_data_uri(paths)
+    n = len(paths)
+    first_label = anim["frames"][0].get("label", "")
+    last_label = anim["frames"][-1].get("label", "")
     return f"""
 <div class="anim-block">
   <h3>{esc(anim.get('title', ''))}</h3>
   {f'<p class="note">{esc(anim["note"])}</p>' if anim.get('note') else ''}
-  <div class="player">
-    <img id="{player_id}_img" class="player-img" src="{esc(anim['frames'][0]['file'])}" />
-    <div class="player-controls">
-      <button id="{player_id}_playbtn" class="btn">&#9208; Pausa</button>
-      <input id="{player_id}_slider" type="range" min="0" max="{n-1}" value="0" step="1" style="flex:1" />
-      <span id="{player_id}_label" class="label"></span>
-    </div>
-  </div>
+  <p class="note">Animazione automatica in loop ({n} istanti, da {esc(first_label)} a {esc(last_label)}). Se nell'app in cui hai aperto questo file non si muove, prova ad aprirlo in un browser (Safari/Chrome) invece dell'anteprima interna.</p>
+  <img class="player-img" src="{data_uri}" />
 </div>
-<script>
-initPlayer("{player_id}", {frames_js}, 900);
-</script>
 """
 
 
@@ -296,9 +287,9 @@ def main():
     anims = data.get("animations", [])
     if anims:
         blocks = []
-        for i, anim in enumerate(anims):
-            frames = [{"file": chart_src(fr["file"]), "label": fr.get("label", "")} for fr in anim["frames"]]
-            blocks.append(render_animation({**anim, "frames": frames}, i))
+        for anim in anims:
+            paths = [os.path.join(charts_dir, fr["file"]) for fr in anim["frames"]]
+            blocks.append(render_animation(anim, paths))
         animations_html = "\n".join(blocks)
 
     static_charts_html = ""
@@ -378,9 +369,6 @@ def main():
 </style>
 </head>
 <body>
-<script>
-{PLAYER_JS_ONCE}
-</script>
 <header>
   <img src="data:image/png;base64,{logo_b64}" />
   <h1>{esc(data.get('title', 'Bollettino Meteorologico Professionale'))}</h1>
@@ -408,7 +396,7 @@ def main():
 
 <section>
   <h2>Satellite osservato (ultime ore)</h2>
-  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): satellite infrarosso RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti. Non sempre disponibile: la fonte gratuita non garantisce copertura continua.</p>
+  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): satellite infrarosso RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti. Non sempre disponibile: la fonte gratuita non garantisce copertura continua. Richiede JavaScript attivo: se non compare nell'anteprima di un'app di messaggistica, apri il file in un browser (Safari/Chrome).</p>
   <div id="satmap"></div>
   <div class="player-controls">
     <button id="sat_playbtn" class="btn">&#9208; Pausa</button>
@@ -420,7 +408,7 @@ def main():
 
 <section>
   <h2>Radar osservato (ultime ore)</h2>
-  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): radar precipitazioni RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti: non esiste una fonte gratuita con storico piu' lungo e licenza di ridistribuzione chiara gia' validata (vedi MANUTENZIONE.md). I fulmini non sono inclusi per lo stesso motivo di licenza.</p>
+  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): radar precipitazioni RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti: non esiste una fonte gratuita con storico piu' lungo e licenza di ridistribuzione chiara gia' validata (vedi MANUTENZIONE.md). I fulmini non sono inclusi per lo stesso motivo di licenza. Richiede JavaScript attivo: se non compare nell'anteprima di un'app di messaggistica, apri il file in un browser (Safari/Chrome).</p>
   <div id="radarmap"></div>
   <div class="player-controls">
     <button id="radar_playbtn" class="btn">&#9208; Pausa</button>
