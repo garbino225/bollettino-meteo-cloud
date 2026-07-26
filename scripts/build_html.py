@@ -3,21 +3,25 @@
 Genera il report HTML del bollettino: stesso contenuto testuale/tabelle del
 PDF (build_pdf.py, stesso report.json) ma con IN PIU':
   - animazioni (loop) delle cartine ECMWF su piu' istanti temporali, per
-    tutti i prodotti scaricati come "series" da fetch_ecmwf_charts.py;
-  - due mappe live separate (RainViewer, dati reali, ultime ~2 ore,
-    aggiornate ogni 10 minuti) centrate sulla localita', ciascuna con
-    loop play/pause propria: prima il satellite infrarosso, poi il
-    radar precipitazioni (sezioni distinte, non sovrapposte sulla
-    stessa mappa, cosi' il satellite non resta nascosto sotto il
-    radar). Il satellite non e' sempre disponibile: vedi nota nello
-    script.
+    tutti i prodotti scaricati come "series" da fetch_ecmwf_charts.py, e
+    del satellite Meteosat (fetch_meteoam_satellite.py) - incorporate
+    come GIF animate multi-frame (non JS): giocano ovunque, incluse le
+    anteprime HTML in-app di app come Telegram che disabilitano
+    JavaScript e/o non riproducono il WebP animato (verificato su
+    iPhone: entrambi i motivi hanno impedito la riproduzione in passato,
+    il GIF e' il formato piu' universalmente supportato);
+  - una mappa radar live (RainViewer, dati reali, ultime ~2 ore,
+    aggiornate ogni 10 minuti) centrata sulla localita', con loop
+    play/pause: questa SI' richiede JavaScript e rete al momento
+    dell'apertura (per natura, mostra dati che cambiano in continuazione
+    e non possono essere "congelati" in un'immagine) - se non compare
+    in un'anteprima in-app, va aperta in un browser esterno.
   - NON include fulmini: non esiste una fonte gratuita con licenza chiara
     per la ridistribuzione (vedi MANUTENZIONE.md).
 
-A differenza del PDF, il report HTML e' un file locale pensato per essere
-aperto in un browser con connessione internet (la mappa radar/satellite si
-carica live via JavaScript quando apri il file, non e' "congelata" al
-momento della generazione).
+A differenza del PDF, il report HTML e' un file completamente autonomo:
+tutte le immagini (statiche e animate) sono incorporate, solo la mappa
+radar richiede connessione internet nel browser che lo apre.
 
 Uso:
     python3 build_html.py report.json --charts-dir charts/ --logo logo.png --lat 44.44 --lon 12.29 --out bollettino.html
@@ -27,11 +31,13 @@ report.json: stesso schema di build_pdf.py, con in piu' (opzionale):
     {"title": "Evoluzione pressione e precipitazioni",
      "note": "ECMWF ufficiale, CC BY 4.0",
      "frames": [{"file": "ecmwf_..._anim.png", "label": "23/07 12:00 UTC"}, ...]}
-  ]
-Puoi costruire questa lista leggendo "sequences" da ecmwf_manifest.json
+  ],
+  "satellite": {"product": "ITALIA24", "frames": [{"file": "..._meteosat_..._00.jpg", "label": "13:30 UTC il 26/07"}, ...]}
+Le "animations" si costruiscono leggendo "sequences" da ecmwf_manifest.json
 (prodotto da fetch_ecmwf_charts.py quando usi "series" in requests.json) e
-copiandola quasi identica (rinomina "caption" -> "title" e "frames" resta
-uguale).
+copiandole quasi identiche (rinomina "caption" -> "title" e "frames" resta
+uguale). "satellite" si costruisce copiando il contenuto del manifest
+prodotto da fetch_meteoam_satellite.py.
 """
 import argparse
 import base64
@@ -138,40 +144,26 @@ def render_paragraphs(body):
 
 
 RADAR_JS = """
-let _rainviewerData = null;
-async function _getRainviewerData() {
-  if (_rainviewerData) return _rainviewerData;
-  const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
-  _rainviewerData = await res.json();
-  return _rainviewerData;
-}
-
-// kind: 'satellite' (infrarosso, data.satellite.infrared, tile /0/0_0.png)
-//    o  'radar' (precipitazione, data.radar.past, tile /2/1_1.png)
-async function initLiveMap(prefix, lat, lon, kind) {
-  const map = L.map(prefix + 'map').setView([lat, lon], 7);
+async function initRadarMap(lat, lon) {
+  const map = L.map('radarmap').setView([lat, lon], 7);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors', maxZoom: 12
   }).addTo(map);
   L.marker([lat, lon]).addTo(map);
-  const statusEl = document.getElementById(prefix + '_status');
-  const label = document.getElementById(prefix + '_label');
-  const slider = document.getElementById(prefix + '_slider');
-  const btn = document.getElementById(prefix + '_playbtn');
-  const tileSuffix = kind === 'satellite' ? '/256/{z}/{x}/{y}/0/0_0.png' : '/256/{z}/{x}/{y}/2/1_1.png';
-  const opacity = kind === 'satellite' ? 0.85 : 0.75;
-  const humanName = kind === 'satellite' ? 'Satellite infrarosso' : 'Radar';
+  const statusEl = document.getElementById('radar_status');
+  const label = document.getElementById('radar_label');
+  const slider = document.getElementById('radar_slider');
+  const btn = document.getElementById('radar_playbtn');
   try {
-    const data = await _getRainviewerData();
+    const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    const data = await res.json();
     const host = data.host;
-    const frames = kind === 'satellite'
-      ? ((data.satellite && data.satellite.infrared) ? data.satellite.infrared : [])
-      : ((data.radar && data.radar.past) ? data.radar.past : []);
+    const frames = (data.radar && data.radar.past) ? data.radar.past : [];
     if (frames.length === 0) {
-      statusEl.textContent = humanName + ' non disponibile al momento dalla fonte gratuita (RainViewer).';
+      statusEl.textContent = 'Radar non disponibile al momento dalla fonte gratuita (RainViewer).';
       return;
     }
-    let layers = frames.map(f => L.tileLayer(host + f.path + tileSuffix, {opacity: opacity, zIndex: 5}));
+    let layers = frames.map(f => L.tileLayer(host + f.path + '/256/{z}/{x}/{y}/2/1_1.png', {opacity: 0.75, zIndex: 5}));
     let idx = frames.length - 1;
     let current = layers[idx].addTo(map);
     let playing = true, timer = null;
@@ -181,7 +173,7 @@ async function initLiveMap(prefix, lat, lon, kind) {
       current = layers[i].addTo(map);
       idx = i;
       const d = new Date(frames[i].time * 1000);
-      label.textContent = humanName + ': ' + d.toLocaleString('it-IT', {hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'}) + ' locale';
+      label.textContent = 'Radar: ' + d.toLocaleString('it-IT', {hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'}) + ' locale';
       slider.value = i;
     }
     function tick() { showFrame((idx + 1) % frames.length); }
@@ -191,26 +183,46 @@ async function initLiveMap(prefix, lat, lon, kind) {
     slider.addEventListener('input', (e) => { pause(); showFrame(parseInt(e.target.value)); });
     showFrame(idx);
     play();
-    statusEl.textContent = humanName + ': ultimi ' + frames.length + ' frame (~' + Math.round(frames.length * 10 / 60 * 10) / 10 + ' min, ogni 10 min, massimo storico offerto dalla fonte gratuita RainViewer).';
+    statusEl.textContent = 'Radar: ultimi ' + frames.length + ' frame (~' + Math.round(frames.length * 10 / 60 * 10) / 10 + ' min, ogni 10 min, massimo storico offerto dalla fonte gratuita RainViewer).';
   } catch (e) {
-    statusEl.textContent = 'Impossibile caricare ' + humanName.toLowerCase() + ' live (serve connessione internet nel browser che apre questo file). Dettaglio: ' + e;
+    statusEl.textContent = 'Impossibile caricare il radar live (serve connessione internet nel browser che apre questo file). Dettaglio: ' + e;
   }
 }
 """
 
 
-def animated_webp_data_uri(paths, quality=78, max_dim=1400, duration_ms=900):
-    # WebP animato (come una GIF): l'animazione e' nel formato immagine
-    # stesso, gioca ovunque senza JavaScript. Necessario perche' molte app
-    # di messaggistica (Telegram inclusa) disabilitano gli script
-    # nell'anteprima interna di un documento HTML: un player JS a base di
-    # <img src> cambiato via script restava fermo sul primo frame.
+def render_satellite(sat, charts_dir):
+    if not sat or not sat.get("frames"):
+        return ""
+    paths = [os.path.join(charts_dir, fr["file"]) for fr in sat["frames"]]
+    data_uri = animated_webp_data_uri(paths)
+    n = len(paths)
+    first_label = sat["frames"][0].get("label", "")
+    last_label = sat["frames"][-1].get("label", "")
+    return f"""
+<section>
+  <h2>Satellite osservato (ultime ore)</h2>
+  <p class="note">Immagini Meteosat REALI e ufficiali (CNMCA - Aeronautica Militare / EUMETSAT, dati "Essential" a uso libero), non generate/previste: {esc(n)} istanti da {esc(first_label)} a {esc(last_label)}, animazione automatica in loop. Prodotto: {esc(sat.get('product', ''))}.</p>
+  <img class="player-img" src="{data_uri}" />
+</section>
+"""
+
+
+def animated_webp_data_uri(paths, max_dim=1200, duration_ms=900):
+    # GIF animato, non WebP: l'anteprima HTML di Telegram su iPhone usa
+    # con ogni evidenza un renderer molto limitato (verosimilmente Quick
+    # Look di Apple, non un WebView completo) che non riproduce il WebP
+    # animato - confermato dall'utente dopo il primo tentativo con WebP,
+    # nonostante fosse un formato immagine nativo e non richiedesse
+    # JavaScript. Il GIF animato e' supportato ovunque da decenni,
+    # incluso Quick Look: e' la scelta piu' compatibile anche se la
+    # palette a 256 colori perde un po' di qualita' sui gradienti delle
+    # cartine ECMWF rispetto al WebP. Nome funzione invariato per non
+    # dover toccare i chiamanti, ma il formato prodotto e' GIF.
     frames = []
     size = None
     for p in paths:
-        im = Image.open(p)
-        has_alpha = "A" in im.getbands()
-        im = im.convert("RGBA" if has_alpha else "RGB")
+        im = Image.open(p).convert("RGB")
         if max(im.size) > max_dim:
             ratio = max_dim / max(im.size)
             im = im.resize((max(1, int(im.width * ratio)), max(1, int(im.height * ratio))), Image.LANCZOS)
@@ -218,11 +230,11 @@ def animated_webp_data_uri(paths, quality=78, max_dim=1400, duration_ms=900):
             size = im.size
         elif im.size != size:
             im = im.resize(size, Image.LANCZOS)
-        frames.append(im)
+        frames.append(im.convert("P", palette=Image.ADAPTIVE, colors=256))
     buf = io.BytesIO()
-    frames[0].save(buf, "WEBP", save_all=True, append_images=frames[1:],
-                    duration=duration_ms, loop=0, quality=quality, method=6)
-    return f"data:image/webp;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
+    frames[0].save(buf, "GIF", save_all=True, append_images=frames[1:],
+                    duration=duration_ms, loop=0, optimize=True)
+    return f"data:image/gif;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
 
 
 def render_animation(anim, paths):
@@ -358,7 +370,7 @@ def main():
   .btn {{ background:var(--navy); color:#fff; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:.9rem; }}
   .btn:hover {{ opacity:.85; }}
   .label {{ font-size:.85rem; color:var(--muted); min-width:140px; text-align:right; }}
-  #radarmap, #satmap {{ height:460px; width:100%; border-radius:8px; }}
+  #radarmap {{ height:460px; width:100%; border-radius:8px; }}
   .risk {{ font-weight:700; }}
   .live-grid {{ display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }}
   .live-stat {{ background:rgba(76,110,245,.08); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:120px; display:flex; flex-direction:column; align-items:center; }}
@@ -394,18 +406,7 @@ def main():
   {"".join(sections_html)}
 </section>
 
-<section>
-  <h2>Satellite osservato (ultime ore)</h2>
-  <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): satellite infrarosso RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti. Non sempre disponibile: la fonte gratuita non garantisce copertura continua. Richiede JavaScript attivo: se non compare nell'anteprima di un'app di messaggistica, apri il file in un browser (Safari/Chrome).</p>
-  <div id="satmap"></div>
-  <div class="player-controls">
-    <button id="sat_playbtn" class="btn">&#9208; Pausa</button>
-    <input id="sat_slider" type="range" min="0" max="12" value="12" step="1" style="flex:1" />
-    <span id="sat_label" class="label"></span>
-  </div>
-  <p id="sat_status" class="note"></p>
-</section>
-
+{render_satellite(data.get('satellite'), charts_dir)}
 <section>
   <h2>Radar osservato (ultime ore)</h2>
   <p class="note">Mappa live (si aggiorna ogni volta che apri questo file, serve connessione internet nel browser): radar precipitazioni RainViewer, dati OSSERVATI (non previsione). Mostra il massimo storico che la fonte gratuita mette a disposizione in questo momento &mdash; tipicamente le ultime ~2 ore, un frame ogni 10 minuti: non esiste una fonte gratuita con storico piu' lungo e licenza di ridistribuzione chiara gia' validata (vedi MANUTENZIONE.md). I fulmini non sono inclusi per lo stesso motivo di licenza. Richiede JavaScript attivo: se non compare nell'anteprima di un'app di messaggistica, apri il file in un browser (Safari/Chrome).</p>
@@ -446,8 +447,7 @@ def main():
 
 <script>
 {RADAR_JS}
-initLiveMap("sat", {args.lat}, {args.lon}, "satellite");
-initLiveMap("radar", {args.lat}, {args.lon}, "radar");
+initRadarMap({args.lat}, {args.lon});
 </script>
 </body>
 </html>
