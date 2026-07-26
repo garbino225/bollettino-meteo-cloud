@@ -69,6 +69,7 @@ import os
 import requests
 
 API = "https://charts.ecmwf.int/opencharts-api/v1/products/{product}/"
+LANDING_URL = "https://charts.ecmwf.int/products/{product}"
 TIMEOUT = 30
 
 ATTRIBUTION = "© ECMWF - Licenza CC BY 4.0 - www.ecmwf.int"
@@ -172,7 +173,8 @@ def main():
                     print(f"ERR [seq] {product} ({vt}): {e}")
                 t += datetime.timedelta(hours=step_h)
             if frames:
-                sequences.append({"product": product, "caption": caption, "level": level, "frames": frames})
+                sequences.append({"product": product, "caption": caption, "level": level,
+                                   "landing_url": LANDING_URL.format(product=product), "frames": frames})
             continue
 
         valid_time = item.get("valid_time")
@@ -185,6 +187,7 @@ def main():
             manifest.append({
                 "file": fname, "caption": caption, "title": meta["title"],
                 "description": meta["description"], "attribution": ATTRIBUTION,
+                "landing_url": LANDING_URL.format(product=product),
                 "projection": projection, "error": None,
             })
             print(f"OK  {product} ({valid_time}, level={level}) -> {fname}  [{meta['description']}]")

@@ -105,10 +105,12 @@ def render_live_station(live):
         stat("Direzione vento", wdir_txt),
         stat("Pioggia oggi", f"{live['rain_today_mm']} mm" if live.get("rain_today_mm") is not None else None),
     ])
+    landing_url = live.get("landing_url")
+    link_note = f' <a href="{esc(landing_url)}" target="_blank" rel="noopener">Pagina della centralina</a>.' if landing_url else ""
     return f"""
 <section class="live-station">
   <h2>Dati in Tempo Reale (centralina locale)</h2>
-  <p class="note">{esc(live.get('label', ''))} &mdash; aggiornato {esc(live.get('updated_at', ''))}. Lettura strumentale reale, non un dato di modello: puo' differire localmente dai valori di modello usati nel resto del bollettino.</p>
+  <p class="note">{esc(live.get('label', ''))} &mdash; aggiornato {esc(live.get('updated_at', ''))}. Lettura strumentale reale, non un dato di modello: puo' differire localmente dai valori di modello usati nel resto del bollettino.{link_note}</p>
   <div class="live-grid">{stats}</div>
 </section>
 """
@@ -155,11 +157,16 @@ def render_meteoam_gallery(title, note, gallery, charts_dir):
     n = len(paths)
     first_label = gallery["frames"][0].get("label", "")
     last_label = gallery["frames"][-1].get("label", "")
+    landing_url = gallery.get("landing_url")
+    img_tag = f'<img class="player-img" src="{data_uri}" />'
+    if landing_url:
+        img_tag = f'<a href="{esc(landing_url)}" target="_blank" rel="noopener">{img_tag}</a>'
+    link_note = f' &mdash; <a href="{esc(landing_url)}" target="_blank" rel="noopener">pagina sorgente</a>.' if landing_url else ""
     return f"""
 <section>
   <h2>{esc(title)}</h2>
-  <p class="note">{note} {esc(n)} istanti da {esc(first_label)} a {esc(last_label)}, animazione automatica in loop. Prodotto: {esc(gallery.get('product', ''))}.</p>
-  <img class="player-img" src="{data_uri}" />
+  <p class="note">{note} {esc(n)} istanti da {esc(first_label)} a {esc(last_label)}, animazione automatica in loop. Prodotto: {esc(gallery.get('product', ''))}.{link_note}</p>
+  {img_tag}
 </section>
 """
 
@@ -198,12 +205,17 @@ def render_animation(anim, paths):
     n = len(paths)
     first_label = anim["frames"][0].get("label", "")
     last_label = anim["frames"][-1].get("label", "")
+    landing_url = anim.get("landing_url")
+    img_tag = f'<img class="player-img" src="{data_uri}" />'
+    if landing_url:
+        img_tag = f'<a href="{esc(landing_url)}" target="_blank" rel="noopener">{img_tag}</a>'
+    link_note = f' <a href="{esc(landing_url)}" target="_blank" rel="noopener">Pagina sorgente ECMWF</a>.' if landing_url else ""
     return f"""
 <div class="anim-block">
   <h3>{esc(anim.get('title', ''))}</h3>
   {f'<p class="note">{esc(anim["note"])}</p>' if anim.get('note') else ''}
-  <p class="note">Animazione automatica in loop ({n} istanti, da {esc(first_label)} a {esc(last_label)}). Se nell'app in cui hai aperto questo file non si muove, prova ad aprirlo in un browser (Safari/Chrome) invece dell'anteprima interna.</p>
-  <img class="player-img" src="{data_uri}" />
+  <p class="note">Animazione automatica in loop ({n} istanti, da {esc(first_label)} a {esc(last_label)}). Se nell'app in cui hai aperto questo file non si muove, prova ad aprirlo in un browser (Safari/Chrome) invece dell'anteprima interna.{link_note}</p>
+  {img_tag}
 </div>
 """
 
@@ -265,9 +277,16 @@ def main():
             p = os.path.join(args.charts_dir, ch["file"])
             if not os.path.exists(p):
                 continue
+            img_tag = f'<img src="{chart_src(ch["file"])}" />'
+            landing_url = ch.get("landing_url")
+            if landing_url:
+                img_tag = f'<a href="{esc(landing_url)}" target="_blank" rel="noopener">{img_tag}</a>'
+            caption = esc(ch.get("caption", ""))
+            if landing_url:
+                caption += f' &mdash; <a href="{esc(landing_url)}" target="_blank" rel="noopener">pagina sorgente</a>'
             items.append(f'''<figure class="chart">
-  <img src="{chart_src(ch["file"])}" />
-  <figcaption>{esc(ch.get("caption", ""))}</figcaption>
+  {img_tag}
+  <figcaption>{caption}</figcaption>
 </figure>''')
         static_charts_html = '<div class="chart-grid">' + "\n".join(items) + "</div>"
 
@@ -307,6 +326,9 @@ def main():
   @media (prefers-color-scheme: dark) {{ h3 {{ color:#fff; }} }}
   p {{ line-height:1.55; }}
   .note {{ color:var(--muted); font-size:.85rem; font-style:italic; }}
+  .note a {{ color:var(--blue); font-style:normal; }}
+  a:has(> img) {{ display:block; }}
+  figure.chart figcaption a {{ color:var(--blue); }}
   table.tbl {{ width:100%; border-collapse:collapse; margin:12px 0 20px; font-size:.92rem; }}
   table.tbl th {{ background:var(--navy); color:#fff; text-align:left; padding:8px 10px; }}
   table.tbl td {{ padding:8px 10px; border-bottom:1px solid var(--border); }}

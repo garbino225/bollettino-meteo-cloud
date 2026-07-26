@@ -57,7 +57,10 @@ python3 fetch_weathercloud.py --code <CODICE> --out /tmp/meteo_<slug>/weatherclo
 Mappa localita' -> codice nota ad oggi (2026-07-26): Imola -> `1172679827`,
 Punta Marina -> `9848353651` (il codice e' la sequenza numerica nell'URL
 `app.weathercloud.net/d<codice>`; se l'utente ne indica una nuova,
-aggiungila qui). **Nota importante**: l'endpoint usato
+aggiungila qui). Quando scrivi `live_station` in `report.json` (punto 7)
+aggiungi anche `"landing_url": "https://app.weathercloud.net/d<codice>"`:
+diventa un link cliccabile "Pagina della centralina" sia nel PDF sia
+nell'HTML, verso la pagina dove il dato e' stato effettivamente letto. **Nota importante**: l'endpoint usato
 (`app.weathercloud.net/device/values`) non e' un'API ufficiale
 documentata da Weathercloud, e' stato reverse-engineered da un progetto
 terzo (vedi commento in testa allo script) — funziona e restituisce dati
@@ -276,6 +279,18 @@ identici. Opzionali anche `satellite` e `radar` (solo per l'HTML, punto
 `fetch_meteoam_satellite.py` (`--product ITALIA24` per `satellite`,
 `--product RADSATLAM` per `radar`) — schema
 `{"product": "...", "frames": [{"file", "label"}, ...]}` per entrambi.
+
+**Link alla fonte originale**: sia `ecmwf_manifest.json` (voci di `charts`
+e `sequences`) sia i manifest di `fetch_meteoam_satellite.py` includono
+gia' un campo `landing_url` con la pagina web ufficiale da cui il dato/
+l'immagine e' stato recuperato (`charts.ecmwf.int/products/<prodotto>`
+per le cartine ECMWF, `meteoam.it/it/meteosat` per il satellite,
+`meteoam.it/it/i-fulmini` per radar/fulmini). Quando copi queste voci in
+`report.json` (`charts`, `animations`, `satellite`, `radar`) **non
+scartare questo campo**: viene reso automaticamente come link cliccabile
+sull'immagine/didascalia sia nel PDF sia nell'HTML. I grafici generati da
+`charts.py` (dati Open-Meteo, non una pagina web) non hanno `landing_url`
+e restano senza link, correttamente.
 
 Stile obbligatorio (vale per tutto il testo che scrivi, incluso il
 riassunto in chat del punto 9 — non solo report.json):

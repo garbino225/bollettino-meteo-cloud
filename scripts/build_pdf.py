@@ -24,7 +24,8 @@ Formato atteso di report.json:
   "activities_table": {"headers": ["Attivita'", "Rischio", "Motivazione"], "rows": [[...]]},
   "reliability_pct": 82,
   "reliability_text": "spiegazione dettagliata del perche'",
-  "charts": [{"file": "temperatura.png", "caption": "Temperatura a 2m - confronto modelli"}, ...],
+  "charts": [{"file": "temperatura.png", "caption": "Temperatura a 2m - confronto modelli"},
+             {"file": "ecmwf_medium-mslp-rain_00.png", "caption": "...", "landing_url": "https://charts.ecmwf.int/products/medium-mslp-rain"}, ...],
   "infographic": "infografica.png",
   "conclusione": "sintesi finale, massimo 15 righe",
   "editoriali": "testo con citazioni di meteorologi esperti e link/fonti",
@@ -201,9 +202,11 @@ def main():
     live = data.get("live_station")
     if live:
         story.append(Paragraph("Dati in Tempo Reale (centralina locale)", ss["SectionHeading"]))
+        live_landing_url = live.get("landing_url")
+        live_link = f' <link href="{live_landing_url}" color="{BLUE.hexval()}">Pagina della centralina</link>.' if live_landing_url else ""
         story.append(Paragraph(
             f"{live.get('label', '')} &mdash; aggiornato {live.get('updated_at', '')}. "
-            "Lettura strumentale reale, non un dato di modello.", ss["Body"]))
+            f"Lettura strumentale reale, non un dato di modello.{live_link}", ss["Body"]))
         rows = []
         pairs = [
             ("Temperatura", f"{live['temperature_c']}°C" if live.get("temperature_c") is not None else None),
@@ -268,9 +271,13 @@ def main():
             if target_h > max_h:
                 target_h = max_h
                 target_w = target_h * w / h
+            caption = ch.get("caption", "")
+            landing_url = ch.get("landing_url")
+            if landing_url:
+                caption += f' &mdash; <link href="{landing_url}" color="{BLUE.hexval()}">pagina sorgente</link>'
             story.append(KeepTogether([
                 Image(img_path, width=target_w, height=target_h),
-                Paragraph(ch.get("caption", ""), ss["Caption"]),
+                Paragraph(caption, ss["Caption"]),
             ]))
 
     if data.get("activities_table"):

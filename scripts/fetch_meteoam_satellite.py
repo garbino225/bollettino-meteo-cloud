@@ -47,6 +47,19 @@ PRODOTTI = {
     "RADSATLAM": "265296ba8be0410caa87a18186bcbb43",        # radar precipitazioni (SRI mm/h) + IR + fulmini reali (rete LAMPINET), ~20 min
 }
 
+# Landing page pubblica su meteoam.it dove l'utente puo' vedere la fonte
+# originale (nessuna API pubblica ha una pagina "viewer" dedicata per
+# canale, quindi si usa la pagina prodotto piu' pertinente disponibile sul
+# sito: meteoam.it non ha una pagina radar dedicata, la mappa radar e' un
+# widget della homepage).
+LANDING_URLS = {
+    "ITALIA24": "https://www.meteoam.it/it/meteosat",
+    "EUROPA108": "https://www.meteoam.it/it/meteosat",
+    "TRUECOLORRGB": "https://www.meteoam.it/it/meteosat",
+    "NEFOITALIA": "https://www.meteoam.it/it/meteosat",
+    "RADSATLAM": "https://www.meteoam.it/it/i-fulmini",
+}
+
 
 def large_jpg_url(item):
     for rend in item["fields"]["renditions"]:
@@ -95,7 +108,8 @@ def main():
         frames.append({"file": fname, "label": label})
         print(f"OK  frame {i} ({date_val}) -> {fname}")
 
-    manifest = {"product": args.product, "attribution": ATTRIBUTION, "frames": frames}
+    manifest = {"product": args.product, "attribution": ATTRIBUTION,
+                "landing_url": LANDING_URLS.get(args.product), "frames": frames}
     manifest_path = os.path.join(args.outdir, f"{args.prefix}_meteosat_manifest.json")
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
