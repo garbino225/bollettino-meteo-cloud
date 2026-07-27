@@ -371,6 +371,7 @@ def main():
   <h1>{esc(data.get('title', 'Bollettino Meteorologico Professionale'))}</h1>
   <div class="sub">{esc(data.get('location_label',''))} &middot; {esc(data.get('period_label',''))}</div>
   <div class="sub" style="font-size:.85rem;opacity:.7">Generato il {esc(data.get('generated_at',''))}</div>
+  {f'<div class="sub" style="font-size:.85rem;opacity:.7">{esc(data["moon_phase"])}</div>' if data.get('moon_phase') else ''}
 </header>
 <main>
 

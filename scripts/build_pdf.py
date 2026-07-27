@@ -15,6 +15,7 @@ Formato atteso di report.json:
   "location_label": "Rimini (RN), Emilia-Romagna",
   "period_label": "23-26 luglio 2026",
   "generated_at": "23 luglio 2026, 21:40",
+  "moon_phase": "Gibbosa Crescente (95.3% illuminata) - prossima luna piena tra 2.1 giorni (29/07/2026)",
   "sintesi": "paragrafo di sintesi iniziale (poche righe)",
   "sections": [
      {"heading": "Analisi Sinottica", "body": "testo, paragrafi separati da doppio a-capo"},
@@ -133,6 +134,8 @@ def cover_page(c: pdfcanvas.Canvas, doc, data, logo_path):
     c.drawCentredString(PAGE_W / 2, 25 * mm, f"Generato il {data.get('generated_at', '')}")
     c.drawCentredString(PAGE_W / 2, 20 * mm,
                          "Analisi sinottica, multi-modello e convettiva - fonte dati: Open-Meteo (ECMWF, GFS, ICON, GEM, UKMO, ARPEGE, AROME, HARMONIE)")
+    if data.get("moon_phase"):
+        c.drawCentredString(PAGE_W / 2, 15 * mm, data["moon_phase"])
     c.restoreState()
 
 

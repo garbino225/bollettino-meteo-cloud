@@ -119,6 +119,32 @@ Se `fetch_marine.py` fallisce del tutto (localita' non costiera, area senza
 copertura), salta semplicemente la sezione mare invece di inventare valori
 o bloccare il resto del bollettino.
 
+## 0.7 Fase lunare (sempre, in ogni bollettino)
+
+A differenza dei punti 0.5/0.6 (condizionali), questo va **sempre** incluso,
+qualunque sia la localita':
+
+```bash
+python3 moon_phase.py --date <data_oggi> --out /tmp/meteo_<slug>/moon.json
+```
+
+Calcolo astronomico reale (mese sinodico + epoca di riferimento nota, non
+un'effemeride JPL completa: la precisione, ~1-2 ore, e' ampiamente
+sufficiente per un dato arrotondato al giorno — vedi commento nello script
+per il confronto con Skyfield/DE421). Scrivi in `report.json` il campo
+`moon_phase` come singola riga di testo, es.:
+
+```
+"moon_phase": "Gibbosa Crescente (95.3% illuminata) - prossima luna piena tra 2.1 giorni (29/07/2026)"
+```
+
+(componi la stringa dai campi `phase_name`, `illumination_pct`,
+`days_to_full_moon`, `next_full_moon_date` di `moon.json` — quest'ultima
+data va scritta in formato gg/mm/aaaa nel testo). Viene mostrata
+automaticamente subito sotto "Generato il..." in copertina/intestazione,
+sia nel PDF sia nell'HTML: non serve altro codice, e' gia' gestito da
+`build_pdf.py`/`build_html.py`.
+
 ## 1. Raccolta dati reali
 
 ```bash
