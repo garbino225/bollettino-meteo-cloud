@@ -39,13 +39,25 @@ MODELS = {
     "gfs_seamless":                 "GFS (NOAA)",
     "icon_seamless":                "ICON (DWD)",
     "icon_eu":                      "ICON-EU (DWD)",
+    "icon_d2":                      "ICON-D2 (DWD, alta risoluzione 2km)",
     "meteofrance_arpege_europe":    "ARPEGE (Meteo-France)",
     "meteofrance_arome_france_hd":  "AROME (Meteo-France, solo Francia)",
     "gem_seamless":                 "GEM (ECCC Canada)",
     "ukmo_seamless":                "UKMO (Met Office UK)",
     "knmi_harmonie_arome_europe":   "HARMONIE-AROME (KNMI)",
     "chmi_aladin_seamless":         "ALADIN (CHMI, Europa centrale)",
+    "italia_meteo_arpae_icon_2i":   "ICON-2I (ItaliaMeteo/ARPAE, LAM Italia 2km)",
 }
+
+# NOTA: MOLOCH (CNR-ISAC, storicamente nel consorzio LAMI insieme a COSMO)
+# NON ha un'API pubblica gratuita: e' stato verificato esplicitamente (nessun
+# model id funzionante su Open-Meteo, ne' un'API ARPAE-SIMC diversa scriptabile
+# per questo dato specifico) - non ritentare pattern a memoria, citarlo solo
+# testualmente via WebSearch se rilevante. Il suo erede nel consorzio LAMI,
+# ICON-2I (ARPAE/ItaliaMeteo), e' invece disponibile numericamente sopra
+# come "italia_meteo_arpae_icon_2i" ed e' il modello da citare quando si
+# parla del "LAM Italia": stessa famiglia/filosofia di MOLOCH (modello ad
+# area limitata ad alta risoluzione sull'Italia), copertura 2km, run ogni 12h.
 
 # NOTA: Meteoblue, WRF locale e COSMO non hanno un'API pubblica gratuita
 # equivalente: non vengono scaricati come dati numerici, ma possono essere
@@ -206,7 +218,7 @@ def main():
         "period": {"start": args.start, "end": args.end, "historical": is_historical},
         "models": models_out,
         "profile": profile_out,
-        "sources": ["Open-Meteo (open-meteo.com) - aggregatore dati ECMWF/GFS/ICON/GEM/UKMO/ARPEGE/AROME/HARMONIE/ALADIN"],
+        "sources": ["Open-Meteo (open-meteo.com) - aggregatore dati ECMWF/GFS/ICON (incl. D2)/GEM/UKMO/ARPEGE/AROME/HARMONIE/ALADIN/ICON-2I ARPAE"],
     }
 
     with open(args.out, "w", encoding="utf-8") as f:

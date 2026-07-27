@@ -12,8 +12,10 @@ indichi sempre il grado di incertezza.
 
 Questa skill ti da' gli strumenti per farlo con **dati e cartine reali**
 (non inventati): script Python in `scripts/` che scaricano dati numerici
-da Open-Meteo (che aggrega ECMWF, GFS, ICON, ICON-EU, GEM, UKMO, ARPEGE,
-AROME, HARMONIE), calcolano indici convettivi con formule termodinamiche
+da Open-Meteo (che aggrega ECMWF, GFS, ICON (incl. ICON-EU e ICON-D2 alta
+risoluzione), GEM, UKMO, ARPEGE, AROME, HARMONIE, ALADIN, ICON-2I
+ARPAE/ItaliaMeteo — il "LAM Italia" erede di COSMO/MOLOCH nel consorzio
+LAMI, quest'ultimo senza API pubblica), calcolano indici convettivi con formule termodinamiche
 vere (MetPy, non stime a occhio), e scaricano le **cartine sinottiche
 ufficiali ECMWF** (OpenCharts, licenza CC-BY-4.0) per pressione,
 geopotenziale, CAPE, shear e umidita' in quota. Il risultato finale e'
@@ -129,14 +131,22 @@ ti dice quali modelli sono riusciti e quali no per quell'area/periodo, e
 se il profilo verticale e' disponibile. Modelli con dominio regionale
 limitato (**AROME** = solo Francia/dintorni, **HARMONIE-AROME KNMI** =
 Europa/Benelux, **ALADIN CHMI** = Europa centrale, dominio nativo attorno
-alla Repubblica Ceca) possono restituire dati anche fuori dal loro dominio
+alla Repubblica Ceca, **ICON-D2** = Germania/Europa centrale alta
+risoluzione 2km) possono restituire dati anche fuori dal loro dominio
 nativo: se la localita' e' lontana da quel dominio, **dichiara nel testo
 che quel modello e' meno affidabile in quell'area** invece di scartarlo
-silenziosamente.
+silenziosamente. **ICON-2I (ARPAE/ItaliaMeteo)** ha invece dominio nativo
+sull'Italia: per localita' italiane (es. Imola, Punta Marina) e' uno dei
+modelli piu' affidabili del confronto, non uno da trattare con cautela —
+citalo sempre esplicitamente nel testo come "il LAM italiano" quando
+disponibile, non solo come riga di tabella.
 
-Nota onesta sui limiti dei dati pubblici: **Meteoblue, WRF locale e
-COSMO** non hanno un'API pubblica gratuita paragonabile — non li scarichi
-come dati numerici. Se rilevanti, puoi cercarli via web (vedi punto 3) e
+Nota onesta sui limiti dei dati pubblici: **Meteoblue, WRF locale, COSMO
+e MOLOCH** (quest'ultimo il modello CNR-ISAC del consorzio LAMI, verificato
+esplicitamente senza API pubblica) non hanno un'API pubblica gratuita
+paragonabile — non li scarichi come dati numerici (il suo erede LAMI,
+ICON-2I ARPAE, e' invece scaricabile, vedi sopra). Se rilevanti, puoi
+cercarli via web (vedi punto 3) e
 citarli testualmente, dichiarando che si tratta di fonte qualitativa e non
 di dato numerico verificato.
 
