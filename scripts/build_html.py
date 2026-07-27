@@ -274,6 +274,13 @@ def main():
     if data.get("charts"):
         items = []
         for ch in data["charts"]:
+            # Le cartine ECMWF (fetch_ecmwf_charts.py) sono gia' rappresentate
+            # per intero dalle animazioni sopra (data.get("animations")): un
+            # frame statico qui sarebbe un doppione, mostralo solo nel PDF
+            # (che non puo' animare la GIF), non nell'HTML.
+            if ch.get("file", "").startswith("ecmwf_") or \
+               (ch.get("landing_url") or "").startswith("https://charts.ecmwf.int"):
+                continue
             p = os.path.join(args.charts_dir, ch["file"])
             if not os.path.exists(p):
                 continue

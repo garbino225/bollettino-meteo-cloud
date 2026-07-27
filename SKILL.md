@@ -325,6 +325,20 @@ identici. Opzionali anche `satellite` e `radar` (solo per l'HTML, punto
 `--product RADSATLAM` per `radar`) — schema
 `{"product": "...", "frames": [{"file", "label"}, ...]}` per entrambi.
 
+**Niente doppioni ECMWF tra PDF e HTML (gestito automaticamente, non
+serve scrivere due `charts` diverse)**: metti pure in `charts` anche i
+frame rappresentativi ECMWF come sopra descritto — servono al PDF, che
+non puo' mostrare la GIF animata. `build_html.py` filtra da solo
+dalla sezione "Grafici" qualunque voce di `charts` che provenga da
+`fetch_ecmwf_charts.py` (riconosciuta da `file` che inizia con `ecmwf_`
+o da `landing_url` su `charts.ecmwf.int`), perche' nell'HTML e' gia'
+mostrata per intero nella sezione animazioni: **non toglierle tu a mano
+da `charts`** ne' duplicarle, altrimenti nel PDF sparirebbero anche le
+cartine statiche che invece servono li'. (Bug reale scoperto il
+2026-07-27: un `report.json` scritto senza questo filtro mostrava le
+stesse tre cartine ECMWF sia come animazione sia come immagine statica
+subito sotto, nell'HTML — segnalato dall'utente.)
+
 **Link alla fonte originale**: sia `ecmwf_manifest.json` (voci di `charts`
 e `sequences`) sia i manifest di `fetch_meteoam_satellite.py` includono
 gia' un campo `landing_url` con la pagina web ufficiale da cui il dato/
