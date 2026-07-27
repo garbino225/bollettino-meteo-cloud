@@ -44,6 +44,7 @@ MODELS = {
     "gem_seamless":                 "GEM (ECCC Canada)",
     "ukmo_seamless":                "UKMO (Met Office UK)",
     "knmi_harmonie_arome_europe":   "HARMONIE-AROME (KNMI)",
+    "chmi_aladin_seamless":         "ALADIN (CHMI, Europa centrale)",
 }
 
 # NOTA: Meteoblue, WRF locale e COSMO non hanno un'API pubblica gratuita
@@ -205,7 +206,7 @@ def main():
         "period": {"start": args.start, "end": args.end, "historical": is_historical},
         "models": models_out,
         "profile": profile_out,
-        "sources": ["Open-Meteo (open-meteo.com) - aggregatore dati ECMWF/GFS/ICON/GEM/UKMO/ARPEGE/AROME/HARMONIE"],
+        "sources": ["Open-Meteo (open-meteo.com) - aggregatore dati ECMWF/GFS/ICON/GEM/UKMO/ARPEGE/AROME/HARMONIE/ALADIN"],
     }
 
     with open(args.out, "w", encoding="utf-8") as f:

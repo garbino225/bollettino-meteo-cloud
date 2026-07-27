@@ -73,6 +73,50 @@ inventare valori.
 Se la localita' non ha una centralina nota, salta questo passo (nessuna
 sezione "Dati in Tempo Reale" nel bollettino).
 
+## 0.6 Dati mare (solo localita' costiere)
+
+Se la localita' e' costiera (es. Punta Marina, Rimini, o qualunque localita'
+il cui geocoding e' su/vicino alla costa) e l'utente non ha chiesto
+esplicitamente di ometterlo, aggiungi vento (intensita' media, raffica,
+direzione — gia' coperto dal punto 1 multi-modello incluso ALADIN),
+**previsione onda** (altezza, periodo, direzione) e **previsione di marea**:
+
+```bash
+python3 fetch_marine.py --lat <LAT> --lon <LON> --start <data_inizio> --end <data_fine> --out /tmp/meteo_<slug>/marine.json
+python3 charts_marine.py /tmp/meteo_<slug>/marine.json --outdir /tmp/meteo_<slug>/charts
+```
+
+`fetch_marine.py` scarica dalla **Marine API di Open-Meteo**
+(`marine-api.open-meteo.com`, stessa famiglia/affidabilita' del punto 1, non
+una fonte nuova) l'onda multi-modello (ECMWF WAM, MFWAM Meteo-France,
+GFS-Wave NOAA, EWAM/GWAM DWD — tutti i modelli onda pubblici disponibili) e
+il livello del mare `sea_level_height_msl` (marea astronomica + surge,
+disponibile solo sul modello `best_match`, non per-modello: e' cosi' che
+espone il dato l'API, non una scelta arbitraria dello script). Se un modello
+onda non copre l'area richiesta lo script lo segnala con `error` senza
+bloccare gli altri, stesso pattern di `fetch_forecast.py`.
+
+`charts_marine.py` produce `onda.png` (altezza multi-modello + periodo/
+direzione best_match, frecce = verso cui l'onda si dirige) e `marea.png`
+(curva livello mare con alta/bassa marea marcate automaticamente,
+individuate come estremi locali della serie oraria). Aggiungili entrambi a
+`charts` in `report.json` (punto 7), senza `landing_url` (sono grafici tuoi
+da dati Open-Meteo, come quelli di `charts.py`).
+
+Nel testo/tabelle del report scrivi vento/onda/marea **per oggi e i 2 giorni
+successivi** (coerente col resto del bollettino, non solo un grafico):
+un'unica tabella giornaliera (una riga per giorno) con colonne Giorno |
+Vento medio (kn) | Raffica max (kn) | Direzione vento | Onda altezza max (m)
+| Onda periodo (s) | Direzione onda | Marea min/max (m) — i valori di vento
+li leggi da `data.json` (best_match, daily), quelli di onda/marea da
+`marine.json` (calcola tu min/max/media sulle ore del giorno, stesso
+approccio di `fetch_outlook.py`). Non serve una tabella oraria: il dettaglio
+intra-giornaliero e' gia' nei due grafici.
+
+Se `fetch_marine.py` fallisce del tutto (localita' non costiera, area senza
+copertura), salta semplicemente la sezione mare invece di inventare valori
+o bloccare il resto del bollettino.
+
 ## 1. Raccolta dati reali
 
 ```bash
@@ -84,7 +128,8 @@ python3 fetch_forecast.py --location "NOME LOCALITA'" --start YYYY-MM-DD --end Y
 ti dice quali modelli sono riusciti e quali no per quell'area/periodo, e
 se il profilo verticale e' disponibile. Modelli con dominio regionale
 limitato (**AROME** = solo Francia/dintorni, **HARMONIE-AROME KNMI** =
-Europa/Benelux) possono restituire dati anche fuori dal loro dominio
+Europa/Benelux, **ALADIN CHMI** = Europa centrale, dominio nativo attorno
+alla Repubblica Ceca) possono restituire dati anche fuori dal loro dominio
 nativo: se la localita' e' lontana da quel dominio, **dichiara nel testo
 che quel modello e' meno affidabile in quell'area** invece di scartarlo
 silenziosamente.
@@ -319,13 +364,25 @@ un solo modello, `best_match`, non il confronto multi-modello):
 python3 fetch_outlook.py --lat <LAT> --lon <LON> --start <data_oggi> --days 7 --out /tmp/meteo_<slug>/outlook.json
 ```
 
+Per localita' costiere (vedi punto 0.6) aggiungi `--marine`: l'array `days`
+guadagna anche `wave_height_max`/`wave_period_max`/`wave_dir_dominant` e
+`tide_min`/`tide_max` giornalieri (colpo d'occhio mare, stesso modello
+`best_match`, non multi-modello). Se `marine_error` non e' `null` nel JSON
+prodotto, ometti semplicemente la tabella mare invece di inventare valori.
+
 Copia l'array `days` prodotto in `report.json` sotto la chiave `outlook_7d`
 (vedi schema completo in `build_pdf.py`): una tabella con colonne Giorno
 (usa il campo `label`, gia' con giorno della settimana abbreviato),
 T.min/T.max (°C), Umidita' media (%), Pressione media (hPa), Raffica
-massima (kn), Pioggia totale (mm). E' una tabella, non serve testo
-aggiuntivo: la nota di minore affidabilita' (singolo modello) e' gia'
-scritta automaticamente da `build_pdf.py`/`build_html.py`.
+massima (kn), Direzione vento (`wind_dir_dominant`, gradi), Pioggia totale
+(mm). **Non aggiungere le colonne mare a questa stessa tabella**: su A4
+verticale 8 colonne sono gia' al limite, aggiungerne altre 4 fa andare a
+capo lettera per lettera le intestazioni (verificato). Per le localita'
+costiere scrivi invece una **seconda tabella separata** sotto la chiave
+`outlook_7d_mare` (headers: Giorno, Onda max (m), Periodo onda (s),
+Direzione onda, Marea min/max (m)): viene renderizzata subito sotto la
+tabella meteo, sia nel PDF sia nell'HTML, senza bisogno di testo aggiuntivo
+(la nota di minore affidabilita' e' gia' scritta automaticamente).
 
 ```bash
 python3 build_pdf.py /tmp/meteo_<slug>/report.json --charts-dir /tmp/meteo_<slug>/charts --logo ../assets/logo.png --out /tmp/meteo_<slug>/bollettino_<slug>.pdf
@@ -438,11 +495,15 @@ sia possibile in modo riservato — lo e', vedi MANUTENZIONE.md.
   Open-Meteo (punto 1): serve cartine grafiche ufficiali ECMWF, non serie
   numeriche multi-modello.
 - Non esiste un equivalente pubblico/gratuito dell'OpenCharts API per
-  ICON, GFS, AROME o ALADIN con URL prevedibili: wetterzentrale.de,
-  wetter3.de e meteociel.fr sono stati verificati (luglio 2026) e non
-  rispondono piu' con pattern statici. Non inventare URL per questi siti:
-  o li trovi con una WebSearch puntuale al momento della richiesta, o ti
-  affidi al confronto numerico multi-modello di Open-Meteo.
+  ICON, GFS, AROME o ALADIN con URL prevedibili (cartine grafiche ufficiali):
+  wetterzentrale.de, wetter3.de e meteociel.fr sono stati verificati (luglio
+  2026) e non rispondono piu' con pattern statici. Non inventare URL per
+  questi siti: o li trovi con una WebSearch puntuale al momento della
+  richiesta, o ti affidi al confronto numerico multi-modello di Open-Meteo.
+  **ALADIN come dato numerico** (non cartina) e' invece disponibile in
+  `fetch_forecast.py` dal 2026-07-27 (`chmi_aladin_seamless`, CHMI Rep.
+  Ceca) ed e' incluso di default nel confronto multi-modello: la
+  limitazione sopra riguarda solo le mappe grafiche, non i dati numerici.
 - **Radar, satellite e fulmini** in `build_html.py` NON usano piu'
   Leaflet/RainViewer (rimosso il 2026-07-26): usano immagini Meteosat
   reali scaricate da `fetch_meteoam_satellite.py` (CNMCA/Aeronautica

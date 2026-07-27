@@ -301,6 +301,11 @@ def main():
         ot = data["outlook_7d"]
         outlook_html = render_table(ot["headers"], ot["rows"])
 
+    outlook_mare_html = ""
+    if data.get("outlook_7d_mare"):
+        om = data["outlook_7d_mare"]
+        outlook_mare_html = (f"<h2>Outlook Mare 7 Giorni</h2>" + render_table(om["headers"], om["rows"]))
+
     html = f"""<!doctype html>
 <html lang="it">
 <head>
@@ -408,7 +413,7 @@ def main():
   {render_paragraphs(data.get('conclusione',''))}
 </section>
 
-{"<section><h2>Outlook 7 Giorni</h2><p class='note'>Tendenza estesa a colpo d'occhio (modello best_match, singolo modello: affidabilita' minore rispetto all'analisi multi-modello dei giorni precedenti).</p>" + outlook_html + "</section>" if outlook_html else ""}
+{"<section><h2>Outlook 7 Giorni</h2><p class='note'>Tendenza estesa a colpo d'occhio (modello best_match, singolo modello: affidabilita' minore rispetto all'analisi multi-modello dei giorni precedenti).</p>" + outlook_html + outlook_mare_html + "</section>" if outlook_html else ""}
 
 </main>
 <footer>Generato con meteoP@d0 &middot; dati modelli numerici pubblici (Open-Meteo, ECMWF OpenCharts CC BY 4.0, CNMCA/Aeronautica Militare - EUMETSAT)</footer>

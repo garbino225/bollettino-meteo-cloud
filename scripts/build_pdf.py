@@ -30,8 +30,10 @@ Formato atteso di report.json:
   "conclusione": "sintesi finale, massimo 15 righe",
   "editoriali": "testo con citazioni di meteorologi esperti e link/fonti",
   "outlook_7d": {"headers": ["Giorno", "T.min (C)", "T.max (C)", "Umidita' (%)",
-                              "Pressione (hPa)", "Raffica max (kn)", "Pioggia (mm)"],
-                 "rows": [["ven 25/07", "18", "27", "62", "1015.2", "14", "0.0"], ...]}
+                              "Pressione (hPa)", "Raffica max (kn)", "Direzione vento", "Pioggia (mm)"],
+                 "rows": [["ven 25/07", "18", "27", "62", "1015.2", "14", "SE (132°)", "0.0"], ...]},
+  "outlook_7d_mare": {"headers": ["Giorno", "Onda max (m)", "Periodo onda (s)", "Direzione onda", "Marea min/max (m)"],
+                       "rows": [["ven 25/07", "0.36", "5.6", "ESE (106°)", "-0.77 / -0.15"], ...]}
 }
 """
 import argparse
@@ -310,6 +312,12 @@ def main():
             ss["Body"]))
         ot = data["outlook_7d"]
         story.append(make_table(ot["headers"], ot["rows"], ss))
+        story.append(Spacer(1, 10))
+
+    if data.get("outlook_7d_mare"):
+        story.append(Paragraph("Outlook Mare 7 Giorni", ss["SectionHeading"]))
+        om = data["outlook_7d_mare"]
+        story.append(make_table(om["headers"], om["rows"], ss))
         story.append(Spacer(1, 10))
 
     doc.build(story)

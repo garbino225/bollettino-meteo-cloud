@@ -10,11 +10,16 @@ per dare un colpo d'occhio sull'evoluzione a piu' lungo termine.
 
 Uso:
     python3 fetch_outlook.py --lat 44.06 --lon 12.57 --start 2026-07-25 --days 7 --out outlook.json
+    python3 fetch_outlook.py --lat 44.47 --lon 12.31 --start 2026-07-25 --days 7 --marine --out outlook.json
 
 Produce un JSON con un array "days": per ciascun giorno data, giorno della
 settimana abbreviato, temperatura min/max, umidita' relativa media (calcolata
 mediando i dati orari, Open-Meteo non espone un aggregato giornaliero diretto),
-pressione media (stesso motivo), raffica di vento massima, pioggia totale.
+pressione media (stesso motivo), raffica di vento massima, direzione vento
+dominante, pioggia totale. Con `--marine` (solo localita' costiere) aggiunge
+anche altezza/periodo/direzione onda massimi giornalieri e range di marea
+(min/max giornaliero di sea_level_height_msl, mediato dai dati orari allo
+stesso modo di umidita'/pressione).
 """
 import argparse
 import datetime as dt
@@ -24,6 +29,7 @@ import sys
 import requests
 
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 TIMEOUT = 30
 
 GIORNI_IT = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
@@ -31,8 +37,12 @@ GIORNI_IT = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
 DAILY_VARS = [
     "temperature_2m_max", "temperature_2m_min",
     "precipitation_sum", "wind_speed_10m_max", "wind_gusts_10m_max",
+    "wind_direction_10m_dominant",
 ]
 HOURLY_VARS = ["relative_humidity_2m", "pressure_msl"]
+
+MARINE_DAILY_VARS = ["wave_height_max", "wave_period_max", "wave_direction_dominant"]
+MARINE_HOURLY_VARS = ["sea_level_height_msl"]
 
 
 def _day_label(iso_date: str) -> str:
@@ -87,9 +97,49 @@ def fetch_outlook(lat, lon, start, days):
             "humidity_mean": round(sum(hums) / len(hums)) if hums else None,
             "pressure_mean": round(sum(press) / len(press), 1) if press else None,
             "wind_gust_max": daily["wind_gusts_10m_max"][i] if daily.get("wind_gusts_10m_max") else None,
+            "wind_dir_dominant": daily["wind_direction_10m_dominant"][i]
+                                  if daily.get("wind_direction_10m_dominant") else None,
             "rain_sum": daily["precipitation_sum"][i] if daily.get("precipitation_sum") else None,
         })
     return days_out
+
+
+def fetch_marine_outlook(lat, lon, start, days):
+    end = (dt.date.fromisoformat(start) + dt.timedelta(days=days - 1)).isoformat()
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "start_date": start,
+        "end_date": end,
+        "daily": ",".join(MARINE_DAILY_VARS),
+        "hourly": ",".join(MARINE_HOURLY_VARS),
+        "timezone": "auto",
+    }
+    r = requests.get(MARINE_URL, params=params, timeout=TIMEOUT)
+    if r.status_code != 200:
+        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:300]}")
+    js = r.json()
+
+    daily = js.get("daily", {})
+    hourly = js.get("hourly", {})
+
+    tide_by_day = {}
+    for ts, lvl in zip(hourly.get("time", []), hourly.get("sea_level_height_msl", [])):
+        if lvl is not None:
+            tide_by_day.setdefault(ts[:10], []).append(lvl)
+
+    by_date = {}
+    for i, date in enumerate(daily.get("time", [])):
+        tides = tide_by_day.get(date, [])
+        by_date[date] = {
+            "wave_height_max": daily["wave_height_max"][i] if daily.get("wave_height_max") else None,
+            "wave_period_max": daily["wave_period_max"][i] if daily.get("wave_period_max") else None,
+            "wave_dir_dominant": daily["wave_direction_dominant"][i]
+                                  if daily.get("wave_direction_dominant") else None,
+            "tide_min": round(min(tides), 2) if tides else None,
+            "tide_max": round(max(tides), 2) if tides else None,
+        }
+    return by_date
 
 
 def main():
@@ -98,6 +148,8 @@ def main():
     ap.add_argument("--lon", type=float, required=True)
     ap.add_argument("--start", required=True, help="Data inizio outlook YYYY-MM-DD (di solito oggi)")
     ap.add_argument("--days", type=int, default=7)
+    ap.add_argument("--marine", action="store_true",
+                     help="Aggiunge onda/marea giornaliere (solo localita' costiere)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -107,7 +159,19 @@ def main():
         print(json.dumps({"fatal_error": str(e)}, ensure_ascii=False, indent=2))
         sys.exit(1)
 
+    marine_error = None
+    if args.marine:
+        try:
+            marine_by_date = fetch_marine_outlook(args.lat, args.lon, args.start, args.days)
+            for day in days_out:
+                day.update(marine_by_date.get(day["date"], {}))
+        except Exception as e:
+            marine_error = str(e)
+            print(f"Outlook mare non disponibile: {marine_error}", file=sys.stderr)
+
     out = {"model": "best_match", "days": days_out}
+    if args.marine:
+        out["marine_error"] = marine_error
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
 
