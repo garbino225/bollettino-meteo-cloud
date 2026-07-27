@@ -19,9 +19,11 @@ import argparse
 import datetime as dt
 import json
 import math
+from zoneinfo import ZoneInfo
 
 SYNODIC_MONTH = 29.530588861
 REF_NEW_MOON = dt.datetime(2000, 1, 6, 18, 14, tzinfo=dt.timezone.utc)
+ROME_TZ = ZoneInfo("Europe/Rome")
 
 PHASE_NAMES = [
     "Luna Nuova", "Luna Crescente", "Primo Quarto", "Gibbosa Crescente",
@@ -55,13 +57,16 @@ def moon_info(when: dt.datetime) -> dict:
     age = moon_age_days(when)
     days_to_full = days_to_next_full_moon(age)
     next_full = when + dt.timedelta(days=days_to_full)
+    next_full_local = next_full.astimezone(ROME_TZ)
     return {
         "date": when.date().isoformat(),
         "age_days": round(age, 1),
         "phase_name": phase_name(age),
         "illumination_pct": illumination_pct(age),
         "days_to_full_moon": round(days_to_full, 1),
-        "next_full_moon_date": next_full.date().isoformat(),
+        "next_full_moon_date": next_full_local.date().isoformat(),
+        "next_full_moon_time_local": next_full_local.strftime("%H:%M"),
+        "next_full_moon_tz": next_full_local.tzname(),
     }
 
 
@@ -84,7 +89,8 @@ def main():
         print(f"OK -> {args.out}")
     print(f"{info['phase_name']} ({info['illumination_pct']}% illuminata), "
           f"prossima luna piena tra {info['days_to_full_moon']} giorni "
-          f"({info['next_full_moon_date']})")
+          f"({info['next_full_moon_date']} alle {info['next_full_moon_time_local']} "
+          f"{info['next_full_moon_tz']})")
 
 
 if __name__ == "__main__":

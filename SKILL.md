@@ -135,12 +135,13 @@ per il confronto con Skyfield/DE421). Scrivi in `report.json` il campo
 `moon_phase` come singola riga di testo, es.:
 
 ```
-"moon_phase": "Gibbosa Crescente (95.3% illuminata) - prossima luna piena tra 2.1 giorni (29/07/2026)"
+"moon_phase": "Gibbosa Crescente (95.3% illuminata) - prossima luna piena tra 2.1 giorni (29/07/2026 alle 15:23 CEST)"
 ```
 
 (componi la stringa dai campi `phase_name`, `illumination_pct`,
-`days_to_full_moon`, `next_full_moon_date` di `moon.json` — quest'ultima
-data va scritta in formato gg/mm/aaaa nel testo). Viene mostrata
+`days_to_full_moon`, `next_full_moon_date`, `next_full_moon_time_local`,
+`next_full_moon_tz` di `moon.json` — la data va scritta in formato
+gg/mm/aaaa e l'ora locale (Roma) accanto, come nell'esempio). Viene mostrata
 automaticamente subito sotto "Generato il..." in copertina/intestazione,
 sia nel PDF sia nell'HTML: non serve altro codice, e' gia' gestito da
 `build_pdf.py`/`build_html.py`.

@@ -15,7 +15,7 @@ Formato atteso di report.json:
   "location_label": "Rimini (RN), Emilia-Romagna",
   "period_label": "23-26 luglio 2026",
   "generated_at": "23 luglio 2026, 21:40",
-  "moon_phase": "Gibbosa Crescente (95.3% illuminata) - prossima luna piena tra 2.1 giorni (29/07/2026)",
+  "moon_phase": "Gibbosa Crescente (95.3% illuminata) - prossima luna piena tra 2.1 giorni (29/07/2026 alle 15:23 CEST)",
   "sintesi": "paragrafo di sintesi iniziale (poche righe)",
   "sections": [
      {"heading": "Analisi Sinottica", "body": "testo, paragrafi separati da doppio a-capo"},
