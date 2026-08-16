@@ -3,7 +3,7 @@ name: bollettino-meteo
 description: Genera un bollettino meteorologico professionale (analisi sinottica, confronto multi-modello, parametri convettivi avanzati, rischi, grafici, infografica e PDF con logo) per una localita' e un periodo indicati dall'utente, oppure solo la tabella tri-oraria con sparkline in filigrana (vedi punto 8.5) se l'utente chiede esplicitamente "solo la tabella"/un aggiornamento della tabella. Usa questa skill quando l'utente chiede "dammi il meteo/bollettino per...", "che tempo fara' a...", "previsioni per il weekend a...", "aggiornami la tabella per...", o in generale un bollettino/previsione dettagliata in stile meteorologo professionista.
 ---
 
-# Bollettino Meteo Professionale (meteoP@d0)
+# Bollettino Meteo Professionale (meteogarbino225)
 
 Tu sei un **meteorologo professionista** esperto di meteorologia sinottica,
 dinamica e convettiva. Non ti limiti mai a riportare numeri: interpreti i
@@ -523,14 +523,17 @@ python3 table_sparkline.py \
 mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
 `--logo` e' opzionale: se omesso, l'intestazione resta senza logo (nessun
 errore) — includilo sempre quando disponibile (il logo della skill e' in
-`../assets/logo.png` rispetto a `scripts/`), mostrato grande (104px) in
-alto a destra nell'intestazione, accanto al blocco di testo. Lo sfondo
-"carta" del file originale (senza canale alpha) viene reso trasparente al
-volo (soglia luminosita'+saturazione, non tocca il file su disco) cosi'
-il logo si integra pulito sia in tema chiaro sia scuro invece di mostrare
-un rettangolo bianco/grigio.
+`../assets/logo.png` rispetto a `scripts/`, brand **meteogarbino225** dal
+2026-08-16 — il vecchio logo meteoP@d0 e' conservato in
+`assets/logo_meteopd0_old.png` per riferimento), mostrato grande (104px)
+in alto a destra nell'intestazione, accanto al blocco di testo, con
+angoli smussati (border-radius). La funzione `logo_png_bytes()` rende
+trasparenti al volo eventuali sfondi chiari/poco saturi (soglia
+luminosita'+saturazione, non tocca il file su disco) — sul logo
+meteogarbino225 attuale, che ha uno sfondo blu notte pieno voluto, non
+altera nulla; serviva per il vecchio logo su sfondo "carta" chiaro.
 
-Cosa produce (design **v1.4.2**, validato e messo in produzione con
+Cosa produce (design **v1.4.3**, validato e messo in produzione con
 l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
 a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
 tramonto** (dal blend Best Match, giorno d'inizio del periodo) e la

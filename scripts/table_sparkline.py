@@ -68,7 +68,14 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   via soglia luminosita'+saturazione (vedi logo_png_bytes) - elaborato solo per
 #   l'embedding qui, il file sorgente non viene toccato. Richiede Pillow e numpy
 #   (gia' dipendenze della skill).
-SCRIPT_VERSION = "1.4.2"
+# 1.4.3 (2026-08-16): rebrand logo, sostituito assets/logo.png con il nuovo logo
+#   "meteogarbino225" (icona quadrata a sfondo blu notte pieno, non piu' un wordmark
+#   su carta chiara). logo_png_bytes() non rimuove nulla su questo file (le soglie
+#   agiscono solo su sfondi chiari/poco saturi, lo sfondo blu notte resta intatto
+#   com'e' voluto). Aggiunto border-radius:18px al tag <img> per renderlo un'icona
+#   con angoli smussati invece di un rettangolo netto. Vecchio logo conservato in
+#   assets/logo_meteopd0_old.png.
+SCRIPT_VERSION = "1.4.3"
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
 # riferimento nota) - non duplicare logica diversa altrove nella skill.
@@ -512,7 +519,7 @@ def main():
     logo_html = ""
     if args.logo:
         logo_b64 = base64.b64encode(logo_png_bytes(args.logo)).decode("ascii")
-        logo_html = f'<img class="head-logo" src="data:image/png;base64,{logo_b64}" alt="meteoP@d0">'
+        logo_html = f'<img class="head-logo" src="data:image/png;base64,{logo_b64}" alt="meteogarbino225">'
 
     header_cells = [
         '<th class="col-time">Data / ora</th>',
@@ -665,7 +672,7 @@ TEMPLATE = '''<meta charset="utf-8">
 
   .head-text {{ display: flex; flex-direction: column; gap: 6px; min-width: 0; }}
 
-  .head-logo {{ height: 104px; width: auto; flex: none; }}
+  .head-logo {{ height: 104px; width: auto; flex: none; border-radius: 18px; }}
 
   .eyebrow {{
     font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em;
