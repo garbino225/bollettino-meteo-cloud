@@ -521,7 +521,7 @@ python3 table_sparkline.py \
 `--marine` e' opzionale: omettilo per localita' non costiere (lo script
 mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
 
-Cosa produce (design **v1.3.0**, validato e messo in produzione con
+Cosa produce (design **v1.3.1**, validato e messo in produzione con
 l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
 a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
 tramonto** (dal blend Best Match, giorno d'inizio del periodo) e la
@@ -566,6 +566,15 @@ ha anche un `background-color` (es. le classi `sev-*` per la gravita'),
 quel background copre completamente lo sparkline invece di lasciarlo
 visibile sopra (scoperto il 2026-08-16 introducendo la colorazione per
 gravita').
+
+ATTENZIONE altro bug gia' preso, non ripeterlo: il template deve iniziare
+SEMPRE con `<meta charset="utf-8">` come primissima riga (prima di
+`<title>`). Il file viene scritto correttamente in UTF-8 su disco
+(`open(..., encoding="utf-8")`), ma senza questa dichiarazione esplicita
+un browser che apre il file direttamente da disco (`file://`, es. doppio
+click) deve indovinare la codifica e in alcuni ambienti sbaglia,
+producendo caratteri accentati/simboli illeggibili (mojibake) — segnalato
+dall'utente il 2026-08-16, fix in v1.3.1.
 
 Non serve editare `table_sparkline.py` per una nuova localita' o un nuovo
 periodo: e' gia' generico (righe/colonne si adattano al numero di

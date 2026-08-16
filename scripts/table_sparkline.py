@@ -46,7 +46,13 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   forma chiusa - mese sinodico + epoca nota - gia' usata da moon_phase.py per il
 #   bollettino completo, reimplementata qui per non richiedere un file di input in
 #   piu': e' un calcolo puro, non un dato scaricato).
-SCRIPT_VERSION = "1.3.0"
+# 1.3.1 (2026-08-16): fix caratteri accentati/speciali illeggibili (mojibake) quando
+#   il file HTML viene aperto direttamente da disco (file://): mancava una dichiarazione
+#   esplicita <meta charset="utf-8">, quindi il browser doveva indovinare la codifica e
+#   in alcuni ambienti sbagliava. Il file era gia' scritto correttamente in UTF-8 su
+#   disco (open(..., encoding="utf-8")), il problema era solo nella lettura senza
+#   dichiarazione esplicita. Aggiunta come primissima riga del template.
+SCRIPT_VERSION = "1.3.1"
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
 # riferimento nota) - non duplicare logica diversa altrove nella skill.
@@ -509,7 +515,8 @@ def main():
     print(f"OK -> {args.out} ({n} righe, mare: {'si' if has_marine else 'no'})")
 
 
-TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
+TEMPLATE = '''<meta charset="utf-8">
+<title>Tabella Convettiva {loc}</title>
 <style>
   :root {{
     --paper: #F3F6F9;
