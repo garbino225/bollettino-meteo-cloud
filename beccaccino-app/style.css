@@ -178,16 +178,36 @@ h3 { margin: 0 0 8px; color: var(--felt-dark); }
   gap: 10px;
   min-height: 260px;
 }
-.table-slot { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.table-slot { display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; }
 .table-slot.winner .play-card { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,162,75,.55); }
 .table-slot.winner .pos-label { color: var(--gold); }
+.table-slot.on-turn .pos-label { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
 .game-trick-result { background: #fff; border-left: 4px solid var(--gold); border-radius: 8px; padding: 10px 16px; margin-top: 12px; font-weight: 600; }
 #game-next-trick { margin-top: 14px; }
 .slot-nord { grid-column: 2; grid-row: 1; }
 .slot-ovest { grid-column: 1; grid-row: 2; }
 .slot-est { grid-column: 3; grid-row: 2; }
 .slot-sud { grid-column: 2; grid-row: 3; }
-.table-slot .pos-label { color: #fff; opacity: .85; }
+.table-slot .pos-label { color: #fff; opacity: .85; font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+
+.signal-pill {
+  font-size: .72rem; font-weight: 700; background: rgba(255,255,255,.92); color: var(--felt-dark);
+  padding: 2px 8px; border-radius: 10px; white-space: nowrap; box-shadow: var(--card-shadow);
+}
+
+.game-partner-signals { font-size: .9rem; color: #4a3f38; margin: 4px 0 10px; min-height: 1.4em; }
+.game-partner-signals .suit-chip { margin-right: 6px; margin-bottom: 4px; }
+
+.game-signal-prompt {
+  background: #fff8e8; border: 1px solid var(--gold); border-radius: 10px;
+  padding: 14px 16px; margin: 14px 0; box-shadow: var(--card-shadow);
+}
+.game-signal-prompt p { margin: 0 0 10px; }
+.signal-choices { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.signal-legend { background: #fff; border: 1px solid #eee2cd; border-radius: 10px; padding: 10px 16px; margin: 14px 0; }
+.signal-legend summary { cursor: pointer; font-weight: 700; color: var(--felt-dark); }
+.signal-legend ul { margin: 10px 0 2px; }
 
 .game-hand { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 16px 0; }
 .hand-card {

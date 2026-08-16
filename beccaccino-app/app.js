@@ -434,6 +434,13 @@ document.getElementById('trainer-start')?.addEventListener('click', () => {
 
 const GAME_POS = ['Sud', 'Ovest', 'Nord', 'Est']; // ordine di gioco antiorario, Sud = umano
 const TEAM_OF = { Sud: 'A', Nord: 'A', Ovest: 'B', Est: 'B' };
+const PARTNER_OF = { Sud: 'Nord', Nord: 'Sud', Ovest: 'Est', Est: 'Ovest' };
+const SIGNAL_LABEL = { busso: '👊 Busso', striscio: '🤚 Striscio', volo: '🕊️ Volo' };
+const SIGNAL_EXPLAIN = {
+  busso: 'hai ancora carichi (Asso, 2 o 3) in questo seme: dillo al compagno, così torna a giocarlo.',
+  striscio: 'hai ancora carte di questo seme, ma non sono forti.',
+  volo: 'non hai più carte di questo seme.',
+};
 
 let game = null;
 
@@ -465,6 +472,8 @@ function dealGame() {
     pendingWinner: null,
     awaitingAdvance: false,
     trickResultMsg: null,
+    signals: { Sud: {}, Ovest: {}, Nord: {}, Est: {} }, // segnali dichiarati per giocatore/seme, validi per tutta la mano
+    awaitingSignal: null,
   };
   document.getElementById('game-hand-wrap').classList.remove('hidden');
   renderHandPreview();
@@ -549,7 +558,7 @@ function turnOrder() {
 }
 
 function playTurnIfAI() {
-  if (game.finished) return;
+  if (game.finished || game.awaitingAdvance || game.awaitingSignal) return;
   const order = turnOrder();
   const nextIdx = game.current.length;
   if (nextIdx >= 4) {
@@ -562,10 +571,10 @@ function playTurnIfAI() {
     return;
   }
   setTimeout(() => {
-    const card = aiChooseCard(pos);
+    const card = nextIdx === 0 ? aiChooseLeadCard(pos) : aiChooseCard(pos);
     playCard(pos, card);
     renderGame();
-    playTurnIfAI();
+    afterCardPlayed(pos, card);
   }, 550);
 }
 
@@ -580,6 +589,113 @@ function aiChooseCard(pos) {
   }
   // non può/non conviene vincere: scarta la carta di minor valore
   return legal.reduce((a, b) => (cardWeight(a) < cardWeight(b) ? a : b));
+}
+
+// Scelta della carta d'apertura: tiene conto dei segnali dichiarati dal compagno.
+function aiChooseLeadCard(pos) {
+  const hand = game.hands[pos];
+  const partnerSignals = game.signals[PARTNER_OF[pos]] || {};
+
+  const bussatoSuits = SUITS.map((s) => s.id).filter(
+    (id) => partnerSignals[id] === 'busso' && hand.some((c) => c.suit === id)
+  );
+  if (bussatoSuits.length) {
+    const cardsOfSuit = hand.filter((c) => c.suit === bussatoSuits[0]);
+    return cardsOfSuit.reduce((a, b) => (a.strength < b.strength ? a : b));
+  }
+
+  const nonVoloSuits = SUITS.map((s) => s.id).filter(
+    (id) => partnerSignals[id] !== 'volo' && hand.some((c) => c.suit === id)
+  );
+  const pool = nonVoloSuits.length ? hand.filter((c) => nonVoloSuits.includes(c.suit)) : hand;
+  return pool.reduce((a, b) => (cardWeight(a) < cardWeight(b) ? a : b));
+}
+
+// Aggancia (o meno) un segnale alla giocata appena fatta e aggiorna la memoria di squadra.
+function attachSignal(pos, suit, type, announced) {
+  const entry = game.current[game.current.length - 1];
+  entry.signal = announced ? type : null;
+  if (announced) game.signals[pos][suit] = type;
+}
+
+function continueAfterPlay() {
+  if (game.current.length >= 4) {
+    resolveTrick();
+    return;
+  }
+  playTurnIfAI();
+}
+
+// Da chiamare subito dopo ogni playCard(): decide se la giocata può avere un segnale
+// onesto associato (seguendo il seme o aprendo), oppure se è uno scarto/taglio forzato
+// (in tal caso il "volo" è automatico: giocare un altro seme lo rivela comunque).
+function afterCardPlayed(pos, card) {
+  const wasLeading = game.current.length === 1;
+  const followedSuit = card.suit === game.ledSuit;
+  const eligible = wasLeading || followedSuit;
+
+  if (!eligible) {
+    attachSignal(pos, game.ledSuit, 'volo', true);
+    continueAfterPlay();
+    return;
+  }
+
+  const suit = card.suit;
+  const remaining = game.hands[pos].filter((c) => c.suit === suit);
+  let type;
+  if (remaining.length === 0) type = 'volo';
+  else if (remaining.some((c) => ['asso', '2', '3'].includes(c.rank))) type = 'busso';
+  else type = 'striscio';
+
+  if (pos === 'Sud') {
+    game.awaitingSignal = { pos, suit, type };
+    renderGame();
+    return;
+  }
+  attachSignal(pos, suit, type, true);
+  continueAfterPlay();
+}
+
+function resolveSignalChoice(announce) {
+  const { pos, suit, type } = game.awaitingSignal;
+  attachSignal(pos, suit, type, announce);
+  game.awaitingSignal = null;
+  renderGame();
+  continueAfterPlay();
+}
+
+function renderSignalPrompt() {
+  const el = document.getElementById('game-signal-prompt');
+  if (!game.awaitingSignal) {
+    el.classList.add('hidden');
+    return;
+  }
+  const { suit, type } = game.awaitingSignal;
+  const s = suitInfo(suit);
+  el.classList.remove('hidden');
+  el.innerHTML = `<p>Segnale onesto per il compagno su <span class="suit-chip" style="--suit-color:${s.color}"><span class="suit-icon">${s.icon}</span>${s.name}</span>: <strong>${SIGNAL_LABEL[type]}</strong> — ${SIGNAL_EXPLAIN[type]}</p>
+    <div class="signal-choices">
+      <button class="btn primary" id="game-signal-yes">Segnala al compagno</button>
+      <button class="btn" id="game-signal-no">Resta in silenzio</button>
+    </div>`;
+  document.getElementById('game-signal-yes').addEventListener('click', () => resolveSignalChoice(true));
+  document.getElementById('game-signal-no').addEventListener('click', () => resolveSignalChoice(false));
+}
+
+function renderPartnerSignals() {
+  const el = document.getElementById('game-partner-signals');
+  const known = game.signals.Nord;
+  const entries = Object.entries(known).filter(([, v]) => v);
+  if (!entries.length) {
+    el.innerHTML = '<em>Il tuo compagno Nord non ha ancora dato segnali.</em>';
+    return;
+  }
+  el.innerHTML = `Segnali di Nord: ${entries
+    .map(([suit, type]) => {
+      const s = suitInfo(suit);
+      return `<span class="suit-chip" style="--suit-color:${s.color}"><span class="suit-icon">${s.icon}</span>${s.name}: ${SIGNAL_LABEL[type]}</span>`;
+    })
+    .join(' ')}`;
 }
 
 function cardWeight(c) {
@@ -605,7 +721,8 @@ function resolveTrick() {
   const winIdx = trickWinner(cards, game.ledSuit, game.trumpSuit);
   const winner = game.current[winIdx].pos;
   const team = TEAM_OF[winner];
-  const thirds = cards.reduce((s, c) => s + c.pointThirds, 0) + (game.trickNum === 10 ? 1 : 0);
+  // chi fa l'ultima presa guadagna un punto intero in più (3 terzi), oltre al valore delle carte
+  const thirds = cards.reduce((s, c) => s + c.pointThirds, 0) + (game.trickNum === 10 ? 3 : 0);
   game.points[team] += thirds;
   game.trickResultMsg = `Vince ${winner} con ${cardText(game.current[winIdx].card)} — ${thirdsToLabel(thirds)} punti alla squadra ${team}.`;
   game.log.unshift(`Presa ${game.trickNum}: ${game.trickResultMsg}`);
@@ -635,9 +752,10 @@ function advanceTrick() {
 }
 
 function renderGame() {
-  const wrap = document.getElementById('game-table-wrap');
   const trumpS = suitInfo(game.trumpSuit);
-  document.getElementById('game-status').innerHTML = `Presa ${Math.min(game.trickNum, 10)} di 10 — Briscola: <span class="suit-chip" style="--suit-color:${trumpS.color}"><span class="suit-icon">${trumpS.icon}</span>${trumpS.name}</span>`;
+  const turnPos = !game.finished && !game.awaitingAdvance && !game.awaitingSignal ? turnOrder()[game.current.length] : null;
+  const turnLabel = turnPos === 'Sud' ? 'Tocca a te!' : turnPos ? `Tocca a ${turnPos}…` : '';
+  document.getElementById('game-status').innerHTML = `Presa ${Math.min(game.trickNum, 10)} di 10 — Briscola: <span class="suit-chip" style="--suit-color:${trumpS.color}"><span class="suit-icon">${trumpS.icon}</span>${trumpS.name}</span>${turnLabel ? ` — <strong>${turnLabel}</strong>` : ''}`;
   document.getElementById('game-score').textContent = `Squadra A (Sud-Nord): ${thirdsToLabel(game.points.A)} · Squadra B (Ovest-Est): ${thirdsToLabel(game.points.B)}`;
 
   const table = document.getElementById('game-table');
@@ -645,13 +763,16 @@ function renderGame() {
   ['Nord', 'Ovest', 'Est', 'Sud'].forEach((pos) => {
     const played = game.current.find((x) => x.pos === pos);
     const isWinner = game.awaitingAdvance && pos === game.pendingWinner;
+    const isTurn = pos === turnPos;
     const div = document.createElement('div');
-    div.className = `table-slot slot-${pos.toLowerCase()}${isWinner ? ' winner' : ''}`;
+    div.className = `table-slot slot-${pos.toLowerCase()}${isWinner ? ' winner' : ''}${isTurn ? ' on-turn' : ''}`;
+    const label = pos === 'Sud' ? 'Sud (tu)' : pos;
+    const signalBadge = played && played.signal ? `<span class="signal-pill signal-${played.signal}">${SIGNAL_LABEL[played.signal]}</span>` : '';
     if (played) {
       const s = suitInfo(played.card.suit);
-      div.innerHTML = `<span class="pos-label">${pos}${isWinner ? ' 🏆' : ''}</span><span class="play-card" style="--suit-color:${s.color}"><span class="pc-rank">${RANK_LABEL[played.card.rank]}</span><span class="pc-suit">${s.icon}</span></span>`;
+      div.innerHTML = `<span class="pos-label">${label}${isWinner ? ' 🏆' : ''}</span><span class="play-card" style="--suit-color:${s.color}"><span class="pc-rank">${RANK_LABEL[played.card.rank]}</span><span class="pc-suit">${s.icon}</span></span>${signalBadge}`;
     } else {
-      div.innerHTML = `<span class="pos-label">${pos}</span><span class="play-card empty">·</span>`;
+      div.innerHTML = `<span class="pos-label">${label}</span><span class="play-card empty">·</span>`;
     }
     table.appendChild(div);
   });
@@ -668,9 +789,12 @@ function renderGame() {
     nextBtn.classList.add('hidden');
   }
 
+  renderSignalPrompt();
+  renderPartnerSignals();
+
   const handEl = document.getElementById('game-hand');
   handEl.innerHTML = '';
-  const legal = isHumanTurn() && !game.finished ? legalCardsFor('Sud') : [];
+  const legal = isHumanTurn() && !game.finished && !game.awaitingSignal ? legalCardsFor('Sud') : [];
   game.hands.Sud.forEach((card) => {
     const s = suitInfo(card.suit);
     const btn = document.createElement('button');
@@ -682,7 +806,7 @@ function renderGame() {
     btn.addEventListener('click', () => {
       playCard('Sud', card);
       renderGame();
-      playTurnIfAI();
+      afterCardPlayed('Sud', card);
     });
     handEl.appendChild(btn);
   });

@@ -82,8 +82,9 @@
         <li><strong>3, 2, Re, Cavallo, Fante</strong> = 1/3 di punto ciascuna</li>
         <li><strong>4, 5, 6, 7</strong> = 0 punti</li>
       </ul>
-      <p>In totale ogni mano mette in palio 11 punti (per convenzione l'ultima presa vale 1/3 di punto in più,
-      così i conti tornano esatti), da spartire fra le due squadre in base alle prese conquistate.</p>
+      <p>Le carte da sole valgono complessivamente 10 punti e 2/3. In più, la squadra che conquista
+      l'<strong>ultima presa</strong> guadagna un <strong>punto intero</strong> in più: in totale ogni mano
+      mette quindi in palio 11 punti e 2/3, da spartire fra le due squadre in base alle prese conquistate.</p>
     </div>
 
     <div class="rule-block">
@@ -110,6 +111,7 @@
         <li><strong>Striscio</strong> (mano strisciata sul tavolo): "ho ancora carte di questo seme, ma non sono forti".</li>
         <li><strong>Volo</strong> (mano alzata): "non ho più carte di questo seme".</li>
       </ul>
+      <p>Puoi allenarti a darli e a riconoscerli nella sezione <strong>Gioca</strong>.</p>
     </div>
 
     <div class="rule-block">
@@ -173,7 +175,16 @@
     in coppia con <strong>Nord</strong>, contro <strong>Ovest</strong> ed <strong>Est</strong>. Per permetterti
     di scegliere sempre la briscola (come da regola su chi riceve il 4 di denari), in questa modalità di
     allenamento il 4 di denari ti viene sempre assegnato. Prima guardi le tue carte, poi scegli la briscola,
-    proprio come nella regola vera.</p>
+    proprio come nella regola vera. Dopo ogni carta che segue il seme o apre una presa, potrai scegliere se
+    dare al tuo compagno il segnale onesto (busso/striscio/volo) o restare in silenzio.</p>
+    <details class="signal-legend">
+      <summary>Promemoria: busso, striscio, volo</summary>
+      <ul class="rule-list">
+        <li><strong>👊 Busso</strong> — ho ancora carichi (Asso/2/3) in questo seme: torna a giocarlo.</li>
+        <li><strong>🤚 Striscio</strong> — ho ancora carte di questo seme, ma deboli.</li>
+        <li><strong>🕊️ Volo</strong> — non ho più carte di questo seme.</li>
+      </ul>
+    </details>
     <div id="game-start-wrap">
       <button class="btn primary" id="game-start">Distribuisci le carte</button>
     </div>
@@ -185,7 +196,9 @@
     <div id="game-table-wrap" class="hidden">
       <div id="game-status" class="game-status"></div>
       <div id="game-score" class="game-score"></div>
+      <div id="game-partner-signals" class="game-partner-signals"></div>
       <div id="game-table" class="game-table"></div>
+      <div id="game-signal-prompt" class="game-signal-prompt hidden"></div>
       <div id="game-trick-result" class="game-trick-result hidden"></div>
       <button class="btn primary hidden" id="game-next-trick">Prossima presa →</button>
       <div id="game-log" class="game-log"></div>
