@@ -521,22 +521,42 @@ python3 table_sparkline.py \
 `--marine` e' opzionale: omettilo per localita' non costiere (lo script
 mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
 
-Cosa produce (design validato con l'utente il 2026-08-16, non
-reinventarlo): un'unica pagina HTML autoconclusiva con la tabella
-tri-oraria (Data/ora, T, Vento, Dir.V, **Pioggia** cumulata 3h, i 9
-parametri convettivi MetPy, Onda/Dir.O se costiera, Nota) dove **ogni
-colonna numerica ha uno sparkline in filigrana sullo sfondo delle celle**
-(scala min-max propria della colonna, allineato riga per riga cosi'
-scorrendo verso il basso si vede l'andamento nel tempo), righe evidenziate
-con uno stripe laterale + pallino sulla linea in ambra (innesco possibile:
-CIN >= -75 J/kg con SBCAPE >= 1000 J/kg) o rosso (temporali organizzati:
-SBCAPE >= 1500 J/kg con shear 0-6km >= 25kn), colonna Data/ora e header
-fissi durante lo scroll orizzontale, tema chiaro/scuro automatico.
+Cosa produce (design **v1.0.0**, validato e messo in produzione con
+l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
+a `table_sparkline.py`): un'unica pagina HTML autoconclusiva con la
+tabella tri-oraria (Data/ora, T, Vento, Dir.V, **Pioggia** cumulata 3h,
+**Copertura nuvolosa in ottavi** 0/8 sereno-8/8 coperto, i 9 parametri
+convettivi MetPy, Onda/Dir.O se costiera, Nota) dove **ogni colonna
+numerica ha uno sparkline in filigrana sullo sfondo delle celle** (scala
+min-max propria della colonna, allineato riga per riga cosi' scorrendo
+verso il basso si vede l'andamento nel tempo), righe evidenziate con uno
+stripe laterale + pallino sulla linea in ambra (innesco possibile: CIN >=
+-75 J/kg con SBCAPE >= 1000 J/kg) o rosso (temporali organizzati: SBCAPE
+>= 1500 J/kg con shear 0-6km >= 25kn), colonna Data/ora e header fissi
+durante lo scroll orizzontale, tema chiaro/scuro automatico, e sotto la
+tabella una **Legenda parametri** (Parametro | Descrizione | Campo
+osservato "da X a Y unita'") allineata a sinistra per ogni colonna
+numerica (le colonne direzionali/categoriche — Dir.V, Dir.O, Nota — non
+hanno una riga in legenda: un range numerico non avrebbe senso per un
+dato circolare). Il footer riporta sempre `Tabella convettiva v{versione}`
+per sapere a colpo d'occhio a quale revisione del template risale una
+tabella generata in precedenza.
 
 Non serve editare `table_sparkline.py` per una nuova localita' o un nuovo
 periodo: e' gia' generico (righe/colonne si adattano al numero di
 timestep e alla disponibilita' dati mare). Editalo solo se l'utente
-chiede di cambiare lo stile o le colonne stesse.
+chiede di cambiare lo stile o le colonne stesse — e in quel caso
+**incrementa `SCRIPT_VERSION`** (e la nota di changelog accanto) cosi' il
+footer delle tabelle successive riflette la revisione aggiornata.
+
+ATTENZIONE bug gia' preso una volta, non ripeterlo: tutte le regole CSS
+della tabella dati principale devono restare scoped sotto `.data-table`
+(non selettori bardi come `table`, `thead th`, `tbody td`...) perche' la
+pagina contiene una SECONDA tabella (`.glossary-table`, la legenda) che
+altrimenti erediterebbe per sbaglio regole pensate solo per la tabella
+principale (successo il 2026-08-16: un `tbody td { white-space: nowrap;
+overflow: hidden }` non scoped troncava il testo della colonna
+Descrizione nella legenda invece di andare a capo).
 
 Presenta comunque in chat un riassunto testuale breve (2-3 frasi: giorni/
 ore piu' a rischio) insieme al link dell'Artifact, come da punto 9.

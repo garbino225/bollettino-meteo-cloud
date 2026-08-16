@@ -28,28 +28,36 @@ import json
 
 RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo sparkline
 
-# (chiave in ogni riga unita, classe CSS colonna, larghezza px, chiave sparkline o None, etichetta header, tooltip)
+# Versione del template (non del dato): incrementa quando cambia design/colonne/logica
+# di questo script, cosi' chi guarda una tabella generata sa a quale revisione risale.
+# 1.0.0 (2026-08-16): prima versione di produzione - sparkline per colonna, legenda
+#   parametri con range osservato, copertura nuvolosa in ottavi, colonne mare opzionali.
+SCRIPT_VERSION = "1.0.0"
+
+# (chiave in ogni riga unita, classe CSS colonna, larghezza px, chiave sparkline o None,
+#  etichetta header, tooltip/descrizione legenda, unita' di misura per la legenda o None)
 BASE_COLS = [
-    ("time",   "col-time", 108, None,     "Data / ora", None),
-    ("temp",   "sc-t",      56, "temp",   "T (°C)", "Temperatura a 2m"),
-    ("wind",   "sc-vt",     60, "wind",   "Vento (kn)", "Vento medio a 10m"),
-    ("dirv",   "dir",       52, None,     "Dir.V", "Direzione del vento"),
-    ("precip", "sc-pr",     60, "precip", "Pioggia (mm)", "Precipitazione cumulata nelle 3 ore seguenti"),
-    ("sbcape", "sc-cape",   68, "sbcape", "SBCAPE", "Surface Based CAPE – energia potenziale convettiva disponibile"),
-    ("cin",    "sc-cin",    64, "cin",    "CIN", "Convective Inhibition – inibizione convettiva (la “cappa”)"),
-    ("li",     "sc-li",     44, "li",     "LI", "Lifted Index"),
-    ("k",      "sc-k",      40, "k",      "K", "K-Index"),
-    ("tt",     "sc-tt",     44, "tt",     "TT", "Total Totals Index"),
-    ("sweat",  "sc-swt",    56, "sweat",  "SWEAT", "SWEAT Index – rischio temporali severi/supercelle oltre 300"),
-    ("shear",  "sc-shear",  62, "shear",  "Shear0-6", "Bulk shear 0-6 km"),
-    ("srh",    "sc-srh",    62, "srh",    "SRH0-3", "Storm Relative Helicity 0-3 km"),
-    ("pwat",   "sc-pwat",   52, "pwat",   "PWAT", "Acqua precipitabile (Precipitable Water)"),
+    ("time",   "col-time", 108, None,     "Data / ora", None, None),
+    ("temp",   "sc-t",      56, "temp",   "T (°C)", "Temperatura a 2m", "°C"),
+    ("wind",   "sc-vt",     60, "wind",   "Vento (kn)", "Vento medio a 10m", "kn"),
+    ("dirv",   "dir",       52, None,     "Dir.V", "Direzione del vento", None),
+    ("precip", "sc-pr",     60, "precip", "Pioggia (mm)", "Precipitazione cumulata nelle 3 ore seguenti", "mm"),
+    ("cloud",  "sc-cld",    56, "cloud",  "Nuv. (/8)", "Copertura nuvolosa in ottavi (0/8 = cielo sereno, 8/8 = cielo totalmente coperto)", "/8"),
+    ("sbcape", "sc-cape",   68, "sbcape", "SBCAPE", "Surface Based CAPE – energia potenziale convettiva disponibile per un aggiornamento partito dal suolo", "J/kg"),
+    ("cin",    "sc-cin",    64, "cin",    "CIN", "Convective Inhibition – inibizione convettiva, la “cappa” da vincere perché parta un temporale", "J/kg"),
+    ("li",     "sc-li",     44, "li",     "LI", "Lifted Index – quanto piu' negativo, tanto piu' l'atmosfera e' instabile", "°C"),
+    ("k",      "sc-k",      40, "k",      "K", "K-Index – gradiente termico e umidita' medio-bassa, indica probabilita' di temporali diffusi", "°C"),
+    ("tt",     "sc-tt",     44, "tt",     "TT", "Total Totals Index – simile al K-Index, piu' sensibile all'instabilita' pura", "°C"),
+    ("sweat",  "sc-swt",    56, "sweat",  "SWEAT", "SWEAT Index – rischio temporali severi/supercelle non trascurabile sopra 300", None),
+    ("shear",  "sc-shear",  62, "shear",  "Shear0-6", "Bulk shear 0-6 km – taglio del vento con la quota, l'ingrediente chiave per organizzare i temporali", "kn"),
+    ("srh",    "sc-srh",    62, "srh",    "SRH0-3", "Storm Relative Helicity 0-3 km – rotazione disponibile nei bassi strati", "m²/s²"),
+    ("pwat",   "sc-pwat",   52, "pwat",   "PWAT", "Acqua precipitabile (Precipitable Water) – acqua totale in colonna, alta = piu' potenziale per piogge intense", "kg/m²"),
 ]
 MARINE_COLS = [
-    ("wave",   "sc-onda",   56, "wave",   "Onda (m)", "Altezza onda significativa"),
-    ("diro",   "dir",       52, None,     "Dir.O", "Direzione dell'onda"),
+    ("wave",   "sc-onda",   56, "wave",   "Onda (m)", "Altezza onda significativa", "m"),
+    ("diro",   "dir",       52, None,     "Dir.O", "Direzione dell'onda", None),
 ]
-NOTE_COL = ("note", "col-note", 168, None, "Nota", None)
+NOTE_COL = ("note", "col-note", 168, None, "Nota", None, None)
 
 DIRS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"]
 
@@ -58,6 +66,13 @@ def dirlabel(d):
     if d is None:
         return "-"
     return DIRS[round(d / 22.5) % 16]
+
+
+def cloud_okta(pct):
+    """Converte copertura nuvolosa da percentuale (Open-Meteo) a ottavi (0-8), scala meteorologica standard."""
+    if pct is None:
+        return None
+    return min(8, max(0, round(pct / 100 * 8)))
 
 
 def load(path):
@@ -108,6 +123,7 @@ def build_rows(data, indices, marine):
             "wind": bm["wind_speed_10m"][i],
             "dirv": dirlabel(bm["wind_direction_10m"][i]),
             "precip": round(precip, 1),
+            "cloud": cloud_okta(bm["cloud_cover"][i]),
             "sbcape": cape, "cin": cin, "li": ind.get("lifted_index"),
             "k": ind.get("k_index"), "tt": ind.get("total_totals"),
             "sweat": ind.get("sweat_index"), "shear": shear, "srh": ind.get("srh_0_3km_m2s2"),
@@ -164,7 +180,7 @@ DARK_DOTS = ("#E3A73F", "#E27567")
 
 def build_spark_assets(rows, cols, total_h):
     light_vars, dark_vars, css_rules = [], [], []
-    for _, cls, w, skey, _, _ in cols:
+    for _, cls, w, skey, _, _, _ in cols:
         if skey is None:
             continue
         svg_l = make_svg(rows, skey, w, total_h, LIGHT_LINE, LIGHT_OP, LIGHT_DOTS)
@@ -183,6 +199,35 @@ def build_spark_assets(rows, cols, total_h):
 
 def fmt(v):
     return "&ndash;" if v is None else str(v)
+
+
+def fmt_num(v):
+    """Numero per la legenda: interi senza decimali, altrimenti 1 decimale."""
+    if float(v).is_integer():
+        return str(int(v))
+    return f"{v:.1f}"
+
+
+def build_legend(rows, cols):
+    items = []
+    for _, _, _, skey, label, desc, unit in cols:
+        if skey is None:
+            continue
+        vals = [r[skey] for r in rows]
+        lo, hi = min(vals), max(vals)
+        unit_s = f" {unit}" if unit else ""
+        if abs(hi - lo) < 1e-9:
+            campo = f"costante: {fmt_num(lo)}{unit_s}"
+        else:
+            campo = f"da {fmt_num(lo)} a {fmt_num(hi)}{unit_s}"
+        items.append((label, desc, campo))
+
+    rows_html = "\n".join(
+        f'<tr><td class="lg-param">{label}</td><td class="lg-desc">{desc}</td>'
+        f'<td class="lg-range">{campo}</td></tr>'
+        for label, desc, campo in items
+    )
+    return rows_html
 
 
 DAY_ABBR = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
@@ -225,6 +270,7 @@ def build_tbody(rows):
             f'<td class="sc-vt num">{fmt(r["wind"])}</td>',
             f'<td class="dir">{r["dirv"]}</td>',
             f'<td class="sc-pr num">{fmt(r["precip"])}</td>',
+            f'<td class="sc-cld num">{fmt(r["cloud"])}</td>',
             f'<td class="sc-cape num">{fmt(r["sbcape"])}</td>',
             f'<td class="sc-cin num">{fmt(r["cin"])}</td>',
             f'<td class="sc-li num">{fmt(r["li"])}</td>',
@@ -273,12 +319,12 @@ def main():
 
     n = len(rows)
     total_h = RH * n
-    total_w = sum(w for _, _, w, _, _, _ in cols)
+    total_w = sum(w for _, _, w, _, _, _, _ in cols)
 
     light_vars, dark_vars, spark_rules = build_spark_assets(rows, cols, total_h)
     tbody = build_tbody(rows)
 
-    colgroup = "\n".join(f'<col style="width:{w}px">' for _, _, w, _, _, _ in cols)
+    colgroup = "\n".join(f'<col style="width:{w}px">' for _, _, w, _, _, _, _ in cols)
 
     loc = args.location_label or data["location"]["name"]
     lat, lon = data["location"]["lat"], data["location"]["lon"]
@@ -293,6 +339,7 @@ def main():
         '<th><abbr title="Vento medio a 10m">Vento (kn)</abbr></th>',
         '<th><abbr title="Direzione del vento">Dir.V</abbr></th>',
         '<th><abbr title="Precipitazione cumulata nelle 3 ore seguenti">Pioggia (mm)</abbr></th>',
+        '<th><abbr title="Copertura nuvolosa in ottavi (0/8 = sereno, 8/8 = coperto)">Nuv. (/8)</abbr></th>',
         '<th><abbr title="Surface Based CAPE &ndash; energia potenziale convettiva disponibile">SBCAPE</abbr></th>',
         '<th><abbr title="Convective Inhibition &ndash; inibizione convettiva (la &quot;cappa&quot;)">CIN</abbr></th>',
         '<th><abbr title="Lifted Index">LI</abbr></th>',
@@ -310,17 +357,19 @@ def main():
 
     group_row = (
         '<tr class="group-row"><th class="g-time">&nbsp;</th>'
-        '<th colspan="4">Atmosfera</th>'
+        '<th colspan="5">Atmosfera</th>'
         '<th colspan="9">Convezione (MetPy)</th>'
         + ('<th colspan="2">Mare</th>' if has_marine else '')
         + '<th class="g-note">&nbsp;</th></tr>'
     )
 
+    legend_rows = build_legend(rows, cols)
+
     html = TEMPLATE.format(
         loc=loc, lat=lat, lon=lon, start=start_label, end=end_label, generated=generated,
         light_vars=light_vars, dark_vars=dark_vars, spark_rules=spark_rules,
         colgroup=colgroup, group_row=group_row, header_cells="\n            ".join(header_cells),
-        tbody=tbody, total_w=max(total_w, 900), rh=RH,
+        tbody=tbody, total_w=max(total_w, 900), rh=RH, legend_rows=legend_rows, version=SCRIPT_VERSION,
         marine_title=" e mare" if has_marine else "",
         marine_sub="; onda da Open-Meteo Marine" if has_marine else "",
         marine_footer=" &middot; stato del mare Open-Meteo Marine" if has_marine else "",
@@ -448,68 +497,68 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
 
   .scroll {{ overflow-x: auto; -webkit-overflow-scrolling: touch; }}
 
-  table {{
+  .data-table {{
     border-collapse: separate; border-spacing: 0; width: 100%; min-width: {total_w}px;
     table-layout: fixed; font-variant-numeric: tabular-nums;
   }}
 
-  thead th {{
+  .data-table thead th {{
     position: sticky; top: 0; z-index: 3; background: var(--navy); color: #EAF0FA;
     font-weight: 600; text-align: right; padding: 7px 10px; font-size: 11px;
     letter-spacing: 0.01em; border-bottom: 1px solid var(--navy-2); white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis;
   }}
 
-  thead tr.group-row th {{
+  .data-table thead tr.group-row th {{
     top: 0; z-index: 4; background: var(--navy-2); font-size: 10px; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase; color: #B9C6DE; text-align: center;
     padding: 6px 8px 5px; border-bottom: 1px solid var(--navy);
   }}
 
-  thead tr.col-row th {{ top: 26px; }}
+  .data-table thead tr.col-row th {{ top: 26px; }}
 
-  thead th abbr {{ text-decoration: none; border-bottom: 1px dotted rgba(234, 240, 250, 0.45); cursor: help; }}
+  .data-table thead th abbr {{ text-decoration: none; border-bottom: 1px dotted rgba(234, 240, 250, 0.45); cursor: help; }}
 
-  thead th.col-time, thead th.col-note,
-  .group-row th.g-time, .group-row th.g-note {{ text-align: left; }}
+  .data-table thead th.col-time, .data-table thead th.col-note,
+  .data-table .group-row th.g-time, .data-table .group-row th.g-note {{ text-align: left; }}
 
-  th.col-time, td.col-time {{
+  .data-table th.col-time, .data-table td.col-time {{
     position: sticky; left: 0; z-index: 2; text-align: left; background: var(--surface);
     box-shadow: 1px 0 0 var(--line);
   }}
 
-  thead th.col-time {{ z-index: 5; background: var(--navy); }}
-  thead tr.group-row th.g-time {{ z-index: 5; background: var(--navy-2); }}
+  .data-table thead th.col-time {{ z-index: 5; background: var(--navy); }}
+  .data-table thead tr.group-row th.g-time {{ z-index: 5; background: var(--navy-2); }}
 
-  tbody tr {{ height: {rh}px; }}
+  .data-table tbody tr {{ height: {rh}px; }}
 
-  tbody td {{
+  .data-table tbody td {{
     height: {rh}px; padding: 0 10px; font-size: 12px; text-align: right;
     border-bottom: 1px solid var(--line-soft); color: var(--text); white-space: nowrap; overflow: hidden;
   }}
 
-  tbody tr:hover td {{ background: var(--row-hover); }}
-  tbody tr:hover td.col-time {{ background: var(--row-hover); }}
+  .data-table tbody tr:hover td {{ background: var(--row-hover); }}
+  .data-table tbody tr:hover td.col-time {{ background: var(--row-hover); }}
 
-  td.col-time {{ display: flex; align-items: center; gap: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }}
+  .data-table td.col-time {{ display: flex; align-items: center; gap: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }}
 
-  .day-tag-slot {{ display: inline-flex; min-width: 0; }}
+  .data-table .day-tag-slot {{ display: inline-flex; min-width: 0; }}
 
-  .day-tag {{
+  .data-table .day-tag {{
     font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--sea); background: color-mix(in srgb, var(--sea) 14%, transparent);
     padding: 2px 6px; border-radius: 5px; white-space: nowrap;
   }}
 
-  td.dir {{ text-align: center; color: var(--text-soft); font-size: 11.5px; }}
-  td.col-note {{ text-align: left; }}
+  .data-table td.dir {{ text-align: center; color: var(--text-soft); font-size: 11.5px; }}
+  .data-table td.col-note {{ text-align: left; }}
 
-  tr.day-start td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 0 2px 0 var(--line); }}
-  tr.risk-trigger td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 3px 0 0 var(--amber); }}
-  tr.risk-organized td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 3px 0 0 var(--storm); }}
-  tr.day-start.risk-trigger td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 0 2px 0 var(--line), inset 3px 0 0 var(--amber); }}
-  tr.day-start.risk-organized td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 0 2px 0 var(--line), inset 3px 0 0 var(--storm); }}
-  tr.day-start td:not(.col-time) {{ box-shadow: inset 0 2px 0 var(--line); }}
+  .data-table tr.day-start td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 0 2px 0 var(--line); }}
+  .data-table tr.risk-trigger td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 3px 0 0 var(--amber); }}
+  .data-table tr.risk-organized td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 3px 0 0 var(--storm); }}
+  .data-table tr.day-start.risk-trigger td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 0 2px 0 var(--line), inset 3px 0 0 var(--amber); }}
+  .data-table tr.day-start.risk-organized td.col-time {{ box-shadow: 1px 0 0 var(--line), inset 0 2px 0 var(--line), inset 3px 0 0 var(--storm); }}
+  .data-table tr.day-start td:not(.col-time) {{ box-shadow: inset 0 2px 0 var(--line); }}
 
   .pill {{ display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 999px; }}
   .pill-none {{ color: var(--text-faint); font-weight: 500; }}
@@ -517,6 +566,48 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
   .pill-organized {{ background: var(--storm-bg); color: var(--storm); }}
 
 {spark_rules}
+
+  .glossary {{ display: flex; flex-direction: column; gap: 10px; padding: 16px; }}
+
+  .glossary h2 {{
+    margin: 0; font-size: 13.5px; font-weight: 700; color: var(--text);
+    letter-spacing: -0.005em;
+  }}
+
+  .glossary-table {{ border-collapse: separate; border-spacing: 0; width: 100%; }}
+
+  .glossary-table th {{
+    background: var(--navy); color: #EAF0FA; font-weight: 600; font-size: 10.5px;
+    letter-spacing: 0.03em; text-transform: uppercase; text-align: left;
+    padding: 7px 12px; white-space: nowrap;
+  }}
+
+  .glossary-table th:first-child {{ border-top-left-radius: 6px; }}
+  .glossary-table th:last-child {{ border-top-right-radius: 6px; }}
+
+  .glossary-table td {{
+    padding: 7px 12px; font-size: 12.5px; border-bottom: 1px solid var(--line-soft);
+    color: var(--text); vertical-align: top;
+  }}
+
+  .glossary-table tr:last-child td {{ border-bottom: none; }}
+  .glossary-table tr:hover td {{ background: var(--row-hover); }}
+
+  .glossary-table td.lg-param {{
+    font-weight: 700; white-space: nowrap; color: var(--sea);
+    font-variant-numeric: tabular-nums;
+  }}
+
+  .glossary-table td.lg-desc {{ color: var(--text-soft); line-height: 1.4; }}
+
+  .glossary-table td.lg-range {{
+    white-space: nowrap; text-align: left; font-variant-numeric: tabular-nums;
+    color: var(--text); font-weight: 600;
+  }}
+
+  @media (max-width: 640px) {{
+    .glossary-table th:nth-child(2), .glossary-table td.lg-desc {{ display: none; }}
+  }}
 
   footer.foot {{
     display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
@@ -545,7 +636,7 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
 
   <div class="panel">
     <div class="scroll">
-      <table>
+      <table class="data-table">
         <colgroup>
 {colgroup}
         </colgroup>
@@ -562,9 +653,21 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     </div>
   </div>
 
+  <div class="panel glossary">
+    <h2>Legenda parametri</h2>
+    <table class="glossary-table">
+      <thead>
+        <tr><th>Parametro</th><th>Descrizione</th><th>Campo in questo periodo</th></tr>
+      </thead>
+      <tbody>
+{legend_rows}
+      </tbody>
+    </table>
+  </div>
+
   <footer class="foot">
     <span>Fonte dati: Open-Meteo (blend Best Match) &middot; indici convettivi calcolati con MetPy{marine_footer}</span>
-    <span>Generato {generated}</span>
+    <span>Generato {generated} &middot; Tabella convettiva v{version}</span>
   </footer>
 </div>
 '''
