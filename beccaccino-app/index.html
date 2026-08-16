@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Impara il Beccaccino</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">🃏 Impara il <span>Beccaccino</span></div>
+  <nav>
+    <button class="navbtn active" data-nav="home">Home</button>
+    <button class="navbtn" data-nav="regole">Regole</button>
+    <button class="navbtn" data-nav="quiz">Quiz</button>
+    <button class="navbtn" data-nav="allenati">Allenati</button>
+    <button class="navbtn" data-nav="gioca">Gioca</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- HOME -->
+  <section id="view-home" class="view active">
+    <div class="hero">
+      <h1>Il Beccaccino, gioco principe di Romagna</h1>
+      <p class="lead">
+        Conosciuto anche come <strong>Marafone</strong> o <strong>Maraffone</strong> (Cesena, Forlì),
+        <strong>Trionfo</strong> (Ferrara) o <strong>Beccaccino</strong> (Ravenna, Faenza), è il gioco di
+        carte tradizionale a squadre della Romagna: quattro giocatori, due coppie fisse sedute una di
+        fronte all'altra, un mazzo da 40 carte e la briscola scelta da chi riceve il 4 di denari.
+      </p>
+      <div class="hero-actions">
+        <button class="btn primary" data-go="regole">Impara le regole</button>
+        <button class="btn" data-go="quiz">Mettiti alla prova con il quiz</button>
+        <button class="btn" data-go="gioca">Gioca subito una mano</button>
+      </div>
+    </div>
+
+    <div class="cards-grid">
+      <div class="info-card">
+        <h3>👥 4 giocatori, 2 squadre</h3>
+        <p>Si gioca in coppie fisse, sedute una di fronte all'altra: tu e il tuo compagno contro gli altri due.</p>
+      </div>
+      <div class="info-card">
+        <h3>🂡 40 carte, 4 semi</h3>
+        <p>Denari, Coppe, Bastoni, Spade. In ogni seme: Asso, 2, 3, 4, 5, 6, 7, Fante, Cavallo, Re.</p>
+      </div>
+      <div class="info-card">
+        <h3>🎺 Solo tre parole</h3>
+        <p>Con il compagno si comunica solo con <em>busso</em>, <em>striscio</em> e <em>volo</em>: niente bluff.</p>
+      </div>
+      <div class="info-card">
+        <h3>🎯 Obiettivo: 41 punti</h3>
+        <p>Si gioca mano dopo mano, sommando i punti delle prese, finché una squadra non arriva a 41 (o 31 nella variante corta).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- REGOLE -->
+  <section id="view-regole" class="view">
+    <h2>Come si gioca</h2>
+
+    <div class="rule-block">
+      <h3>1. Il mazzo e i semi</h3>
+      <p>Si usa il mazzo romagnolo/italiano da 40 carte: niente 8, 9 e 10. I quattro semi sono:</p>
+      <div class="suit-legend" id="suit-legend"></div>
+    </div>
+
+    <div class="rule-block">
+      <h3>2. La forza delle carte</h3>
+      <p>In ogni seme, dal più forte al più debole: <strong>3, 2, Asso, Re, Cavallo, Fante, 7, 6, 5, 4</strong>.
+      Re, Cavallo e Fante si chiamano "figure"; da 7 a 4 sono le "scartine" (o "lisce"), e non valgono punti.</p>
+      <div class="rank-ladder" id="rank-ladder"></div>
+    </div>
+
+    <div class="rule-block">
+      <h3>3. Il valore in punti delle carte</h3>
+      <ul class="rule-list">
+        <li><strong>Asso</strong> = 1 punto</li>
+        <li><strong>3, 2, Re, Cavallo, Fante</strong> = 1/3 di punto ciascuna</li>
+        <li><strong>4, 5, 6, 7</strong> = 0 punti</li>
+      </ul>
+      <p>In totale ogni mano mette in palio 11 punti (per convenzione l'ultima presa vale 1/3 di punto in più,
+      così i conti tornano esatti), da spartire fra le due squadre in base alle prese conquistate.</p>
+    </div>
+
+    <div class="rule-block">
+      <h3>4. La distribuzione e la briscola</h3>
+      <p>Il mazziere distribuisce 10 carte a testa, in senso antiorario, in due gruppi da cinque. Chi riceve il
+      <strong>4 di denari</strong> sceglie il seme di briscola ("battezza" la briscola) e apre la prima presa.
+      Nella mano successiva sarà mazziere chi ha scelto la briscola in quella precedente, e la scelta passerà
+      al giocatore alla sua destra; poi il mazziere ruota regolarmente in senso antiorario.</p>
+    </div>
+
+    <div class="rule-block">
+      <h3>5. Come si gioca una presa</h3>
+      <p>Si gioca in senso antiorario. Se hai carte del seme chiamato <strong>devi</strong> rispondere a quel seme.
+      Se sei in fallo (non ne hai), puoi giocare qualunque carta, briscola compresa. Vince la presa la briscola
+      più alta giocata; se nessuno gioca briscola, vince la carta più alta del seme d'apertura. Chi vince
+      raccoglie le carte e apre la presa successiva.</p>
+    </div>
+
+    <div class="rule-block">
+      <h3>6. I segnali: busso, striscio, volo</h3>
+      <p>Sono le uniche parole (o gesti) ammesse per comunicare col compagno, e non si può mentire quando le usi:</p>
+      <ul class="rule-list">
+        <li><strong>Busso</strong> (pugno sul tavolo): "ho ancora carte forti di questo seme, torna a giocarlo".</li>
+        <li><strong>Striscio</strong> (mano strisciata sul tavolo): "ho ancora carte di questo seme, ma non sono forti".</li>
+        <li><strong>Volo</strong> (mano alzata): "non ho più carte di questo seme".</li>
+      </ul>
+    </div>
+
+    <div class="rule-block">
+      <h3>7. La marafona (o cricca)</h3>
+      <p>Se hai in mano <strong>Asso, 2 e 3</strong> dello stesso seme scelto come briscola, hai la marafona
+      (detta anche "cricca" o "maraffa"): dichiarala e la tua squadra guadagna <strong>3 punti bonus</strong>.</p>
+    </div>
+
+    <div class="rule-block">
+      <h3>8. Punteggio e vittoria della partita</h3>
+      <p>Si susseguono più mani finché una squadra non raggiunge <strong>41 punti</strong> (o 31 nella variante
+      "corta"), avendo anche conquistato almeno una figura nell'ultima mano che chiude la partita.</p>
+    </div>
+
+    <div class="rule-cta">
+      <button class="btn primary" data-go="quiz">Verifica quanto hai capito →</button>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="view-quiz" class="view">
+    <h2>Quiz sulle regole</h2>
+    <p class="lead">Metti alla prova quello che hai imparato: 12 domande a risposta multipla.</p>
+    <div id="quiz-start-wrap">
+      <button class="btn primary" id="quiz-start">Inizia il quiz</button>
+    </div>
+    <div id="quiz-question-wrap" class="hidden">
+      <div id="quiz-progress" class="quiz-progress"></div>
+      <div id="quiz-question" class="quiz-question"></div>
+      <div id="quiz-options" class="quiz-options"></div>
+      <div id="quiz-feedback" class="quiz-feedback"></div>
+      <button class="btn primary hidden" id="quiz-next">Prossima domanda →</button>
+    </div>
+    <div id="quiz-result" class="hidden"></div>
+  </section>
+
+  <!-- ALLENATI -->
+  <section id="view-allenati" class="view">
+    <h2>Allenati: chi vince la presa?</h2>
+    <p class="lead">Ti mostro una presa con la briscola e il seme chiamato: indovina quale carta vince, per
+    allenare l'occhio a leggere velocemente il tavolo.</p>
+    <div id="trainer-start-wrap">
+      <button class="btn primary" id="trainer-start">Inizia l'allenamento</button>
+    </div>
+    <div id="trainer-round-wrap">
+      <div class="trainer-info">
+        <span id="trainer-trump"></span>
+        <span id="trainer-led"></span>
+      </div>
+      <div id="trainer-table" class="trainer-table"></div>
+      <div id="trainer-feedback" class="quiz-feedback"></div>
+      <div id="trainer-score" class="trainer-score"></div>
+      <button class="btn primary hidden" id="trainer-next">Prossima presa →</button>
+    </div>
+  </section>
+
+  <!-- GIOCA -->
+  <section id="view-gioca" class="view">
+    <h2>Gioca una mano</h2>
+    <p class="lead">Una mini-partita di allenamento contro 3 avversari automatici. Tu sei <strong>Sud</strong>,
+    in coppia con <strong>Nord</strong>, contro <strong>Ovest</strong> ed <strong>Est</strong>. Per permetterti
+    di scegliere sempre la briscola (come da regola su chi riceve il 4 di denari), in questa modalità di
+    allenamento il 4 di denari ti viene sempre assegnato.</p>
+    <div id="game-start-wrap">
+      <button class="btn primary" id="game-start">Distribuisci le carte</button>
+    </div>
+    <div id="game-trump-picker" class="hidden"></div>
+    <div id="game-table-wrap" class="hidden">
+      <div id="game-status" class="game-status"></div>
+      <div id="game-score" class="game-score"></div>
+      <div id="game-table" class="game-table"></div>
+      <div id="game-hand" class="game-hand"></div>
+      <div id="game-log" class="game-log"></div>
+      <div id="game-end" class="game-end hidden"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>App didattica non ufficiale per imparare le regole del Beccaccino / Marafone romagnolo. Buon divertimento al tavolo! 🍷</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
