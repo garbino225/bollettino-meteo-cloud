@@ -521,10 +521,15 @@ python3 table_sparkline.py \
 `--marine` e' opzionale: omettilo per localita' non costiere (lo script
 mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
 
-Cosa produce (design **v1.2.0**, validato e messo in produzione con
+Cosa produce (design **v1.3.0**, validato e messo in produzione con
 l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
-a `table_sparkline.py`): un'unica pagina HTML autoconclusiva con la
-tabella tri-oraria (Data/ora, T, Vento, Dir.V, **Pressione (mslp, hPa)**,
+a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
+tramonto** (dal blend Best Match, giorno d'inizio del periodo) e la
+**fase lunare** (stessa formula a mese sinodico di `moon_phase.py`,
+ricalcolata qui senza bisogno di un file `moon.json` separato — e' un
+calcolo puro, non un dato scaricato). Poi un'unica pagina HTML
+autoconclusiva con la tabella tri-oraria (Data/ora, T, Vento, Dir.V,
+**Pressione (mslp, hPa)**,
 **Umidita' relativa (%)**, **Pioggia** cumulata 3h, **Copertura nuvolosa
 in ottavi** 0/8 sereno-8/8 coperto, i 9 parametri convettivi MetPy,
 Onda/Dir.O se costiera, Nota — Pressione e Umidita' hanno solo lo

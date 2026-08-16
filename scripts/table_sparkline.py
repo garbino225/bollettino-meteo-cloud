@@ -25,6 +25,7 @@ import argparse
 import base64
 import datetime as dt
 import json
+import math
 
 RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo sparkline
 
@@ -40,7 +41,28 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 # 1.2.0 (2026-08-16): aggiunte le colonne Pressione (mslp, hPa) e Umidita' (%) nel
 #   gruppo Atmosfera. Nessuna colorazione per gravita' su queste due (come Nuv.:
 #   descrittive, non parametri di rischio in se' con una soglia universale sensata).
-SCRIPT_VERSION = "1.2.0"
+# 1.3.0 (2026-08-16): aggiunta riga astronomica prima del titolo con alba/tramonto
+#   (dal blend Best Match, giorno d'inizio periodo) e fase lunare (stessa formula a
+#   forma chiusa - mese sinodico + epoca nota - gia' usata da moon_phase.py per il
+#   bollettino completo, reimplementata qui per non richiedere un file di input in
+#   piu': e' un calcolo puro, non un dato scaricato).
+SCRIPT_VERSION = "1.3.0"
+
+# Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
+# riferimento nota) - non duplicare logica diversa altrove nella skill.
+SYNODIC_MONTH = 29.530588861
+REF_NEW_MOON = dt.datetime(2000, 1, 6, 18, 14, tzinfo=dt.timezone.utc)
+MOON_PHASE_NAMES = [
+    "Luna Nuova", "Luna Crescente", "Primo Quarto", "Gibbosa Crescente",
+    "Luna Piena", "Gibbosa Calante", "Ultimo Quarto", "Luna Calante",
+]
+
+
+def moon_phase_label(when):
+    age = (when - REF_NEW_MOON).total_seconds() / 86400 % SYNODIC_MONTH
+    idx = round(age / (SYNODIC_MONTH / 8)) % 8
+    illum = round((1 - math.cos(2 * math.pi * age / SYNODIC_MONTH)) / 2 * 100)
+    return f"{MOON_PHASE_NAMES[idx]} ({illum}% illuminata)"
 
 # Soglie di severita' per singolo parametro (valore >= soglia -> livello), verificate
 # dall'alto verso il basso. "li" e "cin" usano logica invertita (valore piu' vicino a
@@ -425,6 +447,18 @@ def main():
     end_label = dt.date.fromisoformat(p_end).strftime("%d/%m/%Y")
     generated = dt.datetime.now().strftime("%d/%m/%Y %H:%M")
 
+    daily = data["models"]["best_match"].get("daily") or {}
+    sunrise_list, sunset_list = daily.get("sunrise"), daily.get("sunset")
+    sunrise = sunrise_list[0][11:16] if sunrise_list else None
+    sunset = sunset_list[0][11:16] if sunset_list else None
+    moon_line = moon_phase_label(dt.datetime.fromisoformat(p_start).replace(
+        hour=12, tzinfo=dt.timezone.utc))
+    astro_parts = []
+    if sunrise and sunset:
+        astro_parts.append(f"Alba {sunrise} &middot; Tramonto {sunset} ({start_label})")
+    astro_parts.append(moon_line)
+    astro_line = " &middot; ".join(astro_parts)
+
     header_cells = [
         '<th class="col-time">Data / ora</th>',
         '<th><abbr title="Temperatura a 2m">T (&deg;C)</abbr></th>',
@@ -464,6 +498,7 @@ def main():
         light_vars=light_vars, dark_vars=dark_vars, spark_rules=spark_rules,
         colgroup=colgroup, group_row=group_row, header_cells="\n            ".join(header_cells),
         tbody=tbody, total_w=max(total_w, 900), rh=RH, legend_rows=legend_rows, version=SCRIPT_VERSION,
+        astro_line=astro_line,
         marine_title=" e mare" if has_marine else "",
         marine_sub="; onda da Open-Meteo Marine" if has_marine else "",
         marine_footer=" &middot; stato del mare Open-Meteo Marine" if has_marine else "",
@@ -573,6 +608,8 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em;
     text-transform: uppercase; color: var(--sea);
   }}
+
+  .astro {{ font-size: 12px; color: var(--text-faint); }}
 
   h1 {{
     margin: 0; font-size: clamp(20px, 2.6vw, 26px); font-weight: 700;
@@ -743,6 +780,7 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
 <div class="sheet">
   <header class="head">
     <span class="eyebrow">{loc} &middot; {lat:.2f}&deg;N {lon:.2f}&deg;E</span>
+    <span class="astro">{astro_line}</span>
     <h1>Tabella tri-oraria &mdash; parametri convettivi, vento{marine_title} e pioggia</h1>
     <p class="sub">{start}&ndash;{end}, ogni 3 ore (00&ndash;21 locali). Blend Best Match (Open-Meteo);
       indici convettivi calcolati con MetPy sul profilo verticale orario{marine_sub}. Ogni colonna numerica
