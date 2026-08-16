@@ -463,6 +463,8 @@ function dealGame() {
     log: [],
     finished: false,
   };
+  document.getElementById('game-hand-wrap').classList.remove('hidden');
+  renderHandPreview();
   showTrumpPicker();
 }
 
@@ -470,11 +472,25 @@ function suitOrderIdx(id) {
   return SUITS.findIndex((s) => s.id === id);
 }
 
+// Mostra le carte in mano (senza poterle giocare) mentre si sceglie la briscola.
+function renderHandPreview() {
+  const handEl = document.getElementById('game-hand');
+  handEl.innerHTML = '';
+  game.hands.Sud.forEach((card) => {
+    const s = suitInfo(card.suit);
+    const div = document.createElement('div');
+    div.className = 'hand-card';
+    div.style.setProperty('--suit-color', s.color);
+    div.innerHTML = `<span class="pc-rank">${RANK_LABEL[card.rank]}</span><span class="pc-suit">${s.icon}</span>`;
+    handEl.appendChild(div);
+  });
+}
+
 function showTrumpPicker() {
   const el = document.getElementById('game-trump-picker');
   el.classList.remove('hidden');
   document.getElementById('game-table-wrap').classList.add('hidden');
-  el.innerHTML = `<p>Hai il <strong>4 di denari</strong>: tocca a te scegliere la briscola!</p><div class="trump-choices">${SUITS.map(
+  el.innerHTML = `<p>Hai visto le tue carte e hai il <strong>4 di denari</strong>: tocca a te scegliere la briscola!</p><div class="trump-choices">${SUITS.map(
     (s) => `<button class="btn suit-btn" data-suit="${s.id}" style="--suit-color:${s.color}"><span class="suit-icon">${s.icon}</span>${s.name}</button>`
   ).join('')}</div>`;
   el.querySelectorAll('[data-suit]').forEach((b) =>
