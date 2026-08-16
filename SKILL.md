@@ -521,7 +521,7 @@ python3 table_sparkline.py \
 `--marine` e' opzionale: omettilo per localita' non costiere (lo script
 mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
 
-Cosa produce (design **v1.0.0**, validato e messo in produzione con
+Cosa produce (design **v1.1.0**, validato e messo in produzione con
 l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
 a `table_sparkline.py`): un'unica pagina HTML autoconclusiva con la
 tabella tri-oraria (Data/ora, T, Vento, Dir.V, **Pioggia** cumulata 3h,
@@ -529,18 +529,35 @@ tabella tri-oraria (Data/ora, T, Vento, Dir.V, **Pioggia** cumulata 3h,
 convettivi MetPy, Onda/Dir.O se costiera, Nota) dove **ogni colonna
 numerica ha uno sparkline in filigrana sullo sfondo delle celle** (scala
 min-max propria della colonna, allineato riga per riga cosi' scorrendo
-verso il basso si vede l'andamento nel tempo), righe evidenziate con uno
+verso il basso si vede l'andamento nel tempo, disegnato con tecnica
+alone+linea per restare leggibile sopra qualunque colore di sfondo) **e
+uno sfondo colorato per gravita'** quando il singolo valore esce dalla
+norma per quel parametro specifico (giallo/arancio/rosso/fucsia in
+ordine crescente, bianco/normale sotto soglia — soglie per colonna in
+`SEVERITY_RULES`, mostrate anche in legenda). Righe evidenziate con uno
 stripe laterale + pallino sulla linea in ambra (innesco possibile: CIN >=
 -75 J/kg con SBCAPE >= 1000 J/kg) o rosso (temporali organizzati: SBCAPE
 >= 1500 J/kg con shear 0-6km >= 25kn), colonna Data/ora e header fissi
 durante lo scroll orizzontale, tema chiaro/scuro automatico, e sotto la
 tabella una **Legenda parametri** (Parametro | Descrizione | Campo
-osservato "da X a Y unita'") allineata a sinistra per ogni colonna
-numerica (le colonne direzionali/categoriche — Dir.V, Dir.O, Nota — non
-hanno una riga in legenda: un range numerico non avrebbe senso per un
-dato circolare). Il footer riporta sempre `Tabella convettiva v{versione}`
-per sapere a colpo d'occhio a quale revisione del template risale una
-tabella generata in precedenza.
+osservato "da X a Y unita'" | Soglie colore) allineata a sinistra per
+ogni colonna numerica (le colonne direzionali/categoriche — Dir.V, Dir.O,
+Nota — non hanno una riga in legenda: un range/soglia numerica non
+avrebbe senso per un dato circolare). Il footer riporta sempre `Tabella
+convettiva v{versione}` per sapere a colpo d'occhio a quale revisione del
+template risale una tabella generata in precedenza.
+
+ATTENZIONE bug gia' preso una volta, non ripeterlo: un `<td>` che ospita
+uno sparkline (`position: relative` + `::before` con `z-index: -1`) DEVE
+avere anche `z-index: 0` esplicito sulla regola del `<td>` stesso, non
+solo `position: relative`. Senza uno z-index esplicito il td non crea un
+proprio contesto di stacking, quindi il suo `::before` con z-index
+negativo "scappa" al contesto di stacking piu' vicino nella pagina
+invece di restare scoped a quella singola cella — risultato: se la cella
+ha anche un `background-color` (es. le classi `sev-*` per la gravita'),
+quel background copre completamente lo sparkline invece di lasciarlo
+visibile sopra (scoperto il 2026-08-16 introducendo la colorazione per
+gravita').
 
 Non serve editare `table_sparkline.py` per una nuova localita' o un nuovo
 periodo: e' gia' generico (righe/colonne si adattano al numero di
