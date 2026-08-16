@@ -52,7 +52,11 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   in alcuni ambienti sbagliava. Il file era gia' scritto correttamente in UTF-8 su
 #   disco (open(..., encoding="utf-8")), il problema era solo nella lettura senza
 #   dichiarazione esplicita. Aggiunta come primissima riga del template.
-SCRIPT_VERSION = "1.3.1"
+# 1.3.2 (2026-08-16): fix sovrapposizione tag giorno/ora nella colonna Data/ora sulle
+#   righe di inizio giornata (es. "DOM 16/08" e "00:00" si accavallavano): colonna
+#   time allargata da 108 a 142px, non c'era abbastanza spazio per entrambi affiancati
+#   nel flex .col-time. Segnalato dall'utente il 2026-08-16.
+SCRIPT_VERSION = "1.3.2"
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
 # riferimento nota) - non duplicare logica diversa altrove nella skill.
@@ -111,7 +115,7 @@ def severity(key, value):
 # (chiave in ogni riga unita, classe CSS colonna, larghezza px, chiave sparkline o None,
 #  etichetta header, tooltip/descrizione legenda, unita' di misura per la legenda o None)
 BASE_COLS = [
-    ("time",   "col-time", 108, None,     "Data / ora", None, None),
+    ("time",   "col-time", 142, None,     "Data / ora", None, None),
     ("temp",   "sc-t",      56, "temp",   "T (°C)", "Temperatura a 2m", "°C"),
     ("wind",   "sc-vt",     60, "wind",   "Vento (kn)", "Vento medio a 10m", "kn"),
     ("dirv",   "dir",       52, None,     "Dir.V", "Direzione del vento", None),
