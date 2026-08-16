@@ -462,6 +462,9 @@ function dealGame() {
     marafona: null,
     log: [],
     finished: false,
+    pendingWinner: null,
+    awaitingAdvance: false,
+    trickResultMsg: null,
   };
   document.getElementById('game-hand-wrap').classList.remove('hidden');
   renderHandPreview();
@@ -604,15 +607,24 @@ function resolveTrick() {
   const team = TEAM_OF[winner];
   const thirds = cards.reduce((s, c) => s + c.pointThirds, 0) + (game.trickNum === 10 ? 1 : 0);
   game.points[team] += thirds;
-  game.log.unshift(
-    `Presa ${game.trickNum}: vince ${winner} (${cardText(game.current[winIdx].card)}) — ${thirdsToLabel(thirds)} punti alla squadra ${team}.`
-  );
+  game.trickResultMsg = `Vince ${winner} con ${cardText(game.current[winIdx].card)} — ${thirdsToLabel(thirds)} punti alla squadra ${team}.`;
+  game.log.unshift(`Presa ${game.trickNum}: ${game.trickResultMsg}`);
+  // le carte restano visibili sul tavolo finché non si preme "Prossima presa"
+  game.pendingWinner = winner;
+  game.awaitingAdvance = true;
+  renderGame();
+}
 
-  game.leader = winner;
+function advanceTrick() {
+  const wasLast = game.trickNum === 10;
+  game.leader = game.pendingWinner;
   game.current = [];
   game.ledSuit = null;
+  game.pendingWinner = null;
+  game.awaitingAdvance = false;
+  game.trickResultMsg = null;
 
-  if (game.trickNum === 10) {
+  if (wasLast) {
     game.finished = true;
     renderGame();
     return;
@@ -632,16 +644,29 @@ function renderGame() {
   table.innerHTML = '';
   ['Nord', 'Ovest', 'Est', 'Sud'].forEach((pos) => {
     const played = game.current.find((x) => x.pos === pos);
+    const isWinner = game.awaitingAdvance && pos === game.pendingWinner;
     const div = document.createElement('div');
-    div.className = `table-slot slot-${pos.toLowerCase()}`;
+    div.className = `table-slot slot-${pos.toLowerCase()}${isWinner ? ' winner' : ''}`;
     if (played) {
       const s = suitInfo(played.card.suit);
-      div.innerHTML = `<span class="pos-label">${pos}</span><span class="play-card" style="--suit-color:${s.color}"><span class="pc-rank">${RANK_LABEL[played.card.rank]}</span><span class="pc-suit">${s.icon}</span></span>`;
+      div.innerHTML = `<span class="pos-label">${pos}${isWinner ? ' 🏆' : ''}</span><span class="play-card" style="--suit-color:${s.color}"><span class="pc-rank">${RANK_LABEL[played.card.rank]}</span><span class="pc-suit">${s.icon}</span></span>`;
     } else {
       div.innerHTML = `<span class="pos-label">${pos}</span><span class="play-card empty">·</span>`;
     }
     table.appendChild(div);
   });
+
+  const resultEl = document.getElementById('game-trick-result');
+  const nextBtn = document.getElementById('game-next-trick');
+  if (game.awaitingAdvance) {
+    resultEl.textContent = game.trickResultMsg;
+    resultEl.classList.remove('hidden');
+    nextBtn.textContent = game.trickNum === 10 ? 'Vedi il risultato finale →' : 'Prossima presa →';
+    nextBtn.classList.remove('hidden');
+  } else {
+    resultEl.classList.add('hidden');
+    nextBtn.classList.add('hidden');
+  }
 
   const handEl = document.getElementById('game-hand');
   handEl.innerHTML = '';
@@ -680,6 +705,7 @@ function renderGame() {
 }
 
 document.getElementById('game-start')?.addEventListener('click', dealGame);
+document.getElementById('game-next-trick')?.addEventListener('click', advanceTrick);
 
 /* ---------------------------------------------------------------------- *
  *  Init

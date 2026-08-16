@@ -179,6 +179,10 @@ h3 { margin: 0 0 8px; color: var(--felt-dark); }
   min-height: 260px;
 }
 .table-slot { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.table-slot.winner .play-card { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,162,75,.55); }
+.table-slot.winner .pos-label { color: var(--gold); }
+.game-trick-result { background: #fff; border-left: 4px solid var(--gold); border-radius: 8px; padding: 10px 16px; margin-top: 12px; font-weight: 600; }
+#game-next-trick { margin-top: 14px; }
 .slot-nord { grid-column: 2; grid-row: 1; }
 .slot-ovest { grid-column: 1; grid-row: 2; }
 .slot-est { grid-column: 3; grid-row: 2; }
