@@ -523,10 +523,14 @@ python3 table_sparkline.py \
 mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
 `--logo` e' opzionale: se omesso, l'intestazione resta senza logo (nessun
 errore) — includilo sempre quando disponibile (il logo della skill e' in
-`../assets/logo.png` rispetto a `scripts/`), mostrato in alto a destra
-nell'intestazione, accanto al blocco di testo.
+`../assets/logo.png` rispetto a `scripts/`), mostrato grande (104px) in
+alto a destra nell'intestazione, accanto al blocco di testo. Lo sfondo
+"carta" del file originale (senza canale alpha) viene reso trasparente al
+volo (soglia luminosita'+saturazione, non tocca il file su disco) cosi'
+il logo si integra pulito sia in tema chiaro sia scuro invece di mostrare
+un rettangolo bianco/grigio.
 
-Cosa produce (design **v1.4.0**, validato e messo in produzione con
+Cosa produce (design **v1.4.2**, validato e messo in produzione con
 l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
 a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
 tramonto** (dal blend Best Match, giorno d'inizio del periodo) e la

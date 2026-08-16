@@ -24,6 +24,7 @@ non scarica nulla, solo unisce e disegna quanto gia' raccolto.
 import argparse
 import base64
 import datetime as dt
+import io
 import json
 import math
 
@@ -62,7 +63,12 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   allineati alla stessa colonna). Aggiunto logo meteoP@d0 opzionale (--logo) in alto
 #   a destra nell'intestazione, accanto al blocco di testo.
 # 1.4.1 (2026-08-16): logo ingrandito (44px -> 72px di altezza), su richiesta utente.
-SCRIPT_VERSION = "1.4.1"
+# 1.4.2 (2026-08-16): logo ulteriormente ingrandito (72px -> 104px) e sfondo "carta"
+#   dell'immagine originale (assets/logo.png non ha canale alpha) reso trasparente
+#   via soglia luminosita'+saturazione (vedi logo_png_bytes) - elaborato solo per
+#   l'embedding qui, il file sorgente non viene toccato. Richiede Pillow e numpy
+#   (gia' dipendenze della skill).
+SCRIPT_VERSION = "1.4.2"
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
 # riferimento nota) - non duplicare logica diversa altrove nella skill.
@@ -79,6 +85,33 @@ def moon_phase_label(when):
     idx = round(age / (SYNODIC_MONTH / 8)) % 8
     illum = round((1 - math.cos(2 * math.pi * age / SYNODIC_MONTH)) / 2 * 100)
     return f"{MOON_PHASE_NAMES[idx]} ({illum}% illuminata)"
+
+
+def logo_png_bytes(path):
+    """Carica il logo e rende trasparente lo sfondo chiaro/testurizzato (il file
+    originale in assets/logo.png non ha canale alpha: sfondo "carta" quasi bianco
+    con una leggera grana, non un bianco piatto). Non tocca il file su disco: lo
+    fa solo per l'embedding nella tabella, che vive su sfondi diversi (tema chiaro
+    e scuro) dove uno sfondo bianco piatto stonerebbe. Soglia a due parametri
+    (luminosita' + saturazione) cosi' il testo/icona del logo (saturi, spesso
+    scuri) resta intatto mentre lo sfondo (chiaro e desaturato) sparisce."""
+    from PIL import Image
+    import numpy as np
+
+    im = Image.open(path).convert("RGBA")
+    arr = np.array(im).astype(np.float32)
+    brightness = arr[..., :3].mean(axis=-1)
+    sat = arr[..., :3].max(axis=-1) - arr[..., :3].min(axis=-1)
+    bg_bright = np.clip((brightness - 190) / (235 - 190), 0, 1)
+    bg_sat = np.clip((30 - sat) / (30 - 8), 0, 1)
+    bg_score = bg_bright * bg_sat
+    alpha = ((1 - bg_score) * 255).astype(np.uint8)
+    arr[..., 3] = np.minimum(arr[..., 3], alpha)
+
+    out = Image.fromarray(arr.astype(np.uint8), "RGBA")
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+    return buf.getvalue()
 
 # Soglie di severita' per singolo parametro (valore >= soglia -> livello), verificate
 # dall'alto verso il basso. "li" e "cin" usano logica invertita (valore piu' vicino a
@@ -478,8 +511,7 @@ def main():
 
     logo_html = ""
     if args.logo:
-        with open(args.logo, "rb") as f:
-            logo_b64 = base64.b64encode(f.read()).decode("ascii")
+        logo_b64 = base64.b64encode(logo_png_bytes(args.logo)).decode("ascii")
         logo_html = f'<img class="head-logo" src="data:image/png;base64,{logo_b64}" alt="meteoP@d0">'
 
     header_cells = [
@@ -633,7 +665,7 @@ TEMPLATE = '''<meta charset="utf-8">
 
   .head-text {{ display: flex; flex-direction: column; gap: 6px; min-width: 0; }}
 
-  .head-logo {{ height: 72px; width: auto; flex: none; border-radius: 8px; }}
+  .head-logo {{ height: 104px; width: auto; flex: none; }}
 
   .eyebrow {{
     font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em;
