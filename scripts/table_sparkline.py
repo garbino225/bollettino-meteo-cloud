@@ -61,7 +61,8 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   a "03:00"/"06:00"/...: ora .day-tag-slot ha larghezza fissa, tutti gli orari sono
 #   allineati alla stessa colonna). Aggiunto logo meteoP@d0 opzionale (--logo) in alto
 #   a destra nell'intestazione, accanto al blocco di testo.
-SCRIPT_VERSION = "1.4.0"
+# 1.4.1 (2026-08-16): logo ingrandito (44px -> 72px di altezza), su richiesta utente.
+SCRIPT_VERSION = "1.4.1"
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
 # riferimento nota) - non duplicare logica diversa altrove nella skill.
@@ -632,7 +633,7 @@ TEMPLATE = '''<meta charset="utf-8">
 
   .head-text {{ display: flex; flex-direction: column; gap: 6px; min-width: 0; }}
 
-  .head-logo {{ height: 44px; width: auto; flex: none; border-radius: 6px; }}
+  .head-logo {{ height: 72px; width: auto; flex: none; border-radius: 8px; }}
 
   .eyebrow {{
     font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em;
