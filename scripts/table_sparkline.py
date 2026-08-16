@@ -37,7 +37,10 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   mostrate in legenda; sparkline ridisegnato con tecnica alone+linea (halo) per
 #   restare leggibile sopra qualunque colore di sfondo; hover non copre piu' il
 #   colore di gravita' della cella.
-SCRIPT_VERSION = "1.1.0"
+# 1.2.0 (2026-08-16): aggiunte le colonne Pressione (mslp, hPa) e Umidita' (%) nel
+#   gruppo Atmosfera. Nessuna colorazione per gravita' su queste due (come Nuv.:
+#   descrittive, non parametri di rischio in se' con una soglia universale sensata).
+SCRIPT_VERSION = "1.2.0"
 
 # Soglie di severita' per singolo parametro (valore >= soglia -> livello), verificate
 # dall'alto verso il basso. "li" e "cin" usano logica invertita (valore piu' vicino a
@@ -84,6 +87,8 @@ BASE_COLS = [
     ("temp",   "sc-t",      56, "temp",   "T (°C)", "Temperatura a 2m", "°C"),
     ("wind",   "sc-vt",     60, "wind",   "Vento (kn)", "Vento medio a 10m", "kn"),
     ("dirv",   "dir",       52, None,     "Dir.V", "Direzione del vento", None),
+    ("pressure", "sc-pres", 64, "pressure", "Press. (hPa)", "Pressione media sul livello del mare", "hPa"),
+    ("humidity", "sc-hum",  56, "humidity", "Umid. (%)", "Umidita' relativa a 2m", "%"),
     ("precip", "sc-pr",     60, "precip", "Pioggia (mm)", "Precipitazione cumulata nelle 3 ore seguenti", "mm"),
     ("cloud",  "sc-cld",    56, "cloud",  "Nuv. (/8)", "Copertura nuvolosa in ottavi (0/8 = cielo sereno, 8/8 = cielo totalmente coperto)", "/8"),
     ("sbcape", "sc-cape",   68, "sbcape", "SBCAPE", "Surface Based CAPE – energia potenziale convettiva disponibile per un aggiornamento partito dal suolo", "J/kg"),
@@ -165,6 +170,8 @@ def build_rows(data, indices, marine):
             "temp": bm["temperature_2m"][i],
             "wind": bm["wind_speed_10m"][i],
             "dirv": dirlabel(bm["wind_direction_10m"][i]),
+            "pressure": bm["pressure_msl"][i],
+            "humidity": bm["relative_humidity_2m"][i],
             "precip": round(precip, 1),
             "cloud": cloud_okta(bm["cloud_cover"][i]),
             "sbcape": cape, "cin": cin, "li": ind.get("lifted_index"),
@@ -352,6 +359,8 @@ def build_tbody(rows):
             cell("sc-t", "temp"),
             cell("sc-vt", "wind"),
             f'<td class="dir">{r["dirv"]}</td>',
+            cell("sc-pres", "pressure"),
+            cell("sc-hum", "humidity"),
             cell("sc-pr", "precip"),
             f'<td class="sc-cld num">{fmt(r["cloud"])}</td>',
             cell("sc-cape", "sbcape"),
@@ -421,6 +430,8 @@ def main():
         '<th><abbr title="Temperatura a 2m">T (&deg;C)</abbr></th>',
         '<th><abbr title="Vento medio a 10m">Vento (kn)</abbr></th>',
         '<th><abbr title="Direzione del vento">Dir.V</abbr></th>',
+        '<th><abbr title="Pressione media sul livello del mare">Press. (hPa)</abbr></th>',
+        '<th><abbr title="Umidita\' relativa a 2m">Umid. (%)</abbr></th>',
         '<th><abbr title="Precipitazione cumulata nelle 3 ore seguenti">Pioggia (mm)</abbr></th>',
         '<th><abbr title="Copertura nuvolosa in ottavi (0/8 = sereno, 8/8 = coperto)">Nuv. (/8)</abbr></th>',
         '<th><abbr title="Surface Based CAPE &ndash; energia potenziale convettiva disponibile">SBCAPE</abbr></th>',
@@ -440,7 +451,7 @@ def main():
 
     group_row = (
         '<tr class="group-row"><th class="g-time">&nbsp;</th>'
-        '<th colspan="5">Atmosfera</th>'
+        '<th colspan="7">Atmosfera</th>'
         '<th colspan="9">Convezione (MetPy)</th>'
         + ('<th colspan="2">Mare</th>' if has_marine else '')
         + '<th class="g-note">&nbsp;</th></tr>'

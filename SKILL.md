@@ -521,12 +521,15 @@ python3 table_sparkline.py \
 `--marine` e' opzionale: omettilo per localita' non costiere (lo script
 mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
 
-Cosa produce (design **v1.1.0**, validato e messo in produzione con
+Cosa produce (design **v1.2.0**, validato e messo in produzione con
 l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
 a `table_sparkline.py`): un'unica pagina HTML autoconclusiva con la
-tabella tri-oraria (Data/ora, T, Vento, Dir.V, **Pioggia** cumulata 3h,
-**Copertura nuvolosa in ottavi** 0/8 sereno-8/8 coperto, i 9 parametri
-convettivi MetPy, Onda/Dir.O se costiera, Nota) dove **ogni colonna
+tabella tri-oraria (Data/ora, T, Vento, Dir.V, **Pressione (mslp, hPa)**,
+**Umidita' relativa (%)**, **Pioggia** cumulata 3h, **Copertura nuvolosa
+in ottavi** 0/8 sereno-8/8 coperto, i 9 parametri convettivi MetPy,
+Onda/Dir.O se costiera, Nota — Pressione e Umidita' hanno solo lo
+sparkline, senza colorazione per gravita': come Nuv., sono descrittive e
+non hanno una soglia di rischio universalmente sensata) dove **ogni colonna
 numerica ha uno sparkline in filigrana sullo sfondo delle celle** (scala
 min-max propria della colonna, allineato riga per riga cosi' scorrendo
 verso il basso si vede l'andamento nel tempo, disegnato con tecnica
