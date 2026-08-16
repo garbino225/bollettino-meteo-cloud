@@ -1,6 +1,6 @@
 ---
 name: bollettino-meteo
-description: Genera un bollettino meteorologico professionale (analisi sinottica, confronto multi-modello, parametri convettivi avanzati, rischi, grafici, infografica e PDF con logo) per una localita' e un periodo indicati dall'utente. Usa questa skill quando l'utente chiede "dammi il meteo/bollettino per...", "che tempo fara' a...", "previsioni per il weekend a...", o in generale un bollettino/previsione dettagliata in stile meteorologo professionista.
+description: Genera un bollettino meteorologico professionale (analisi sinottica, confronto multi-modello, parametri convettivi avanzati, rischi, grafici, infografica e PDF con logo) per una localita' e un periodo indicati dall'utente, oppure solo la tabella tri-oraria con sparkline in filigrana (vedi punto 8.5) se l'utente chiede esplicitamente "solo la tabella"/un aggiornamento della tabella. Usa questa skill quando l'utente chiede "dammi il meteo/bollettino per...", "che tempo fara' a...", "previsioni per il weekend a...", "aggiornami la tabella per...", o in generale un bollettino/previsione dettagliata in stile meteorologo professionista.
 ---
 
 # Bollettino Meteo Professionale (meteoP@d0)
@@ -494,6 +494,52 @@ codice per lo stesso motivo).
 Copia sia il PDF sia l'HTML in una posizione comoda per l'utente (es.
 Desktop o la cartella del progetto corrente); l'HTML puo' essere spostato
 o inviato da solo, senza la cartella `charts/`.
+
+## 8.5 Tabella convettiva standalone ("solo la tabella")
+
+Quando l'utente chiede esplicitamente **solo la tabella** (non l'intero
+bollettino PDF/HTML) — es. "puoi generare solo la tabella?", "aggiornami
+la tabella per <citta'>" — genera un unico file HTML autonomo con
+`table_sparkline.py`, pubblicalo come Artifact (skill `artifact-design` +
+tool `Artifact`) e aggiorna sempre lo **stesso** URL se ne esiste gia' uno
+in conversazione, invece di crearne uno nuovo:
+
+```bash
+python3 fetch_forecast.py --location "NOME LOCALITA'" --start YYYY-MM-DD --end YYYY-MM-DD --out /tmp/meteo_<slug>/data.json
+python3 indices.py /tmp/meteo_<slug>/data.json --out /tmp/meteo_<slug>/indices.json
+# solo se la localita' e' costiera (vedi punto 0.6):
+python3 fetch_marine.py --lat <LAT> --lon <LON> --start YYYY-MM-DD --end YYYY-MM-DD --out /tmp/meteo_<slug>/marine.json
+
+python3 table_sparkline.py \
+    --data /tmp/meteo_<slug>/data.json \
+    --indices /tmp/meteo_<slug>/indices.json \
+    --marine /tmp/meteo_<slug>/marine.json \
+    --location-label "Nome Localita' (provincia)" \
+    --out /tmp/meteo_<slug>/tabella_<slug>.html
+```
+
+`--marine` e' opzionale: omettilo per localita' non costiere (lo script
+mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
+
+Cosa produce (design validato con l'utente il 2026-08-16, non
+reinventarlo): un'unica pagina HTML autoconclusiva con la tabella
+tri-oraria (Data/ora, T, Vento, Dir.V, **Pioggia** cumulata 3h, i 9
+parametri convettivi MetPy, Onda/Dir.O se costiera, Nota) dove **ogni
+colonna numerica ha uno sparkline in filigrana sullo sfondo delle celle**
+(scala min-max propria della colonna, allineato riga per riga cosi'
+scorrendo verso il basso si vede l'andamento nel tempo), righe evidenziate
+con uno stripe laterale + pallino sulla linea in ambra (innesco possibile:
+CIN >= -75 J/kg con SBCAPE >= 1000 J/kg) o rosso (temporali organizzati:
+SBCAPE >= 1500 J/kg con shear 0-6km >= 25kn), colonna Data/ora e header
+fissi durante lo scroll orizzontale, tema chiaro/scuro automatico.
+
+Non serve editare `table_sparkline.py` per una nuova localita' o un nuovo
+periodo: e' gia' generico (righe/colonne si adattano al numero di
+timestep e alla disponibilita' dati mare). Editalo solo se l'utente
+chiede di cambiare lo stile o le colonne stesse.
+
+Presenta comunque in chat un riassunto testuale breve (2-3 frasi: giorni/
+ore piu' a rischio) insieme al link dell'Artifact, come da punto 9.
 
 ## 9. In chat
 
