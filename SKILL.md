@@ -515,13 +515,18 @@ python3 table_sparkline.py \
     --indices /tmp/meteo_<slug>/indices.json \
     --marine /tmp/meteo_<slug>/marine.json \
     --location-label "Nome Localita' (provincia)" \
+    --logo ../assets/logo.png \
     --out /tmp/meteo_<slug>/tabella_<slug>.html
 ```
 
 `--marine` e' opzionale: omettilo per localita' non costiere (lo script
 mostra/nasconde da solo le colonne Onda/Dir.O in base a cosa trova).
+`--logo` e' opzionale: se omesso, l'intestazione resta senza logo (nessun
+errore) — includilo sempre quando disponibile (il logo della skill e' in
+`../assets/logo.png` rispetto a `scripts/`), mostrato in alto a destra
+nell'intestazione, accanto al blocco di testo.
 
-Cosa produce (design **v1.3.1**, validato e messo in produzione con
+Cosa produce (design **v1.4.0**, validato e messo in produzione con
 l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
 a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
 tramonto** (dal blend Best Match, giorno d'inizio del periodo) e la

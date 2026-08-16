@@ -56,7 +56,12 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   righe di inizio giornata (es. "DOM 16/08" e "00:00" si accavallavano): colonna
 #   time allargata da 108 a 142px, non c'era abbastanza spazio per entrambi affiancati
 #   nel flex .col-time. Segnalato dall'utente il 2026-08-16.
-SCRIPT_VERSION = "1.3.2"
+# 1.4.0 (2026-08-16): allineamento orari nella colonna Data/ora (il tag del giorno
+#   occupava larghezza variabile/zero secondo il contenuto, spostando "00:00" rispetto
+#   a "03:00"/"06:00"/...: ora .day-tag-slot ha larghezza fissa, tutti gli orari sono
+#   allineati alla stessa colonna). Aggiunto logo meteoP@d0 opzionale (--logo) in alto
+#   a destra nell'intestazione, accanto al blocco di testo.
+SCRIPT_VERSION = "1.4.0"
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
 # riferimento nota) - non duplicare logica diversa altrove nella skill.
@@ -420,6 +425,7 @@ def main():
     ap.add_argument("--indices", required=True, help="indices.json (indices.py)")
     ap.add_argument("--marine", default=None, help="marine.json (fetch_marine.py), opzionale")
     ap.add_argument("--location-label", default=None, help="Etichetta localita' per il titolo; default dal geocoding")
+    ap.add_argument("--logo", default=None, help="logo.png (opzionale) da mostrare in alto a destra")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -469,6 +475,12 @@ def main():
     astro_parts.append(moon_line)
     astro_line = " &middot; ".join(astro_parts)
 
+    logo_html = ""
+    if args.logo:
+        with open(args.logo, "rb") as f:
+            logo_b64 = base64.b64encode(f.read()).decode("ascii")
+        logo_html = f'<img class="head-logo" src="data:image/png;base64,{logo_b64}" alt="meteoP@d0">'
+
     header_cells = [
         '<th class="col-time">Data / ora</th>',
         '<th><abbr title="Temperatura a 2m">T (&deg;C)</abbr></th>',
@@ -508,7 +520,7 @@ def main():
         light_vars=light_vars, dark_vars=dark_vars, spark_rules=spark_rules,
         colgroup=colgroup, group_row=group_row, header_cells="\n            ".join(header_cells),
         tbody=tbody, total_w=max(total_w, 900), rh=RH, legend_rows=legend_rows, version=SCRIPT_VERSION,
-        astro_line=astro_line,
+        astro_line=astro_line, logo_html=logo_html,
         marine_title=" e mare" if has_marine else "",
         marine_sub="; onda da Open-Meteo Marine" if has_marine else "",
         marine_footer=" &middot; stato del mare Open-Meteo Marine" if has_marine else "",
@@ -613,7 +625,14 @@ TEMPLATE = '''<meta charset="utf-8">
 
   .sheet {{ width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; }}
 
-  header.head {{ display: flex; flex-direction: column; gap: 6px; padding: 4px 2px 2px; }}
+  header.head {{
+    display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between;
+    gap: 16px; padding: 4px 2px 2px;
+  }}
+
+  .head-text {{ display: flex; flex-direction: column; gap: 6px; min-width: 0; }}
+
+  .head-logo {{ height: 44px; width: auto; flex: none; border-radius: 6px; }}
 
   .eyebrow {{
     font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em;
@@ -701,7 +720,7 @@ TEMPLATE = '''<meta charset="utf-8">
 
   .data-table td.col-time {{ display: flex; align-items: center; gap: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }}
 
-  .data-table .day-tag-slot {{ display: inline-flex; min-width: 0; }}
+  .data-table .day-tag-slot {{ display: inline-flex; flex: none; width: 70px; }}
 
   .data-table .day-tag {{
     font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
@@ -790,14 +809,17 @@ TEMPLATE = '''<meta charset="utf-8">
 
 <div class="sheet">
   <header class="head">
-    <span class="eyebrow">{loc} &middot; {lat:.2f}&deg;N {lon:.2f}&deg;E</span>
-    <span class="astro">{astro_line}</span>
-    <h1>Tabella tri-oraria &mdash; parametri convettivi, vento{marine_title} e pioggia</h1>
-    <p class="sub">{start}&ndash;{end}, ogni 3 ore (00&ndash;21 locali). Blend Best Match (Open-Meteo);
-      indici convettivi calcolati con MetPy sul profilo verticale orario{marine_sub}. Ogni colonna numerica
-      porta in filigrana il proprio andamento (scala min&ndash;max propria della colonna, non comparabile tra colonne diverse)
-      e uno sfondo colorato quando il singolo valore esce dalla norma per quel parametro (soglie specifiche per colonna,
-      vedi Legenda parametri in fondo alla pagina).</p>
+    <div class="head-text">
+      <span class="eyebrow">{loc} &middot; {lat:.2f}&deg;N {lon:.2f}&deg;E</span>
+      <span class="astro">{astro_line}</span>
+      <h1>Tabella tri-oraria &mdash; parametri convettivi, vento{marine_title} e pioggia</h1>
+      <p class="sub">{start}&ndash;{end}, ogni 3 ore (00&ndash;21 locali). Blend Best Match (Open-Meteo);
+        indici convettivi calcolati con MetPy sul profilo verticale orario{marine_sub}. Ogni colonna numerica
+        porta in filigrana il proprio andamento (scala min&ndash;max propria della colonna, non comparabile tra colonne diverse)
+        e uno sfondo colorato quando il singolo valore esce dalla norma per quel parametro (soglie specifiche per colonna,
+        vedi Legenda parametri in fondo alla pagina).</p>
+    </div>
+    {logo_html}
   </header>
 
   <div class="legend">
