@@ -32,7 +32,50 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 # di questo script, cosi' chi guarda una tabella generata sa a quale revisione risale.
 # 1.0.0 (2026-08-16): prima versione di produzione - sparkline per colonna, legenda
 #   parametri con range osservato, copertura nuvolosa in ottavi, colonne mare opzionali.
-SCRIPT_VERSION = "1.0.0"
+# 1.1.0 (2026-08-16): colorazione per gravita' delle singole celle (giallo/arancio/
+#   rosso/fucsia, soglie specifiche per parametro - vedi SEVERITY_RULES), soglie
+#   mostrate in legenda; sparkline ridisegnato con tecnica alone+linea (halo) per
+#   restare leggibile sopra qualunque colore di sfondo; hover non copre piu' il
+#   colore di gravita' della cella.
+SCRIPT_VERSION = "1.1.0"
+
+# Soglie di severita' per singolo parametro (valore >= soglia -> livello), verificate
+# dall'alto verso il basso. "li" e "cin" usano logica invertita (valore piu' vicino a
+# zero = piu' attenzione), gestita a parte in severity(). Nessuna regola per una
+# colonna = cella sempre normale (bianca). Le soglie ricalcano quelle gia' documentate
+# in SKILL.md (punto 2) per CAPE/TT/K/SWEAT/Shear, estese agli altri parametri con lo
+# stesso criterio (debole/moderato/forte/estremo).
+SEVERITY_RULES = {
+    "temp":   [(35, "fuchsia"), (32, "red"), (30, "orange"), (28, "yellow")],
+    "wind":   [(35, "fuchsia"), (25, "red"), (18, "orange"), (12, "yellow")],
+    "precip": [(30, "fuchsia"), (15, "red"), (8, "orange"), (3, "yellow")],
+    "sbcape": [(3500, "fuchsia"), (2500, "red"), (1500, "orange"), (500, "yellow")],
+    "k":      [(35, "fuchsia"), (30, "red"), (25, "orange"), (20, "yellow")],
+    "tt":     [(56, "fuchsia"), (52, "red"), (48, "orange"), (44, "yellow")],
+    "sweat":  [(500, "fuchsia"), (400, "red"), (300, "orange"), (250, "yellow")],
+    "shear":  [(45, "fuchsia"), (35, "red"), (25, "orange"), (20, "yellow")],
+    "srh":    [(250, "fuchsia"), (150, "red"), (100, "orange"), (50, "yellow")],
+    "pwat":   [(55, "fuchsia"), (45, "red"), (35, "orange"), (25, "yellow")],
+    "wave":   [(4, "fuchsia"), (2.5, "red"), (1.25, "orange"), (0.5, "yellow")],
+    # invertite: valore <= soglia -> livello (piu' negativo = piu' instabile/permissivo)
+    "li":     [(-9, "fuchsia"), (-6, "red"), (-3, "orange"), (0, "yellow")],
+    "cin":    [(-25, "red"), (-75, "orange"), (-150, "yellow")],
+}
+SEVERITY_INVERTED = {"li", "cin"}
+
+
+def severity(key, value):
+    """Livello di gravita' ('yellow'/'orange'/'red'/'fuchsia') o None (normale)."""
+    if value is None:
+        return None
+    rules = SEVERITY_RULES.get(key)
+    if not rules:
+        return None
+    inverted = key in SEVERITY_INVERTED
+    for threshold, level in rules:
+        if (value <= threshold) if inverted else (value >= threshold):
+            return level
+    return None
 
 # (chiave in ogni riga unita, classe CSS colonna, larghezza px, chiave sparkline o None,
 #  etichetta header, tooltip/descrizione legenda, unita' di misura per la legenda o None)
@@ -134,7 +177,12 @@ def build_rows(data, indices, marine):
     return rows
 
 
-def make_svg(rows, key, col_w, total_h, color, opacity, dot_colors):
+def make_svg(rows, key, col_w, total_h, color, opacity, halo, halo_opacity, dot_colors):
+    """Sparkline con tecnica 'alone+linea': un tratto largo e semitrasparente nel
+    colore dell'alone sotto la linea vera e propria, cosi' la linea resta leggibile
+    sia sullo sfondo di superficie normale sia sopra le celle colorate per gravita'
+    (giallo/arancio/rosso/fucsia) - nessuna delle due tinte e' scelta pensando a un
+    solo colore di sfondo possibile."""
     vals = [r[key] for r in rows]
     lo, hi = min(vals), max(vals)
     if hi - lo < 1e-9:
@@ -155,13 +203,16 @@ def make_svg(rows, key, col_w, total_h, color, opacity, dot_colors):
     poly = " ".join(pts)
     midx = col_w / 2
     circles = "".join(
-        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.1" fill="{c}" fill-opacity="0.85"/>'
+        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.2" fill="{halo}" fill-opacity="{halo_opacity:.2f}"/>'
+        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.1" fill="{c}" fill-opacity="0.95"/>'
         for x, y, c in dots
     )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{col_w}" height="{total_h}">'
-        f'<line x1="{midx:.1f}" y1="0" x2="{midx:.1f}" y2="{total_h}" stroke="{color}" '
-        f'stroke-opacity="{opacity*0.45:.2f}" stroke-width="1" stroke-dasharray="1.5 3"/>'
+        f'<line x1="{midx:.1f}" y1="0" x2="{midx:.1f}" y2="{total_h}" stroke="{halo}" '
+        f'stroke-opacity="{halo_opacity*0.5:.2f}" stroke-width="1.4" stroke-dasharray="1.5 3"/>'
+        f'<polyline points="{poly}" fill="none" stroke="{halo}" stroke-width="3.4" '
+        f'stroke-opacity="{halo_opacity:.2f}" stroke-linecap="round" stroke-linejoin="round"/>'
         f'<polyline points="{poly}" fill="none" stroke="{color}" stroke-width="1.3" '
         f'stroke-opacity="{opacity:.2f}" stroke-linecap="round" stroke-linejoin="round"/>'
         f'{circles}</svg>'
@@ -172,8 +223,10 @@ def b64(svg):
     return base64.b64encode(svg.encode("utf-8")).decode("ascii")
 
 
-LIGHT_LINE, LIGHT_OP = "#57708C", 0.40
-DARK_LINE, DARK_OP = "#9FB6D6", 0.40
+LIGHT_LINE, LIGHT_OP = "#33415E", 0.78
+LIGHT_HALO, LIGHT_HALO_OP = "#FFFFFF", 0.60
+DARK_LINE, DARK_OP = "#C7D6EC", 0.82
+DARK_HALO, DARK_HALO_OP = "#05070C", 0.55
 LIGHT_DOTS = ("#B9790E", "#A7362A")
 DARK_DOTS = ("#E3A73F", "#E27567")
 
@@ -183,12 +236,12 @@ def build_spark_assets(rows, cols, total_h):
     for _, cls, w, skey, _, _, _ in cols:
         if skey is None:
             continue
-        svg_l = make_svg(rows, skey, w, total_h, LIGHT_LINE, LIGHT_OP, LIGHT_DOTS)
-        svg_d = make_svg(rows, skey, w, total_h, DARK_LINE, DARK_OP, DARK_DOTS)
+        svg_l = make_svg(rows, skey, w, total_h, LIGHT_LINE, LIGHT_OP, LIGHT_HALO, LIGHT_HALO_OP, LIGHT_DOTS)
+        svg_d = make_svg(rows, skey, w, total_h, DARK_LINE, DARK_OP, DARK_HALO, DARK_HALO_OP, DARK_DOTS)
         light_vars.append(f'    --spark-{cls}: url("data:image/svg+xml;base64,{b64(svg_l)}");')
         dark_vars.append(f'      --spark-{cls}: url("data:image/svg+xml;base64,{b64(svg_d)}");')
         css_rules.append(
-            f'  td.{cls} {{ position: relative; width: {w}px; }}\n'
+            f'  td.{cls} {{ position: relative; z-index: 0; width: {w}px; }}\n'
             f'  td.{cls}::before {{ content: ""; position: absolute; inset: 0; z-index: -1; '
             f'background-image: var(--spark-{cls}); background-repeat: no-repeat; '
             f'background-size: {w}px {total_h}px; background-position: 0 calc(var(--ri, 0) * -{RH}px); '
@@ -208,6 +261,29 @@ def fmt_num(v):
     return f"{v:.1f}"
 
 
+def build_thresholds_html(key, unit):
+    """Chip colorati con le soglie di severita' di una colonna, per la legenda.
+    Ordine di lettura sempre giallo->arancio->rosso->fucsia, anche per le colonne a
+    logica invertita (li/cin), dove la soglia numerica scende leggendo da sinistra
+    verso destra invece di salire."""
+    rules = SEVERITY_RULES.get(key)
+    if not rules:
+        return '<span class="lg-none">&ndash;</span>'
+    inverted = key in SEVERITY_INVERTED
+    # SEVERITY_RULES e' sempre memorizzato dal piu' severo al meno severo (ordine di
+    # verifica in severity()); per la legenda vogliamo sempre l'ordine di lettura
+    # crescente giallo->fucsia, quindi si inverte sempre, non solo per le colonne
+    # a logica invertita (bug corretto il 2026-08-16: qui prima si invertiva solo
+    # se "inverted", lasciando le colonne normali in ordine fucsia->giallo).
+    ordered = list(reversed(rules))
+    unit_s = f"{unit}" if unit else ""
+    cmp = "&le;" if inverted else "&ge;"
+    return " ".join(
+        f'<span class="chip chip-{level}">{cmp}{fmt_num(threshold)}{unit_s}</span>'
+        for threshold, level in ordered
+    )
+
+
 def build_legend(rows, cols):
     items = []
     for _, _, _, skey, label, desc, unit in cols:
@@ -220,12 +296,13 @@ def build_legend(rows, cols):
             campo = f"costante: {fmt_num(lo)}{unit_s}"
         else:
             campo = f"da {fmt_num(lo)} a {fmt_num(hi)}{unit_s}"
-        items.append((label, desc, campo))
+        soglie = build_thresholds_html(skey, unit)
+        items.append((label, desc, campo, soglie))
 
     rows_html = "\n".join(
         f'<tr><td class="lg-param">{label}</td><td class="lg-desc">{desc}</td>'
-        f'<td class="lg-range">{campo}</td></tr>'
-        for label, desc, campo in items
+        f'<td class="lg-range">{campo}</td><td class="lg-thresh">{soglie}</td></tr>'
+        for label, desc, campo, soglie in items
     )
     return rows_html
 
@@ -264,25 +341,31 @@ def build_tbody(rows):
         else:
             pill = '<span class="pill pill-none">&ndash;</span>'
 
+        def cell(cls, key):
+            value = r[key]
+            sev = severity(key, value)
+            sev_cls = f" sev-{sev}" if sev else ""
+            return f'<td class="{cls} num{sev_cls}">{fmt(value)}</td>'
+
         cells = [
             f'<td class="col-time"><span class="day-tag-slot">{day_cell}</span><span class="time-val">{hhmm}</span></td>',
-            f'<td class="sc-t num">{fmt(r["temp"])}</td>',
-            f'<td class="sc-vt num">{fmt(r["wind"])}</td>',
+            cell("sc-t", "temp"),
+            cell("sc-vt", "wind"),
             f'<td class="dir">{r["dirv"]}</td>',
-            f'<td class="sc-pr num">{fmt(r["precip"])}</td>',
+            cell("sc-pr", "precip"),
             f'<td class="sc-cld num">{fmt(r["cloud"])}</td>',
-            f'<td class="sc-cape num">{fmt(r["sbcape"])}</td>',
-            f'<td class="sc-cin num">{fmt(r["cin"])}</td>',
-            f'<td class="sc-li num">{fmt(r["li"])}</td>',
-            f'<td class="sc-k num">{fmt(r["k"])}</td>',
-            f'<td class="sc-tt num">{fmt(r["tt"])}</td>',
-            f'<td class="sc-swt num">{fmt(r["sweat"])}</td>',
-            f'<td class="sc-shear num">{fmt(r["shear"])}</td>',
-            f'<td class="sc-srh num">{fmt(r["srh"])}</td>',
-            f'<td class="sc-pwat num">{fmt(r["pwat"])}</td>',
+            cell("sc-cape", "sbcape"),
+            cell("sc-cin", "cin"),
+            cell("sc-li", "li"),
+            cell("sc-k", "k"),
+            cell("sc-tt", "tt"),
+            cell("sc-swt", "sweat"),
+            cell("sc-shear", "shear"),
+            cell("sc-srh", "srh"),
+            cell("sc-pwat", "pwat"),
         ]
         if "wave" in r:
-            cells.append(f'<td class="sc-onda num">{fmt(r["wave"])}</td>')
+            cells.append(cell("sc-onda", "wave"))
             cells.append(f'<td class="dir">{r["diro"]}</td>')
         cells.append(f'<td class="col-note">{pill}</td>')
 
@@ -400,6 +483,10 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     --sea: #146B72;
     --shadow: 0 1px 2px rgba(16, 27, 51, 0.06), 0 8px 24px -12px rgba(16, 27, 51, 0.18);
     --row-hover: rgba(16, 27, 51, 0.045);
+    --sev-yellow: #F9E8B4; --sev-yellow-ink: #8F7014;
+    --sev-orange: #F9D2B4; --sev-orange-ink: #8F4914;
+    --sev-red: #F9B8B4; --sev-red-ink: #8F1D14;
+    --sev-fuchsia: #F9B4E4; --sev-fuchsia-ink: #8F146A;
 {light_vars}
   }}
 
@@ -422,6 +509,10 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
       --sea: #55C2C9;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
       --row-hover: rgba(231, 236, 244, 0.06);
+      --sev-yellow: #433714; --sev-yellow-ink: #EDD282;
+      --sev-orange: #432814; --sev-orange-ink: #EDB082;
+      --sev-red: #431714; --sev-red-ink: #ED8982;
+      --sev-fuchsia: #431435; --sev-fuchsia-ink: #ED82CD;
 {dark_vars}
     }}
   }}
@@ -444,6 +535,10 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     --sea: #55C2C9;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
     --row-hover: rgba(231, 236, 244, 0.06);
+    --sev-yellow: #433714; --sev-yellow-ink: #EDD282;
+    --sev-orange: #432814; --sev-orange-ink: #EDB082;
+    --sev-red: #431714; --sev-red-ink: #ED8982;
+    --sev-fuchsia: #431435; --sev-fuchsia-ink: #ED82CD;
 {dark_vars}
   }}
 
@@ -537,8 +632,13 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     border-bottom: 1px solid var(--line-soft); color: var(--text); white-space: nowrap; overflow: hidden;
   }}
 
-  .data-table tbody tr:hover td {{ background: var(--row-hover); }}
+  .data-table tbody tr:hover td:not([class*="sev-"]) {{ background: var(--row-hover); }}
   .data-table tbody tr:hover td.col-time {{ background: var(--row-hover); }}
+
+  .data-table td.sev-yellow {{ background-color: var(--sev-yellow); }}
+  .data-table td.sev-orange {{ background-color: var(--sev-orange); }}
+  .data-table td.sev-red {{ background-color: var(--sev-red); }}
+  .data-table td.sev-fuchsia {{ background-color: var(--sev-fuchsia); }}
 
   .data-table td.col-time {{ display: flex; align-items: center; gap: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }}
 
@@ -605,6 +705,18 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     color: var(--text); font-weight: 600;
   }}
 
+  .glossary-table td.lg-thresh {{ white-space: nowrap; font-variant-numeric: tabular-nums; }}
+  .glossary-table .lg-none {{ color: var(--text-faint); }}
+
+  .chip {{
+    display: inline-block; padding: 2px 7px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; margin-right: 3px;
+  }}
+  .chip-yellow {{ background: var(--sev-yellow); color: var(--sev-yellow-ink); }}
+  .chip-orange {{ background: var(--sev-orange); color: var(--sev-orange-ink); }}
+  .chip-red {{ background: var(--sev-red); color: var(--sev-red-ink); }}
+  .chip-fuchsia {{ background: var(--sev-fuchsia); color: var(--sev-fuchsia-ink); }}
+
   @media (max-width: 640px) {{
     .glossary-table th:nth-child(2), .glossary-table td.lg-desc {{ display: none; }}
   }}
@@ -623,7 +735,9 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     <h1>Tabella tri-oraria &mdash; parametri convettivi, vento{marine_title} e pioggia</h1>
     <p class="sub">{start}&ndash;{end}, ogni 3 ore (00&ndash;21 locali). Blend Best Match (Open-Meteo);
       indici convettivi calcolati con MetPy sul profilo verticale orario{marine_sub}. Ogni colonna numerica
-      porta in filigrana il proprio andamento (scala min&ndash;max propria della colonna, non comparabile tra colonne diverse).</p>
+      porta in filigrana il proprio andamento (scala min&ndash;max propria della colonna, non comparabile tra colonne diverse)
+      e uno sfondo colorato quando il singolo valore esce dalla norma per quel parametro (soglie specifiche per colonna,
+      vedi Legenda parametri in fondo alla pagina).</p>
   </header>
 
   <div class="legend">
@@ -632,6 +746,14 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     <div class="legend-item"><span class="swatch trigger"></span>Innesco possibile &mdash; CIN &ge; &minus;75 J/kg con SBCAPE &ge; 1000 J/kg</div>
     <div class="legend-sep"></div>
     <div class="legend-item"><span class="swatch organized"></span>Temporali organizzati &mdash; SBCAPE &ge; 1500 J/kg con Shear 0&ndash;6km &ge; 25 kn</div>
+    <div class="legend-sep"></div>
+    <div class="legend-item">
+      Cella colorata = valore fuori norma:
+      <span class="chip chip-yellow">lieve</span>
+      <span class="chip chip-orange">moderato</span>
+      <span class="chip chip-red">elevato</span>
+      <span class="chip chip-fuchsia">estremo</span>
+    </div>
   </div>
 
   <div class="panel">
@@ -657,7 +779,7 @@ TEMPLATE = '''<title>Tabella Convettiva {loc}</title>
     <h2>Legenda parametri</h2>
     <table class="glossary-table">
       <thead>
-        <tr><th>Parametro</th><th>Descrizione</th><th>Campo in questo periodo</th></tr>
+        <tr><th>Parametro</th><th>Descrizione</th><th>Campo in questo periodo</th><th>Soglie colore (giallo&rarr;fucsia)</th></tr>
       </thead>
       <tbody>
 {legend_rows}
