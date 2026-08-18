@@ -1,0 +1,362 @@
+<title>San Benedetto del Tronto — Tabella meteo oraria (dati reali)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
+<style>
+:root{
+  --ink:#182230; --ink-soft:#4b5768; --ink-faint:#8592a3;
+  --surface:#eef1f6; --panel:#ffffff; --panel-alt:#f6f8fb; --panel-line:#dde3ec;
+  --accent:#2f6690; --accent-soft:#e4edf4;
+  --sev0-bg:#ffffff; --sev0-line:#c9d2de; --sev0-fg:#37404d;
+  --sev1-bg:#ffd23f; --sev1-fg:#3a2c02;
+  --sev2-bg:#ff9142; --sev2-fg:#3a1e02;
+  --sev3-bg:#e14b3f; --sev3-fg:#fff7f5;
+  --sev4-bg:#c02893; --sev4-fg:#fff5fb;
+  --consensus-bg:var(--panel-alt);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#eef2f7; --ink-soft:#a7b2c2; --ink-faint:#6d7889;
+    --surface:#141a22; --panel:#1b232e; --panel-alt:#20293d; --panel-line:#2b3543;
+    --accent:#7fb2d9; --accent-soft:#20303c;
+    --sev0-bg:#232d3a; --sev0-line:#3a4656; --sev0-fg:#c7d0dc;
+    --sev1-bg:#caa233; --sev1-fg:#241a00;
+    --sev2-bg:#cf7936; --sev2-fg:#2a1300;
+    --sev3-bg:#b6473c; --sev3-fg:#fff2ef;
+    --sev4-bg:#9c2d80; --sev4-fg:#fdeef8;
+    --consensus-bg:var(--panel-alt);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#eef2f7; --ink-soft:#a7b2c2; --ink-faint:#6d7889;
+  --surface:#141a22; --panel:#1b232e; --panel-alt:#20293d; --panel-line:#2b3543;
+  --accent:#7fb2d9; --accent-soft:#20303c;
+  --sev0-bg:#232d3a; --sev0-line:#3a4656; --sev0-fg:#c7d0dc;
+  --sev1-bg:#caa233; --sev1-fg:#241a00;
+  --sev2-bg:#cf7936; --sev2-fg:#2a1300;
+  --sev3-bg:#b6473c; --sev3-fg:#fff2ef;
+  --sev4-bg:#9c2d80; --sev4-fg:#fdeef8;
+  --consensus-bg:var(--panel-alt);
+  color-scheme: dark;
+}
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--surface); color:var(--ink); font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+.page{ max-width:1180px; margin:0 auto; padding:40px 24px 64px; display:flex; flex-direction:column; gap:24px; }
+
+.masthead{ display:flex; flex-direction:column; gap:6px; }
+.eyebrow-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.eyebrow{ font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); }
+.version-badge{ font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:700; letter-spacing:0.04em; color:var(--ink-soft); background:var(--panel-alt); border:1px solid var(--panel-line); padding:3px 9px; border-radius:999px; white-space:nowrap; }
+h1{ font-family:"Archivo", sans-serif; font-weight:900; font-size:clamp(26px,4vw,38px); line-height:1.05; letter-spacing:-0.01em; margin:2px 0 0; text-wrap:balance; }
+h1 em{ font-style:normal; font-weight:700; color:var(--ink-soft); }
+.sub{ margin:2px 0 0; font-size:14.5px; color:var(--ink-soft); max-width:76ch; line-height:1.5; }
+.meta-strip{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:6px; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-faint); }
+.spectrum{ margin-top:14px; height:5px; border-radius:3px;
+  background:linear-gradient(90deg, var(--sev0-line) 0 18%, var(--sev1-bg) 18% 38%, var(--sev2-bg) 38% 58%, var(--sev3-bg) 58% 78%, var(--sev4-bg) 78% 100%); }
+
+.almanac-panel{ background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:14px 18px 6px; }
+.almanac-panel .legend-title{ display:block; margin-bottom:6px; }
+.time-cell{ flex-direction:column; align-items:flex-start; justify-content:center; gap:0; font-weight:600; font-size:13px; }
+.moon-cell{ flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; }
+.moon-cell .moonpct{ font-weight:700; font-size:13px; }
+.moon-cell .moonlabel{ font-family:"IBM Plex Sans", sans-serif; font-size:9.5px; font-weight:500; color:var(--ink-faint); }
+.moon-cell .spread-track{ background:var(--panel-line); }
+.moon-cell .spread-fill{ background:var(--ink-soft); opacity:.5; }
+
+.toolbar{ display:flex; align-items:center; flex-wrap:wrap; gap:14px 18px; padding:14px 18px; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; }
+.legend-title{ font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-soft); }
+.swatches{ display:flex; flex-wrap:wrap; gap:8px; }
+.sw{ display:flex; align-items:baseline; gap:6px; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:600; border:1px solid var(--panel-line); }
+.sw em{ font-style:normal; font-weight:500; opacity:0.85; }
+.sw-0{ background:var(--sev0-bg); color:var(--sev0-fg); border-color:var(--sev0-line); }
+.sw-1{ background:var(--sev1-bg); color:var(--sev1-fg); }
+.sw-2{ background:var(--sev2-bg); color:var(--sev2-fg); }
+.sw-3{ background:var(--sev3-bg); color:var(--sev3-fg); }
+.sw-4{ background:var(--sev4-bg); color:var(--sev4-fg); }
+.models-key{ display:flex; flex-wrap:wrap; gap:6px 10px; margin-left:auto; }
+.mk{ font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600; color:var(--ink-soft); padding:3px 8px; border:1px solid var(--panel-line); border-radius:6px; background:var(--panel-alt); }
+.mk b{ color:var(--ink); }
+
+.sections{ display:flex; flex-direction:column; gap:14px; }
+details.param{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; overflow:hidden; }
+details.param[open] summary{ border-bottom:1px solid var(--panel-line); }
+summary{ list-style:none; cursor:pointer; padding:14px 18px; display:flex; align-items:baseline; gap:10px; font-family:"Archivo", sans-serif; font-weight:800; font-size:16px; flex-wrap:wrap; }
+summary::-webkit-details-marker{ display:none; }
+summary .arrow{ font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12px; color:var(--accent); transition:transform .15s ease; }
+details[open] summary .arrow{ transform:rotate(90deg); }
+summary .unit{ font-family:"IBM Plex Mono", monospace; font-weight:500; font-size:12px; color:var(--ink-faint); }
+summary .desc{ font-family:"IBM Plex Sans",sans-serif; font-weight:500; font-size:12.5px; color:var(--ink-faint); margin-left:auto; }
+summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:11px; color:var(--sev2-fg); background:var(--sev1-bg); padding:2px 7px; border-radius:5px; }
+
+.table-wrap{ overflow-x:auto; padding:6px 10px 14px; }
+.pgrid{ display:grid; grid-template-columns:150px repeat(7,1fr); }
+.pgrid.hourly{ grid-template-columns:150px repeat(var(--ncols),40px); min-width:calc(150px + var(--ncols)*40px); }
+
+.cell{ display:flex; align-items:center; padding:4px 10px; font-family:"IBM Plex Mono", monospace; border-bottom:1px solid var(--panel-line); }
+.hourly .cell{ padding:3px 3px; font-size:10.5px; justify-content:center; }
+.rowlabel{ font-family:"IBM Plex Sans", sans-serif; font-size:12.5px; color:var(--ink-soft); position:sticky; left:0; background:var(--panel); z-index:2; justify-content:flex-start; }
+.hourly .rowlabel{ font-size:11px; }
+.colhead{ flex-direction:column; align-items:flex-start; justify-content:center; gap:0; font-family:"Archivo", sans-serif; padding-top:8px; padding-bottom:8px; position:relative; }
+.colhead .day{ font-weight:800; font-size:13.5px; }
+.colhead .date{ font-family:"IBM Plex Mono", monospace; font-weight:500; font-size:10.5px; color:var(--ink-faint); }
+.hourly .colhead{ align-items:center; padding-top:20px; }
+.hourly .colhead .day{ font-size:10.5px; }
+.daytag{ position:absolute; top:2px; left:2px; right:2px; font-size:8px; font-weight:700; color:var(--accent); white-space:nowrap; text-align:center; letter-spacing:0.01em; }
+.day-start{ border-left:2px solid var(--accent) !important; }
+
+.consensus-row{ grid-column:1/9; display:grid; grid-template-columns:150px repeat(7,1fr); min-height:74px; border-top:1px solid var(--panel-line); border-bottom:1px solid var(--panel-line); }
+.consensus-row.hourly{ grid-column:1/-1; grid-template-columns:150px repeat(var(--ncols),40px); min-height:58px; }
+.consensus-row .rowlabel{ background:var(--consensus-bg); font-weight:700; color:var(--ink); border-bottom:none; }
+.consensus-svg{ position:relative; }
+.consensus-svg svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.consensus-cell{ position:relative; z-index:1; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:4px 2px; border-bottom:none; }
+.consensus-cell .cval{ font-size:13px; font-weight:700; padding:1px 5px; border-radius:5px; }
+.hourly .consensus-cell .cval{ font-size:10px; padding:1px 3px; }
+.consensus-cell .crange{ font-size:9.5px; font-weight:500; color:var(--ink-faint); font-family:"IBM Plex Mono",monospace; background:var(--panel); padding:0 3px; border-radius:3px; }
+
+.dir{ font-family:"IBM Plex Sans", sans-serif; font-size:9.5px; font-weight:700; opacity:0.75; margin-left:3px; letter-spacing:0.02em; }
+.gust-pill{ display:inline-block; font-family:"IBM Plex Mono", monospace; font-size:9px; font-weight:700; padding:1px 5px; border-radius:5px; margin-left:0; margin-top:1px; white-space:nowrap; }
+
+.group-label{ font-family:"IBM Plex Mono", monospace; font-size:9.5px; font-weight:600; letter-spacing:0.09em; text-transform:uppercase; color:var(--ink-faint); background:var(--panel-alt); padding:4px 10px; }
+.model-row .rowlabel{ font-family:"IBM Plex Mono", monospace; font-size:10px; font-weight:600; letter-spacing:0.02em; color:var(--ink-faint); padding-left:22px; }
+.model-row .cell:not(.rowlabel){ font-weight:600; }
+.model-row:last-child .cell{ border-bottom:none; }
+.model-row .cell.na{ color:var(--ink-faint); opacity:.45; font-weight:500; }
+
+.sev-0{ background:var(--sev0-bg); color:var(--sev0-fg); }
+.sev-1{ background:var(--sev1-bg); color:var(--sev1-fg); }
+.sev-2{ background:var(--sev2-bg); color:var(--sev2-fg); }
+.sev-3{ background:var(--sev3-bg); color:var(--sev3-fg); }
+.sev-4{ background:var(--sev4-bg); color:var(--sev4-fg); }
+
+.notes{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:20px 22px; }
+.notes h2{ font-family:"Archivo", sans-serif; font-size:15.5px; font-weight:800; margin:0 0 10px; }
+.notes ul{ margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--ink-soft); line-height:1.5; }
+.notes strong{ color:var(--ink); font-weight:600; }
+.notes a{ color:var(--accent); }
+
+@media (max-width:640px){ .page{ padding:28px 14px 48px; } }
+
+</style>
+<div class="page">
+  <div class="masthead">
+    <div class="eyebrow-row">
+      <div class="eyebrow" id="mh-eyebrow"></div>
+      <div class="version-badge" id="mh-version"></div>
+    </div>
+    <h1 id="mh-title"></h1>
+    <p class="sub" id="mh-sub"></p>
+    <div class="meta-strip" id="mh-meta-strip"></div>
+    <div class="spectrum"></div>
+  </div>
+
+  <div class="almanac-panel">
+    <span class="legend-title">Alba &middot; tramonto &middot; fase lunare (reali)</span>
+    <div class="table-wrap" style="padding:0;">
+      <div class="pgrid" id="almanacGrid"></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span class="legend-title">Severit&agrave;</span>
+    <div class="swatches">
+      <div class="sw sw-0">Bianco <em>nessun rischio</em></div>
+      <div class="sw sw-1">Giallo <em>moderato</em></div>
+      <div class="sw sw-2">Arancio <em>elevato</em></div>
+      <div class="sw sw-3">Rosso <em>molto elevato</em></div>
+      <div class="sw sw-4">Fucsia <em>estremo</em></div>
+    </div>
+    <div class="models-key" id="modelsKey"></div>
+  </div>
+
+  <div class="sections" id="sections"></div>
+
+  <div class="notes">
+    <h2>Note</h2>
+    <div id="notesHtml"></div>
+  </div>
+</div>
+
+<script>
+window.TABLE_DATA = {"mode": "hourly", "timeCols": [{"hod": 0, "dayIndex": 0}, {"hod": 1, "dayIndex": 0}, {"hod": 2, "dayIndex": 0}, {"hod": 3, "dayIndex": 0}, {"hod": 4, "dayIndex": 0}, {"hod": 5, "dayIndex": 0}, {"hod": 6, "dayIndex": 0}, {"hod": 7, "dayIndex": 0}, {"hod": 8, "dayIndex": 0}, {"hod": 9, "dayIndex": 0}, {"hod": 10, "dayIndex": 0}, {"hod": 11, "dayIndex": 0}, {"hod": 12, "dayIndex": 0}, {"hod": 13, "dayIndex": 0}, {"hod": 14, "dayIndex": 0}, {"hod": 15, "dayIndex": 0}, {"hod": 16, "dayIndex": 0}, {"hod": 17, "dayIndex": 0}, {"hod": 18, "dayIndex": 0}, {"hod": 19, "dayIndex": 0}, {"hod": 20, "dayIndex": 0}, {"hod": 21, "dayIndex": 0}, {"hod": 22, "dayIndex": 0}, {"hod": 23, "dayIndex": 0}, {"hod": 0, "dayIndex": 1}, {"hod": 1, "dayIndex": 1}, {"hod": 2, "dayIndex": 1}, {"hod": 3, "dayIndex": 1}, {"hod": 4, "dayIndex": 1}, {"hod": 5, "dayIndex": 1}, {"hod": 6, "dayIndex": 1}, {"hod": 7, "dayIndex": 1}, {"hod": 8, "dayIndex": 1}, {"hod": 9, "dayIndex": 1}, {"hod": 10, "dayIndex": 1}, {"hod": 11, "dayIndex": 1}, {"hod": 12, "dayIndex": 1}, {"hod": 13, "dayIndex": 1}, {"hod": 14, "dayIndex": 1}, {"hod": 15, "dayIndex": 1}, {"hod": 16, "dayIndex": 1}, {"hod": 17, "dayIndex": 1}, {"hod": 18, "dayIndex": 1}, {"hod": 19, "dayIndex": 1}, {"hod": 20, "dayIndex": 1}, {"hod": 21, "dayIndex": 1}, {"hod": 22, "dayIndex": 1}, {"hod": 23, "dayIndex": 1}, {"hod": 0, "dayIndex": 2}, {"hod": 1, "dayIndex": 2}, {"hod": 2, "dayIndex": 2}, {"hod": 3, "dayIndex": 2}, {"hod": 4, "dayIndex": 2}, {"hod": 5, "dayIndex": 2}, {"hod": 6, "dayIndex": 2}, {"hod": 7, "dayIndex": 2}, {"hod": 8, "dayIndex": 2}, {"hod": 9, "dayIndex": 2}, {"hod": 10, "dayIndex": 2}, {"hod": 11, "dayIndex": 2}, {"hod": 12, "dayIndex": 2}, {"hod": 13, "dayIndex": 2}, {"hod": 14, "dayIndex": 2}, {"hod": 15, "dayIndex": 2}, {"hod": 16, "dayIndex": 2}, {"hod": 17, "dayIndex": 2}, {"hod": 18, "dayIndex": 2}, {"hod": 19, "dayIndex": 2}, {"hod": 20, "dayIndex": 2}, {"hod": 21, "dayIndex": 2}, {"hod": 22, "dayIndex": 2}, {"hod": 23, "dayIndex": 2}], "dayLabels": ["Mar 18/08", "Mer 19/08", "Gio 20/08"], "almanac": {"alba": ["06:14", "06:15", "06:16"], "tramonto": ["20:03", "20:01", "20:00"], "luna": [{"pct": 27.4, "label": "Luna Crescente"}, {"pct": 37.3, "label": "Primo Quarto"}, {"pct": 47.8, "label": "Primo Quarto"}]}, "modelsMeta": [{"code": "ECMWF", "full": "ECMWF IFS — globale", "group": "globale"}, {"code": "GFS", "full": "NOAA GFS — globale", "group": "globale"}, {"code": "ICON", "full": "DWD ICON — globale", "group": "globale"}, {"code": "ICON-EU", "full": "DWD ICON-EU — area limitata Europa 13km", "group": "locale"}, {"code": "ARPEGE", "full": "Météo-France ARPEGE — globale", "group": "globale"}, {"code": "AROME", "full": "Météo-France AROME — area limitata Francia 1.3km", "group": "locale"}, {"code": "GEM", "full": "ECCC GEM (Canada) — globale", "group": "globale"}, {"code": "UKMO", "full": "Met Office UM — globale", "group": "globale"}, {"code": "HARMONIE", "full": "KNMI HARMONIE-AROME — area limitata Europa/Benelux", "group": "locale"}, {"code": "ALADIN", "full": "CHMI ALADIN — area limitata Europa centrale", "group": "locale"}, {"code": "ICON-2I", "full": "ItaliaMeteo/ARPAE ICON-2I — LAM Italia 2km", "group": "locale"}], "waveModelsMeta": [{"code": "ECMWF-WAM", "full": "ECMWF WAM — onda globale", "group": "onda"}, {"code": "MFWAM", "full": "Météo-France MFWAM — onda globale", "group": "onda"}, {"code": "GFS-Wave", "full": "NOAA GFS-Wave — onda globale", "group": "onda"}, {"code": "EWAM", "full": "DWD EWAM — onda Europa", "group": "onda"}, {"code": "GWAM", "full": "DWD GWAM — onda globale", "group": "onda"}], "params": [{"key": "temp", "classifyAs": "temp", "label": "Temperatura", "unit": "°C", "decimals": 1, "threshTxt": "&lt;28 bianco · 28–31 giallo · 31–33 arancio · 33–36 rosso · &gt;36 fucsia", "modelCodes": ["ECMWF", "GFS", "ICON", "ICON-EU", "ARPEGE", "GEM", "UKMO", "HARMONIE", "ALADIN", "ICON-2I"], "values": {"ECMWF": [23.5, 22.7, 22.1, 21.6, 21.2, 21.3, 21.9, 22.9, 24.1, 25.7, 27.4, 28.9, 29.8, 30.4, 30.8, 31.0, 30.9, 30.5, 29.5, 28.1, 26.8, 25.8, 24.9, 24.0, 23.1, 22.2, 21.5, 20.8, 20.2, 20.3, 21.4, 23.0, 25.1, 27.7, 30.7, 32.9, 33.8, 33.9, 33.8, 33.7, 33.5, 32.9, 32.0, 30.7, 29.5, 28.2, 27.0, 25.9, 25.1, 24.5, 23.9, 23.0, 22.0, 21.8, 22.6, 24.1, 25.8, 27.6, 29.6, 31.2, 32.1, 32.6, 32.9, 32.9, 32.6, 32.0, 30.9, 29.6, 28.4, 27.7, 27.1, 26.5], "GFS": [22.0, 21.9, 22.1, 22.1, 22.0, 21.7, 21.5, 22.1, 24.2, 26.5, 29.2, 30.3, 30.7, 30.8, 30.7, 30.5, 30.4, 30.2, 29.7, 28.2, 25.6, 25.0, 24.6, 24.3, 24.2, 24.0, 23.9, 24.1, 24.1, 24.0, 23.8, 24.6, 27.4, 29.4, 30.8, 32.0, 32.9, 32.7, 32.0, 32.7, 32.8, 32.2, 31.3, 29.9, 26.9, 25.9, 25.8, 25.9, 25.9, 25.7, 25.5, 24.9, 24.5, 24.1, 23.9, 24.5, 27.2, 29.9, 31.6, 33.0, 33.5, 33.1, 33.0, 33.5, 33.3, 32.7, 32.1, 31.1, 27.7, 26.6, 26.3, 26.2], "ICON": [25.2, 24.8, 24.8, 24.5, 24.2, 24.1, 23.6, 23.5, 24.9, 26.7, 27.5, 28.4, 28.7, 29.2, 29.3, 29.4, 29.3, 29.4, 29.1, 28.9, 28.4, 27.5, 26.6, 25.6, 24.9, 24.4, 24.1, 23.8, 23.5, 23.3, 22.9, 22.8, 24.5, 28.2, 30.1, 31.4, 32.0, 32.0, 32.0, 31.9, 31.8, 31.6, 31.2, 30.6, 29.9, 29.3, 28.6, 27.6, 26.3, 25.3, 24.8, 24.3, 23.8, 23.5, 23.3, 23.2, 24.9, 28.4, 29.6, 30.5, 31.0, 31.1, 31.4, 31.7, 31.8, 31.4, 30.7, 30.2, 29.7, 28.7, 28.0, 27.2], "ICON-EU": [25.2, 24.8, 24.8, 24.5, 24.2, 24.1, 23.6, 23.5, 24.9, 26.7, 27.5, 28.4, 28.7, 29.2, 29.3, 29.4, 29.3, 29.4, 29.1, 28.9, 28.4, 27.5, 26.6, 25.6, 24.9, 24.4, 24.1, 23.8, 23.5, 23.3, 22.9, 22.8, 24.5, 28.2, 30.1, 31.4, 32.0, 32.0, 32.0, 31.9, 31.8, 31.6, 31.2, 30.6, 29.9, 29.3, 28.6, 27.6, 26.3, 25.3, 24.8, 24.3, 23.8, 23.5, 23.3, 23.2, 24.9, 28.4, 29.6, 30.5, 31.0, 31.1, 31.4, 31.7, 31.8, 31.4, 30.7, 30.2, 29.7, 28.7, 28.0, 27.2], "ARPEGE": [25.2, 24.8, 23.2, 23.3, 23.2, 23.7, 23.4, 23.0, 23.4, 25.0, 25.9, 26.5, 27.1, 27.5, 28.6, 29.0, 29.3, 29.5, 29.5, 29.5, 28.7, 27.5, 26.7, 26.1, 25.6, 25.1, 24.5, 24.2, 24.0, 23.9, 23.8, 23.8, 24.9, 26.8, 29.3, 30.4, 31.0, 31.8, 32.2, 32.3, 32.0, 31.6, 30.9, 30.1, 29.4, 28.7, 28.0, 27.4, 27.0, 26.9, 26.8, 26.5, 26.1, 25.9, 25.5, 25.2, 26.2, 28.2, 29.3, 30.4, 31.1, 31.5, 31.8, 31.9, 32.0, 31.8, 31.4, 31.0, 30.5, 29.8, 28.9, 28.3], "GEM": [24.7, 23.7, 22.9, 22.6, 22.2, 22.0, 22.0, 22.4, 24.8, 27.2, 28.6, 29.4, 29.7, 30.2, 31.0, 30.6, 30.3, 30.1, 29.9, 29.5, 28.1, 26.4, 25.2, 24.3, 23.7, 23.3, 23.3, 23.1, 23.0, 22.9, 22.7, 23.0, 25.7, 29.0, 31.1, 32.0, 32.2, 32.4, 32.6, 32.7, 32.8, 32.6, 32.1, 31.3, 29.9, 28.7, 27.7, 26.6, 25.7, 24.9, 24.2, 23.7, 23.2, 22.9, 22.9, 23.4, 26.4, 29.6, 30.3, 30.8, 31.1, 31.3, 31.5, 31.7, 31.5, 31.1, 31.0, 30.5, 29.1, 27.6, 26.3, 25.5], "UKMO": [24.2, 23.5, 22.8, 23.1, 22.8, 22.5, 22.3, 23.1, 23.3, 25.7, 27.1, 28.1, 29.0, 29.7, 30.1, 30.1, 30.0, 29.6, 28.7, 27.7, 26.5, 25.7, 25.5, 24.8, 24.2, 23.8, 23.6, 23.3, 23.0, 22.6, 22.3, 22.8, 24.4, 26.8, 28.4, 30.5, 31.0, 31.3, 31.3, 31.3, 31.3, 30.9, 30.1, 29.2, 28.0, 27.1, 26.4, 26.0, 24.6, 24.5, 24.4, 23.7, 23.3, 22.8, 22.5, 23.2, 25.0, 27.4, 28.8, 29.9, 31.1, 31.9, 32.1, 31.8, 31.2, 30.7, 30.1, 29.3, 28.0, 27.1, 26.2, 25.6], "HARMONIE": [24.4, 23.9, 22.5, 24.1, 23.6, 23.7, 23.6, 23.5, 24.7, 27.0, 28.0, 28.6, 30.0, 29.7, 29.5, 30.0, 30.1, 29.2, 29.0, 28.6, 28.2, 27.1, 26.1, 25.5, 24.9, 24.8, 24.9, 24.8, 24.6, 24.6, 24.6, 24.6, 27.1, 29.1, 30.5, 31.3, 31.9, 32.3, 32.4, 32.2, 31.9, 31.6, 31.1, 30.7, 29.4, 28.2, 27.4, 26.6, 26.0, 25.8, 27.1, 28.1, 26.5, 25.8, 24.9, 25.4, 28.0, 29.2, 30.4, 30.9, 31.4, 31.8, 32.1, 31.6, 31.7, 32.2, 31.5, 31.3, 29.3, 28.3, 27.7, 26.6], "ALADIN": [24.1, 23.5, 24.0, 23.1, 22.8, 22.5, 22.6, 22.8, 23.5, 24.5, 26.0, 26.7, 26.8, 27.0, 27.7, 28.2, 29.0, 29.4, 29.4, 29.4, 28.3, 26.9, 26.3, 25.8, 25.8, 25.7, 25.8, 25.8, 25.5, 25.6, 25.6, 25.7, 26.8, 28.7, 30.1, 30.8, 30.6, 31.1, 31.4, 32.0, 32.0, 31.7, 31.3, 30.5, 29.2, 28.3, 27.6, 27.2, 26.7, 26.7, 26.7, 26.3, 25.9, 25.7, 25.7, 25.9, 27.2, 28.7, 29.4, 30.2, 30.3, 30.9, 31.0, 31.2, 31.4, 31.1, 31.0, 30.6, 29.7, 28.7, 28.4, 28.0], "ICON-2I": [23.2, 23.3, 23.0, 22.8, 23.0, 23.3, 23.5, 24.0, 25.5, 24.7, 26.1, 26.9, 26.7, 27.4, 28.6, 28.7, 28.7, 28.4, 28.2, 28.0, 27.5, 26.3, 25.3, 25.0, 24.4, 24.4, 23.6, 23.2, 22.9, 22.6, 22.5, 22.7, 25.1, 27.6, 29.2, 29.6, 29.8, 30.3, 30.4, 30.6, 30.4, 30.2, 30.0, 29.5, 29.0, 28.1, 27.8, 27.5, 26.1, 25.4, 25.1, 24.3, 24.3, 25.3, 25.7, 25.6, 27.0, 28.5, 29.5, 30.3, 30.5, 30.3, 30.6, 30.6, 30.8, 30.7, 30.2, 29.5, 28.9, 28.4, 28.0, 27.5]}, "excludedModels": [{"code": "AROME", "reason": "variabile non fornita da questo modello"}], "openDefault": true}, {"key": "pressione", "label": "Pressione (SLP)", "unit": "hPa", "decimals": 0, "threshTxt": "ridotta al livello del mare · &ge;1013 bianco · 1008–1012 giallo · 1003–1007 arancio · 998–1002 rosso · &lt;998 fucsia", "modelCodes": ["ECMWF", "GFS", "ICON", "ICON-EU", "ARPEGE", "GEM", "UKMO", "ALADIN", "ICON-2I"], "values": {"ECMWF": [1010.3, 1010.3, 1010.4, 1010.5, 1010.6, 1010.8, 1011.1, 1011.4, 1011.7, 1012.0, 1012.3, 1012.4, 1012.2, 1011.8, 1011.5, 1011.3, 1011.2, 1011.1, 1011.0, 1010.9, 1010.9, 1011.1, 1011.3, 1011.5, 1011.6, 1011.6, 1011.5, 1011.4, 1011.2, 1011.1, 1011.3, 1011.6, 1011.9, 1012.2, 1012.4, 1012.5, 1012.3, 1011.9, 1011.6, 1011.4, 1011.2, 1011.1, 1011.1, 1011.1, 1011.2, 1011.5, 1011.9, 1012.2, 1012.4, 1012.6, 1012.7, 1012.7, 1012.7, 1012.8, 1013.0, 1013.3, 1013.5, 1013.8, 1014.0, 1014.1, 1013.9, 1013.5, 1013.1, 1012.6, 1012.1, 1011.7, 1011.7, 1011.9, 1012.0, 1012.1, 1012.1, 1012.1], "GFS": [1008.7, 1008.7, 1009.7, 1009.8, 1010.0, 1010.2, 1010.2, 1010.8, 1011.5, 1011.4, 1011.4, 1011.3, 1011.0, 1010.8, 1010.7, 1010.5, 1010.1, 1010.4, 1010.1, 1009.8, 1009.9, 1010.7, 1011.0, 1011.1, 1011.3, 1011.4, 1011.3, 1011.0, 1011.0, 1010.8, 1011.0, 1011.4, 1011.6, 1011.7, 1011.9, 1012.1, 1012.0, 1011.6, 1011.3, 1011.0, 1010.7, 1010.7, 1010.9, 1010.8, 1011.2, 1011.9, 1012.2, 1012.1, 1012.1, 1012.0, 1012.0, 1012.0, 1012.1, 1012.0, 1012.2, 1012.9, 1013.2, 1013.1, 1013.0, 1013.0, 1012.8, 1012.5, 1012.0, 1011.7, 1011.5, 1011.2, 1011.1, 1010.9, 1011.0, 1011.7, 1011.8, 1011.9], "ICON": [1009.7, 1009.9, 1009.7, 1009.6, 1009.8, 1009.9, 1010.9, 1011.2, 1011.8, 1011.8, 1012.2, 1011.9, 1012.5, 1012.0, 1011.7, 1011.1, 1010.8, 1010.6, 1010.7, 1010.6, 1010.3, 1010.5, 1010.6, 1011.1, 1011.8, 1011.8, 1011.3, 1011.0, 1010.9, 1011.1, 1011.4, 1011.7, 1011.9, 1012.0, 1012.3, 1012.4, 1012.5, 1012.6, 1012.5, 1012.0, 1011.7, 1011.6, 1011.7, 1011.6, 1011.7, 1011.9, 1012.1, 1012.2, 1012.0, 1012.2, 1011.9, 1011.8, 1011.7, 1011.8, 1012.4, 1013.0, 1013.2, 1013.2, 1013.3, 1013.3, 1013.3, 1013.3, 1012.8, 1012.4, 1011.8, 1011.3, 1011.3, 1011.1, 1011.6, 1012.0, 1011.7, 1011.7], "ICON-EU": [1009.7, 1009.9, 1009.7, 1009.6, 1009.8, 1009.9, 1010.9, 1011.2, 1011.8, 1011.8, 1012.2, 1011.9, 1012.5, 1012.0, 1011.7, 1011.1, 1010.8, 1010.6, 1010.7, 1010.6, 1010.3, 1010.5, 1010.6, 1011.1, 1011.8, 1011.8, 1011.3, 1011.0, 1010.9, 1011.1, 1011.4, 1011.7, 1011.9, 1012.0, 1012.3, 1012.4, 1012.5, 1012.6, 1012.5, 1012.0, 1011.7, 1011.6, 1011.7, 1011.6, 1011.7, 1011.9, 1012.1, 1012.2, 1012.0, 1012.2, 1011.9, 1011.8, 1011.7, 1011.8, 1012.4, 1013.0, 1013.2, 1013.2, 1013.3, 1013.3, 1013.3, 1013.3, 1012.8, 1012.4, 1011.8, 1011.3, 1011.3, 1011.1, 1011.6, 1012.0, 1011.7, 1011.7], "ARPEGE": [1010.0, 1010.0, 1009.6, 1009.7, 1010.0, 1010.4, 1010.7, 1011.4, 1011.6, 1011.9, 1012.0, 1012.3, 1012.2, 1012.1, 1011.5, 1011.4, 1011.0, 1011.0, 1010.8, 1010.6, 1010.4, 1010.7, 1011.0, 1011.0, 1011.2, 1011.4, 1011.2, 1011.0, 1010.8, 1010.7, 1010.8, 1011.2, 1011.6, 1011.7, 1011.9, 1012.3, 1012.2, 1012.1, 1011.8, 1011.6, 1011.3, 1011.2, 1011.4, 1011.2, 1011.0, 1011.6, 1011.7, 1011.7, 1011.7, 1011.7, 1011.5, 1011.5, 1011.7, 1011.8, 1012.0, 1012.7, 1013.1, 1013.3, 1013.4, 1013.8, 1013.5, 1013.1, 1012.8, 1012.4, 1011.8, 1011.7, 1011.4, 1011.3, 1011.2, 1011.6, 1011.5, 1011.8], "GEM": [1010.3, 1011.1, 1009.9, 1011.0, 1011.1, 1011.4, 1011.6, 1011.8, 1012.2, 1012.2, 1012.1, 1012.3, 1012.3, 1011.8, 1011.2, 1011.2, 1011.2, 1011.2, 1010.9, 1010.6, 1010.7, 1011.1, 1011.5, 1011.6, 1011.7, 1011.5, 1011.4, 1011.3, 1011.3, 1011.4, 1011.6, 1011.7, 1011.9, 1012.1, 1012.4, 1012.6, 1012.6, 1012.3, 1012.1, 1011.8, 1011.7, 1011.7, 1011.5, 1011.4, 1011.5, 1011.9, 1012.4, 1012.4, 1012.2, 1012.2, 1012.1, 1012.3, 1012.6, 1012.7, 1013.0, 1013.4, 1013.7, 1014.0, 1013.9, 1013.8, 1013.6, 1013.4, 1013.1, 1012.9, 1012.2, 1011.7, 1011.4, 1011.1, 1011.3, 1011.9, 1012.4, 1012.4], "UKMO": [1010.1, 1009.9, 1010.1, 1010.0, 1009.7, 1009.8, 1011.0, 1011.5, 1011.9, 1012.0, 1011.9, 1012.1, 1012.2, 1011.9, 1011.5, 1011.2, 1010.7, 1010.6, 1010.5, 1010.3, 1010.5, 1010.9, 1010.9, 1011.1, 1011.2, 1011.3, 1011.1, 1010.7, 1010.5, 1010.6, 1011.0, 1011.3, 1011.4, 1011.7, 1012.0, 1012.2, 1012.2, 1012.1, 1012.0, 1011.8, 1011.4, 1011.3, 1011.0, 1011.0, 1011.2, 1011.8, 1012.0, 1011.9, 1011.9, 1011.9, 1012.0, 1011.9, 1011.8, 1011.7, 1012.1, 1012.6, 1012.9, 1013.1, 1013.4, 1013.5, 1013.3, 1013.0, 1012.5, 1012.2, 1011.6, 1011.4, 1011.0, 1010.7, 1011.1, 1011.4, 1011.9, 1012.2], "ALADIN": [1010.2, 1010.3, 1010.1, 1010.0, 1010.4, 1010.7, 1011.1, 1011.4, 1012.0, 1012.3, 1012.1, 1012.2, 1012.3, 1012.2, 1011.7, 1011.3, 1011.3, 1011.1, 1010.9, 1011.0, 1011.0, 1011.2, 1011.5, 1011.7, 1012.0, 1012.1, 1012.1, 1011.9, 1011.7, 1011.5, 1011.6, 1012.0, 1012.3, 1012.6, 1012.9, 1013.1, 1013.1, 1013.1, 1012.9, 1012.7, 1012.4, 1012.1, 1012.1, 1012.0, 1012.1, 1012.4, 1012.7, 1013.0, 1012.9, 1012.8, 1012.9, 1012.8, 1012.7, 1012.6, 1012.9, 1013.3, 1013.6, 1014.0, 1014.1, 1014.1, 1014.0, 1013.8, 1013.6, 1013.2, 1012.7, 1012.4, 1012.3, 1012.1, 1012.2, 1012.3, 1012.6, 1012.9], "ICON-2I": [1010.0, 1010.3, 1010.3, 1010.4, 1010.5, 1010.2, 1010.1, 1010.4, 1011.0, 1011.5, 1011.9, 1012.6, 1012.8, 1012.6, 1011.8, 1011.6, 1011.0, 1010.3, 1010.5, 1010.5, 1010.6, 1010.9, 1011.3, 1011.5, 1011.7, 1011.7, 1011.7, 1011.5, 1011.5, 1011.4, 1011.5, 1011.5, 1011.7, 1011.9, 1012.2, 1012.5, 1012.7, 1012.7, 1012.5, 1012.3, 1011.9, 1011.7, 1011.6, 1011.5, 1011.6, 1012.1, 1012.6, 1012.6, 1012.5, 1012.5, 1012.3, 1012.1, 1012.0, 1012.1, 1012.2, 1012.5, 1012.8, 1013.1, 1013.5, 1013.7, 1014.0, 1013.9, 1013.6, 1013.2, 1012.6, 1012.0, 1011.3, 1010.8, 1010.7, 1011.1, 1011.3, 1011.7]}, "excludedModels": [{"code": "AROME", "reason": "variabile non fornita da questo modello"}, {"code": "HARMONIE", "reason": "variabile non fornita da questo modello"}], "openDefault": true}, {"key": "umidita", "label": "Umidità", "unit": "%", "decimals": 0, "threshTxt": "&lt;60 bianco · 60–70 giallo · 70–80 arancio · 80–90 rosso · &gt;90 fucsia", "modelCodes": ["ECMWF", "GFS", "ICON", "ICON-EU", "ARPEGE", "GEM", "UKMO", "HARMONIE", "ALADIN", "ICON-2I"], "values": {"ECMWF": [75, 75, 74, 75, 76, 76, 75, 73, 70, 67, 63, 60, 57, 55, 53, 50, 46, 45, 47, 50, 54, 59, 64, 69, 74, 79, 81, 80, 78, 74, 69, 62, 56, 50, 45, 41, 40, 41, 42, 41, 39, 39, 43, 48, 53, 57, 60, 62, 63, 64, 65, 69, 74, 76, 73, 68, 63, 60, 58, 56, 53, 50, 48, 47, 46, 49, 57, 69, 77, 78, 76, 74], "GFS": [72, 70, 74, 73, 73, 74, 74, 72, 65, 56, 47, 43, 44, 46, 47, 47, 46, 46, 46, 52, 62, 63, 63, 62, 62, 62, 60, 56, 55, 55, 56, 54, 46, 41, 40, 39, 37, 40, 43, 42, 41, 43, 46, 52, 64, 69, 66, 60, 57, 57, 58, 60, 61, 60, 58, 54, 45, 39, 37, 35, 34, 37, 39, 39, 39, 41, 42, 46, 61, 66, 64, 60], "ICON": [81, 83, 83, 81, 80, 80, 81, 79, 68, 61, 66, 64, 64, 62, 62, 61, 60, 61, 59, 59, 62, 68, 75, 79, 81, 83, 86, 88, 87, 81, 76, 74, 71, 55, 49, 45, 46, 50, 53, 56, 54, 51, 52, 53, 54, 58, 62, 63, 64, 66, 70, 76, 79, 76, 74, 75, 74, 61, 61, 59, 59, 59, 56, 56, 53, 56, 60, 62, 66, 74, 80, 82], "ICON-EU": [81, 83, 83, 81, 80, 80, 81, 79, 68, 61, 66, 64, 64, 62, 62, 61, 60, 61, 59, 59, 62, 68, 75, 79, 81, 83, 86, 88, 87, 81, 76, 74, 71, 55, 49, 45, 46, 50, 53, 56, 54, 51, 52, 53, 54, 58, 62, 63, 64, 66, 70, 76, 79, 76, 74, 75, 74, 61, 61, 59, 59, 59, 56, 56, 53, 56, 60, 62, 66, 74, 80, 82], "ARPEGE": [91, 92, 89, 87, 86, 80, 78, 81, 82, 77, 75, 77, 77, 75, 65, 59, 55, 51, 46, 42, 43, 50, 56, 59, 59, 62, 66, 69, 69, 65, 61, 62, 59, 58, 45, 45, 48, 48, 52, 50, 50, 51, 53, 57, 62, 68, 72, 74, 70, 60, 56, 61, 68, 72, 74, 73, 75, 72, 69, 64, 59, 55, 54, 53, 50, 52, 55, 55, 56, 61, 71, 79], "GEM": [86, 89, 78, 77, 77, 78, 80, 78, 67, 64, 62, 60, 58, 56, 51, 53, 53, 52, 53, 54, 60, 68, 76, 80, 82, 82, 80, 77, 73, 68, 64, 59, 52, 45, 42, 41, 44, 47, 50, 50, 49, 49, 49, 50, 55, 59, 62, 65, 65, 64, 61, 60, 61, 61, 60, 57, 50, 47, 53, 57, 58, 56, 54, 52, 53, 55, 56, 58, 64, 74, 79, 76], "UKMO": [87, 89, 86, 76, 75, 74, 76, 73, 77, 65, 67, 62, 58, 56, 57, 56, 54, 55, 57, 62, 75, 84, 80, 86, 91, 92, 91, 88, 85, 80, 77, 74, 67, 59, 61, 51, 51, 52, 56, 56, 56, 56, 59, 64, 71, 77, 82, 83, 92, 90, 81, 81, 82, 83, 83, 78, 71, 65, 69, 64, 57, 53, 52, 53, 55, 56, 58, 62, 72, 80, 88, 93], "HARMONIE": [67, 70, 75, 62, 70, 70, 69, 70, 74, 70, 61, 63, 58, 60, 61, 56, 43, 55, 57, 51, 61, 62, 65, 67, 71, 71, 64, 63, 61, 59, 56, 56, 48, 45, 47, 53, 49, 47, 48, 51, 52, 54, 52, 49, 60, 72, 75, 82, 81, 74, 55, 47, 59, 71, 87, 92, 87, 76, 68, 60, 58, 54, 51, 62, 61, 56, 59, 54, 80, 78, 68, 85], "ALADIN": [87, 78, 78, 75, 76, 80, 82, 81, 81, 80, 80, 80, 81, 80, 73, 66, 54, 48, 46, 43, 47, 49, 51, 65, 63, 61, 53, 50, 51, 48, 47, 48, 48, 45, 43, 45, 50, 47, 51, 47, 46, 46, 44, 49, 60, 68, 71, 72, 69, 62, 54, 55, 58, 78, 91, 96, 90, 62, 55, 58, 62, 60, 59, 55, 55, 57, 56, 58, 62, 72, 70, 69], "ICON-2I": [80, 73, 84, 81, 78, 76, 74, 77, 75, 78, 76, 77, 82, 69, 65, 64, 62, 62, 64, 64, 67, 77, 81, 81, 86, 83, 84, 85, 82, 83, 80, 77, 72, 60, 53, 55, 60, 58, 63, 60, 62, 62, 59, 60, 60, 63, 58, 54, 58, 63, 64, 67, 71, 67, 64, 75, 80, 74, 69, 65, 64, 73, 58, 63, 61, 62, 64, 70, 69, 74, 77, 75]}, "excludedModels": [{"code": "AROME", "reason": "variabile non fornita da questo modello"}], "openDefault": true}, {"key": "copertura", "label": "Copertura nuvolosa", "unit": "%", "decimals": 0, "threshTxt": "&lt;20 bianco (sereno) · 20–50 giallo · 50–80 arancio · 80–95 rosso · &gt;95 fucsia", "modelCodes": ["ECMWF", "GFS", "ICON", "ICON-EU", "ARPEGE", "GEM", "UKMO", "HARMONIE", "ALADIN", "ICON-2I"], "values": {"ECMWF": [16, 5, 1, 9, 25, 38, 44, 46, 47, 45, 42, 41, 45, 51, 52, 43, 29, 22, 29, 44, 56, 62, 66, 68, 67, 64, 61, 59, 57, 55, 53, 51, 46, 36, 23, 13, 6, 2, 4, 21, 45, 57, 47, 25, 8, 1, 0, 1, 17, 38, 49, 38, 16, 0, 0, 0, 0, 0, 0, 0, 14, 35, 52, 67, 79, 80, 61, 31, 9, 3, 6, 9], "GFS": [98, 52, 76, 0, 5, 13, 17, 20, 12, 7, 65, 34, 55, 8, 8, 24, 96, 80, 15, 100, 100, 91, 6, 13, 7, 73, 15, 100, 100, 100, 100, 100, 63, 100, 100, 100, 100, 100, 100, 41, 16, 16, 13, 35, 40, 18, 58, 64, 78, 24, 14, 11, 65, 100, 100, 100, 100, 6, 0, 0, 5, 0, 0, 0, 0, 7, 25, 10, 10, 0, 31, 7], "ICON": [5, 14, 100, 100, 100, 100, 41, 65, 71, 97, 93, 35, 26, 15, 28, 31, 9, 5, 4, 55, 63, 20, 49, 46, 69, 38, 89, 27, 26, 6, 15, 33, 32, 40, 5, 0, 0, 0, 0, 0, 0, 14, 56, 54, 33, 44, 86, 99, 100, 92, 78, 46, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 22, 43, 100, 89, 89, 8, 76, 31], "ICON-EU": [5, 14, 100, 100, 100, 100, 41, 65, 71, 97, 93, 35, 26, 15, 28, 31, 9, 5, 4, 55, 63, 20, 49, 46, 69, 38, 89, 27, 26, 6, 15, 33, 32, 40, 5, 0, 0, 0, 0, 0, 0, 14, 56, 54, 33, 44, 86, 99, 100, 92, 78, 46, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 22, 43, 100, 89, 89, 8, 76, 31], "ARPEGE": [46, 5, 1, 85, 13, 16, 28, 91, 35, 44, 28, 11, 20, 11, 56, 57, 43, 63, 48, 47, 53, 57, 56, 91, 70, 68, 65, 74, 61, 72, 90, 86, 64, 39, 32, 39, 33, 41, 23, 27, 27, 37, 59, 71, 43, 63, 69, 77, 81, 67, 82, 70, 93, 50, 12, 7, 5, 0, 0, 0, 0, 0, 0, 34, 51, 17, 18, 22, 76, 32, 46, 71], "GEM": [24, 56, 0, 0, 0, 0, 0, 20, 24, 0, 0, 36, 0, 0, 0, 0, 8, 20, 12, 0, 0, 0, 0, 8, 8, 32, 44, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 24, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 12, 0, 0, 0, 0, 0], "UKMO": [0, 0, 0, 0, 0, 3, 0, 0, 6, 36, 58, 19, 45, 39, 38, 17, 8, 81, 0, 100, 70, 92, 98, 100, 94, 92, 88, 89, 100, 100, 100, 97, 100, 86, 61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 6, 8, 25, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 83, 98, 78, 37, 11], "HARMONIE": [4, 14, 0, 0, 0, 0, 6, 98, 100, 99, 95, 0, 0, 0, 77, 56, 2, 0, 100, 0, 37, 12, 90, 100, 100, 94, 91, 98, 100, 84, 7, 93, 29, 68, 79, 66, 39, 0, 0, 0, 0, 0, 97, 0, 0, 0, 0, 37, 3, 92, 65, 0, 1, 0, 0, 0, 9, 7, 2, 0, 0, 0, 0, 0, 6, 0, 0, 40, 0, 0, 4, 0], "ALADIN": [0, 0, 0, 0, 1, 36, 46, 9, 29, 9, 1, 4, 2, 2, 0, 10, 8, 7, 30, 6, 65, 43, 36, 29, 16, 28, 33, 42, 24, 25, 34, 23, 12, 6, 4, 5, 9, 4, 4, 3, 11, 12, 6, 3, 17, 18, 15, 36, 46, 56, 71, 55, 42, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 1, 10, 4, 7, 30, 69], "ICON-2I": [100, 100, 28, 41, 53, 45, 85, 93, 99, 99, 100, 87, 83, 21, 7, 2, 28, 100, 100, 100, 91, 100, 100, 100, 60, 29, 26, 18, 27, 19, 58, 23, 27, 1, 0, 0, 10, 11, 4, 12, 4, 3, 73, 65, 20, 0, 0, 3, 0, 63, 85, 73, 100, 100, 2, 5, 0, 0, 0, 0, 0, 53, 0, 0, 10, 100, 100, 100, 70, 100, 100, 100]}, "excludedModels": [{"code": "AROME", "reason": "variabile non fornita da questo modello"}], "openDefault": true}, {"key": "pioggia", "label": "Probabilità pioggia", "unit": "%", "decimals": 0, "threshTxt": "0–10 bianco · 11–40 giallo · 41–70 arancio · 71–90 rosso · &gt;90 fucsia", "modelCodes": ["ECMWF", "GFS", "ICON", "ICON-EU", "GEM", "ALADIN"], "values": {"ECMWF": [6, 4, 2, 2, 3, 4, 5, 5, 8, 13, 19, 27, 41, 57, 65, 58, 43, 29, 18, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "GFS": [12, 15, 16, 13, 9, 6, 5, 6, 6, 6, 6, 6, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3], "ICON": [0, 0, 5, 0, 0, 0, 0, 5, 25, 13, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "ICON-EU": [0, 0, 5, 0, 0, 0, 0, 5, 25, 13, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "GEM": [30, 25, 19, 13, 8, 5, 6, 10, 14, 17, 19, 19, 14, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 5, 4, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 5, 4, 2, 0], "ALADIN": [6, 4, 2, 2, 3, 4, 5, 5, 8, 13, 19, 27, 41, 57, 65, 58, 43, 29, 18, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "excludedModels": [{"code": "ARPEGE", "reason": "variabile non fornita da questo modello"}, {"code": "AROME", "reason": "variabile non fornita da questo modello"}, {"code": "UKMO", "reason": "variabile non fornita da questo modello"}, {"code": "HARMONIE", "reason": "variabile non fornita da questo modello"}, {"code": "ICON-2I", "reason": "variabile non fornita da questo modello"}], "openDefault": true}, {"key": "pioggia_mm", "classifyAs": "pioggia_mm", "label": "Quantità precipitazione", "unit": "mm/h", "decimals": 1, "threshTxt": "intensità oraria · &lt;0,5 bianco (assente) · 0,5–2 giallo (debole) · 2–6 arancio (moderata) · 6–15 rosso (forte) · &gt;15 fucsia (nubifragio)", "modelCodes": ["ECMWF", "GFS", "ICON", "ICON-EU", "ARPEGE", "GEM", "UKMO", "HARMONIE", "ALADIN", "ICON-2I"], "values": {"ECMWF": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "GFS": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "ICON": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "ICON-EU": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "ARPEGE": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "GEM": [0.0, 0.6, 2.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "UKMO": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "HARMONIE": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "ALADIN": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "ICON-2I": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 2.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, "excludedModels": [{"code": "AROME", "reason": "variabile non fornita da questo modello"}], "openDefault": true}, {"key": "vento", "label": "Vento", "unit": "kn", "decimals": 0, "hasDirection": true, "hasGust": true, "threshTxt": "medio 10 min + raffica massima · &lt;11 bianco · 11–21 giallo · 22–32 arancio · 33–48 rosso · &ge;49 fucsia (nodi)", "modelCodes": ["ECMWF", "GFS", "ICON", "ICON-EU", "ARPEGE", "GEM", "UKMO", "HARMONIE", "ALADIN", "ICON-2I"], "values": {"ECMWF": [2.3, 2.7, 3.2, 3.3, 3.4, 3.7, 4.8, 6.1, 6.3, 4.8, 4.1, 5.1, 5.5, 5.2, 5.3, 5.6, 6.0, 5.8, 4.7, 3.4, 2.9, 2.2, 1.6, 1.7, 2.3, 2.6, 3.0, 3.0, 2.6, 2.4, 2.8, 3.4, 3.1, 1.4, 1.9, 4.4, 6.5, 8.3, 9.8, 10.6, 11.2, 10.9, 9.7, 7.8, 5.8, 3.9, 2.3, 1.5, 2.7, 4.8, 5.8, 5.5, 4.5, 3.8, 3.8, 3.8, 3.0, 2.0, 4.1, 6.7, 8.1, 8.7, 8.9, 8.6, 8.0, 7.5, 6.8, 5.9, 5.0, 4.2, 3.4, 2.9], "GFS": [5.8, 5.4, 5.9, 6.4, 5.5, 5.1, 3.9, 2.9, 2.6, 3.3, 2.8, 5.6, 7.0, 8.7, 9.7, 10.2, 7.3, 6.5, 5.5, 5.9, 3.2, 3.1, 4.4, 4.1, 3.2, 3.2, 3.3, 3.9, 3.7, 2.9, 2.4, 3.1, 1.7, 2.2, 5.2, 6.9, 8.3, 10.7, 11.1, 11.2, 10.3, 9.8, 9.1, 8.2, 5.5, 4.1, 3.5, 3.4, 3.5, 4.7, 5.1, 4.8, 4.5, 3.9, 3.4, 2.9, 2.3, 2.3, 4.5, 6.5, 8.7, 10.9, 10.7, 9.2, 8.6, 7.9, 5.7, 4.7, 4.5, 4.5, 4.0, 3.3], "ICON": [3.8, 3.7, 3.5, 3.3, 3.5, 2.2, 2.8, 3.1, 3.0, 3.0, 3.3, 4.8, 5.8, 6.2, 7.0, 6.6, 5.5, 4.7, 2.8, 1.1, 1.8, 2.2, 1.9, 2.5, 3.3, 3.7, 3.7, 3.4, 3.5, 3.7, 4.0, 3.8, 3.4, 2.1, 2.4, 3.8, 5.7, 7.4, 8.5, 9.9, 9.5, 8.5, 7.4, 5.9, 4.0, 2.8, 1.8, 1.8, 2.9, 3.7, 3.6, 3.7, 3.7, 3.8, 3.8, 3.9, 3.5, 2.1, 2.1, 4.7, 6.0, 7.4, 7.8, 7.0, 6.8, 7.6, 6.2, 3.1, 2.7, 2.2, 1.8, 2.3], "ICON-EU": [3.8, 3.7, 3.5, 3.3, 3.5, 2.2, 2.8, 3.1, 3.0, 3.0, 3.3, 4.8, 5.8, 6.2, 7.0, 6.6, 5.5, 4.7, 2.8, 1.1, 1.8, 2.2, 1.9, 2.5, 3.3, 3.7, 3.7, 3.4, 3.5, 3.7, 4.0, 3.8, 3.4, 2.1, 2.4, 3.8, 5.7, 7.4, 8.5, 9.9, 9.5, 8.5, 7.4, 5.9, 4.0, 2.8, 1.8, 1.8, 2.9, 3.7, 3.6, 3.7, 3.7, 3.8, 3.8, 3.9, 3.5, 2.1, 2.1, 4.7, 6.0, 7.4, 7.8, 7.0, 6.8, 7.6, 6.2, 3.1, 2.7, 2.2, 1.8, 2.3], "ARPEGE": [4.2, 4.7, 4.3, 4.4, 4.9, 7.2, 9.3, 6.9, 6.0, 5.4, 5.9, 5.1, 6.0, 6.7, 5.4, 6.4, 5.5, 4.6, 3.2, 3.7, 4.6, 4.0, 3.3, 3.3, 2.7, 2.9, 3.9, 4.5, 4.5, 4.4, 4.3, 4.2, 4.2, 2.2, 1.1, 4.4, 6.1, 7.7, 9.3, 10.4, 10.4, 9.7, 8.7, 8.2, 7.7, 6.8, 5.5, 3.7, 2.6, 3.3, 1.7, 2.2, 4.2, 3.4, 2.5, 3.7, 4.0, 1.1, 2.0, 3.5, 5.2, 4.9, 5.3, 5.3, 4.7, 4.4, 5.5, 5.8, 5.5, 5.1, 4.3, 3.4], "GEM": [3.1, 4.9, 4.1, 2.3, 2.9, 3.7, 2.7, 2.9, 2.9, 1.9, 2.9, 5.4, 7.2, 8.2, 8.6, 8.7, 7.6, 5.6, 4.3, 4.1, 2.9, 2.9, 3.3, 3.3, 3.1, 3.1, 3.3, 3.7, 3.7, 3.7, 3.5, 3.3, 3.1, 1.4, 3.7, 5.8, 8.2, 9.3, 9.9, 10.5, 10.5, 9.9, 8.9, 7.6, 4.9, 3.9, 2.7, 2.5, 3.1, 4.5, 5.1, 4.5, 4.5, 5.1, 4.9, 4.5, 3.7, 0.4, 4.3, 7.0, 8.7, 9.5, 9.9, 9.3, 9.7, 9.3, 8.6, 8.0, 5.6, 4.1, 2.3, 2.7], "UKMO": [3.1, 3.5, 4.5, 6.6, 6.2, 5.4, 4.7, 4.3, 3.5, 3.9, 3.5, 3.1, 4.7, 6.0, 7.4, 7.4, 6.6, 6.4, 5.1, 4.5, 3.1, 2.3, 3.7, 2.7, 1.7, 1.7, 2.5, 3.1, 3.5, 3.7, 3.7, 3.7, 3.3, 2.9, 1.2, 3.7, 5.6, 6.4, 8.0, 8.0, 8.4, 8.9, 8.9, 7.6, 6.4, 5.2, 4.5, 3.9, 1.6, 2.1, 3.3, 3.5, 3.7, 3.7, 3.9, 3.9, 3.1, 2.1, 2.1, 2.7, 4.5, 5.4, 7.0, 7.4, 7.0, 6.4, 5.1, 4.1, 4.5, 3.3, 1.9, 1.2], "HARMONIE": [6.2, 6.6, 7.8, 11.1, 8.4, 8.9, 9.5, 8.4, 9.5, 5.8, 5.4, 4.3, 8.4, 8.2, 7.0, 9.3, 7.0, 6.4, 4.9, 3.9, 4.5, 4.1, 4.3, 4.5, 4.9, 5.2, 7.4, 6.6, 6.2, 6.0, 5.4, 6.2, 6.4, 4.7, 3.3, 5.8, 7.8, 8.4, 9.5, 9.3, 9.1, 8.7, 8.7, 8.4, 6.8, 5.6, 4.3, 3.5, 3.7, 4.3, 8.2, 9.9, 7.4, 5.1, 4.1, 3.3, 5.8, 5.6, 7.8, 8.2, 8.4, 8.2, 7.8, 7.0, 5.4, 5.6, 6.8, 7.4, 5.4, 2.5, 2.1, 2.1], "ALADIN": [7.0, 6.0, 6.8, 8.9, 9.3, 9.7, 8.6, 9.5, 7.2, 6.4, 5.2, 6.0, 7.2, 6.0, 5.1, 5.2, 4.7, 4.3, 3.9, 3.9, 4.3, 4.9, 5.8, 6.8, 6.0, 6.2, 6.6, 6.6, 6.6, 7.0, 6.8, 6.4, 5.2, 2.7, 1.7, 5.4, 5.8, 6.2, 6.8, 8.6, 9.5, 10.1, 9.5, 8.9, 8.4, 7.4, 5.8, 4.7, 3.5, 4.1, 4.7, 4.9, 6.2, 6.8, 6.2, 5.2, 4.3, 4.7, 4.3, 5.4, 5.1, 5.8, 5.8, 5.4, 6.0, 5.6, 5.4, 6.4, 6.0, 5.4, 5.2, 4.1], "ICON-2I": [3.9, 4.1, 4.7, 4.7, 4.3, 3.9, 4.5, 5.6, 5.6, 6.0, 3.1, 6.6, 3.3, 4.1, 5.8, 6.0, 5.1, 4.7, 1.9, 2.3, 3.3, 3.5, 3.5, 3.5, 3.9, 4.3, 4.3, 4.3, 4.3, 4.5, 4.5, 4.5, 3.5, 3.1, 3.5, 5.1, 5.8, 7.2, 8.6, 9.1, 9.3, 8.9, 8.2, 6.2, 5.2, 3.5, 4.5, 3.9, 4.1, 4.3, 3.9, 4.7, 4.5, 3.1, 3.3, 3.3, 2.5, 1.4, 2.9, 5.2, 5.6, 7.0, 5.8, 5.6, 6.0, 7.2, 7.6, 7.6, 7.2, 6.8, 4.9, 3.9]}, "gustValues": {"ECMWF": [5.1, 7.4, 8.9, 8.7, 8.0, 7.6, 8.0, 8.6, 9.5, 10.7, 12.1, 13.2, 14.2, 15.2, 15.7, 15.9, 15.9, 15.2, 13.4, 11.1, 8.7, 6.4, 4.3, 3.1, 3.7, 5.1, 6.2, 6.2, 5.8, 5.6, 5.8, 6.4, 7.2, 8.4, 9.9, 11.9, 14.8, 18.3, 20.8, 22.4, 22.9, 22.7, 21.2, 18.5, 15.6, 11.9, 8.0, 5.6, 6.6, 9.3, 11.1, 10.3, 8.4, 7.0, 6.6, 6.8, 7.8, 10.1, 13.2, 15.7, 17.5, 18.9, 19.4, 19.4, 18.9, 17.7, 15.9, 13.6, 11.7, 9.9, 8.6, 7.4], "GFS": [7.8, 6.4, 6.0, 5.2, 5.4, 5.1, 4.5, 3.1, 2.5, 3.3, 2.9, 3.9, 3.7, 5.8, 7.4, 8.4, 6.4, 4.7, 4.5, 6.8, 3.5, 3.3, 4.5, 4.1, 3.7, 3.7, 3.7, 4.1, 3.9, 3.3, 2.9, 3.3, 2.1, 1.9, 3.7, 5.4, 6.8, 8.7, 8.7, 11.3, 11.5, 11.7, 12.8, 13.8, 6.0, 4.3, 3.7, 3.9, 4.1, 4.3, 4.5, 4.5, 4.9, 4.9, 3.9, 3.1, 2.7, 2.5, 4.7, 6.2, 7.8, 9.1, 9.5, 9.3, 8.6, 9.1, 8.2, 8.2, 3.9, 4.3, 4.5, 3.3], "ICON": [7.2, 7.2, 8.0, 7.6, 7.0, 6.8, 5.8, 6.8, 7.0, 6.6, 8.2, 9.9, 11.7, 12.2, 13.2, 13.8, 13.0, 11.1, 9.5, 6.2, 3.5, 4.7, 5.6, 5.8, 6.8, 7.4, 7.4, 7.4, 6.4, 6.8, 7.2, 7.2, 7.2, 7.0, 6.2, 8.4, 11.5, 14.4, 16.7, 19.0, 19.6, 18.3, 16.3, 14.6, 12.6, 9.5, 7.4, 5.6, 6.6, 6.6, 7.0, 7.2, 7.2, 7.2, 7.4, 7.2, 7.0, 6.4, 5.4, 9.9, 12.1, 14.8, 15.9, 15.7, 14.2, 15.7, 14.8, 11.9, 8.6, 6.8, 6.0, 5.4], "ICON-EU": [7.2, 7.2, 8.0, 7.6, 7.0, 6.8, 5.8, 6.8, 7.0, 6.6, 8.2, 9.9, 11.7, 12.2, 13.2, 13.8, 13.0, 11.1, 9.5, 6.2, 3.5, 4.7, 5.6, 5.8, 6.8, 7.4, 7.4, 7.4, 6.4, 6.8, 7.2, 7.2, 7.2, 7.0, 6.2, 8.4, 11.5, 14.4, 16.7, 19.0, 19.6, 18.3, 16.3, 14.6, 12.6, 9.5, 7.4, 5.6, 6.6, 6.6, 7.0, 7.2, 7.2, 7.2, 7.4, 7.2, 7.0, 6.4, 5.4, 9.9, 12.1, 14.8, 15.9, 15.7, 14.2, 15.7, 14.8, 11.9, 8.6, 6.8, 6.0, 5.4], "ARPEGE": [5.8, 4.9, 4.9, 4.7, 4.9, 11.3, 15.2, 13.8, 9.3, 8.4, 10.7, 10.1, 10.9, 11.9, 11.5, 11.3, 11.3, 10.3, 8.9, 6.6, 7.2, 6.4, 5.4, 4.5, 4.3, 3.1, 4.3, 4.7, 5.1, 5.2, 5.1, 4.9, 5.1, 4.7, 2.7, 8.4, 10.5, 12.8, 15.6, 17.3, 17.3, 16.9, 15.9, 14.4, 12.8, 11.5, 9.7, 7.6, 3.3, 4.3, 3.7, 2.3, 5.4, 5.6, 4.9, 4.3, 5.1, 5.1, 6.0, 8.7, 10.9, 10.9, 11.3, 11.7, 11.1, 10.7, 10.1, 10.3, 9.5, 8.6, 7.2, 6.4], "GEM": [3.3, 2.9, 3.5, 2.1, 2.5, 2.9, 2.7, 3.7, 5.1, 3.1, 4.3, 4.9, 6.8, 7.8, 8.2, 8.7, 7.6, 5.4, 4.3, 4.9, 2.3, 1.9, 2.5, 3.1, 3.3, 3.5, 3.7, 4.1, 4.1, 4.3, 4.1, 3.9, 3.5, 1.7, 3.1, 5.2, 7.6, 9.3, 11.1, 12.4, 14.0, 14.0, 12.2, 10.7, 4.1, 2.1, 1.9, 3.1, 3.3, 4.1, 4.3, 4.1, 4.3, 4.7, 4.3, 4.1, 3.5, 2.3, 5.1, 7.2, 8.7, 10.1, 11.1, 11.1, 11.5, 11.9, 11.5, 10.5, 7.0, 2.1, 1.9, 2.9], "UKMO": [0.8, 1.9, 2.5, 2.1, 3.5, 4.5, 7.4, 6.8, 6.0, 7.4, 7.8, 8.7, 11.3, 13.4, 15.2, 15.2, 13.2, 11.7, 9.7, 7.8, 5.1, 3.7, 5.4, 3.9, 3.1, 2.9, 3.5, 4.1, 4.9, 5.4, 5.8, 5.8, 6.0, 5.6, 3.5, 7.6, 11.3, 12.2, 14.6, 14.8, 15.6, 16.1, 15.6, 12.8, 10.3, 8.0, 6.6, 5.8, 2.5, 3.1, 5.1, 5.1, 5.4, 5.8, 5.8, 5.8, 5.6, 4.7, 5.8, 7.0, 10.3, 11.9, 14.2, 14.6, 13.4, 12.2, 9.9, 7.6, 7.0, 5.1, 2.9, 1.7], "HARMONIE": [8.0, 8.0, 9.5, 17.3, 13.2, 13.6, 15.0, 13.0, 15.9, 11.9, 12.1, 10.7, 16.9, 16.3, 14.4, 18.1, 14.4, 13.2, 10.3, 7.6, 7.0, 8.2, 5.6, 5.1, 5.4, 5.8, 8.2, 9.9, 8.0, 7.0, 6.8, 7.0, 9.7, 10.5, 8.7, 12.2, 15.2, 16.5, 17.9, 17.9, 17.5, 16.9, 16.1, 15.6, 14.2, 11.1, 8.4, 6.2, 5.2, 4.7, 11.5, 15.7, 15.6, 10.7, 6.8, 5.8, 10.1, 11.1, 15.2, 16.5, 16.7, 16.9, 16.1, 15.7, 14.2, 11.5, 12.8, 13.6, 12.8, 9.7, 3.7, 4.3], "ALADIN": [10.9, 10.1, 8.4, 12.4, 13.6, 14.8, 14.6, 14.6, 10.3, 10.7, 9.9, 10.1, 11.3, 11.5, 8.4, 8.4, 8.4, 7.8, 7.2, 6.6, 6.6, 6.6, 7.8, 9.5, 9.5, 8.4, 8.9, 9.1, 8.9, 9.9, 9.9, 9.1, 8.6, 7.4, 4.7, 9.5, 9.9, 10.1, 11.3, 13.6, 15.2, 15.6, 15.6, 14.8, 13.8, 13.0, 11.3, 8.6, 6.6, 5.1, 6.4, 6.6, 9.1, 10.1, 9.9, 9.3, 7.6, 7.6, 7.8, 9.5, 9.5, 9.7, 9.9, 9.7, 10.1, 10.1, 9.1, 9.9, 9.9, 8.9, 8.6, 8.0], "ICON-2I": [9.9, 8.2, 9.3, 9.5, 9.3, 8.4, 9.7, 13.0, 12.4, 22.5, 14.2, 14.8, 16.5, 10.1, 13.2, 13.6, 13.8, 13.0, 10.9, 5.4, 7.6, 7.4, 7.6, 7.2, 7.8, 8.7, 8.7, 8.6, 8.7, 8.9, 8.9, 8.9, 8.9, 8.4, 8.6, 11.1, 12.6, 15.2, 17.7, 18.9, 19.2, 19.0, 18.5, 16.7, 13.8, 11.1, 9.3, 9.5, 8.4, 8.4, 8.6, 9.1, 9.5, 8.6, 6.4, 6.8, 6.0, 4.9, 7.0, 12.1, 13.4, 15.7, 16.1, 14.2, 14.2, 15.4, 16.1, 15.9, 16.3, 15.0, 14.6, 10.7]}, "dirValues": ["O", "O", "O", "O", "O", "O", "NO", "O", "O", "NO", "N", "NE", "NE", "NE", "NE", "NE", "NE", "E", "E", "SE", "S", "S", "SO", "SO", "SO", "SO", "SO", "O", "O", "O", "O", "O", "SO", "SO", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "S", "S", "SO", "O", "O", "O", "O", "O", "O", "O", "O", "O", "S", "E", "E", "E", "E", "E", "E", "E", "SE", "SE", "SE", "SE", "SE", "S", "SO"], "excludedModels": [{"code": "AROME", "reason": "variabile non fornita da questo modello"}], "openDefault": true}, {"key": "ondoso", "label": "Moto ondoso (altezza onda)", "unit": "m", "decimals": 2, "hasDirection": true, "threshTxt": "&lt;0,3 bianco (calmo) · 0,3–0,6 giallo (poco mosso) · 0,6–1,0 arancio (mosso) · 1,0–1,5 rosso (molto mosso) · &gt;1,5 fucsia (agitato)", "modelCodes": ["ECMWF-WAM", "MFWAM", "GFS-Wave", "EWAM", "GWAM"], "values": {"ECMWF-WAM": [0.2, 0.2, 0.22, 0.24, 0.28, 0.3, 0.32, 0.34, 0.36, 0.34, 0.34, 0.32, 0.3, 0.3, 0.28, 0.3, 0.32, 0.34, 0.32, 0.3, 0.28, 0.26, 0.26, 0.24, 0.22, 0.22, 0.2, 0.2, 0.2, 0.2, 0.2, 0.22, 0.22, 0.26, 0.28, 0.32, 0.36, 0.4, 0.44, 0.46, 0.48, 0.5, 0.5, 0.52, 0.52, 0.5, 0.46, 0.44, 0.42, 0.4, 0.38, 0.38, 0.36, 0.36, 0.36, 0.36, 0.36, 0.36, 0.36, 0.36, 0.36, 0.38, 0.38, 0.4, 0.4, 0.42, 0.42, 0.4, 0.4, 0.42, 0.42, 0.44], "MFWAM": [0.12, 0.1, 0.1, 0.12, 0.12, 0.14, 0.16, 0.18, 0.2, 0.2, 0.18, 0.18, 0.18, 0.18, 0.18, 0.18, 0.2, 0.2, 0.2, 0.22, 0.22, 0.2, 0.2, 0.18, 0.16, 0.16, 0.14, 0.12, 0.12, 0.1, 0.1, 0.08, 0.08, 0.08, 0.06, 0.06, 0.12, 0.2, 0.26, 0.28, 0.32, 0.34, 0.34, 0.32, 0.32, 0.32, 0.3, 0.3, 0.28, 0.28, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.26, 0.28, 0.28, 0.28, 0.26, 0.26, 0.28, 0.28, 0.3], "GFS-Wave": [0.32, 0.26, 0.24, 0.24, 0.32, 0.36, 0.34, 0.32, 0.28, 0.26, 0.24, 0.24, 0.22, 0.22, 0.22, 0.24, 0.26, 0.24, 0.24, 0.22, 0.22, 0.2, 0.2, 0.2, 0.18, 0.16, 0.14, 0.12, 0.12, 0.1, 0.1, 0.1, 0.1, 0.1, 0.14, 0.2, 0.22, 0.26, 0.32, 0.4, 0.46, 0.46, 0.46, 0.48, 0.5, 0.52, 0.52, 0.5, 0.5, 0.5, 0.48, 0.48, 0.48, 0.46, 0.46, 0.44, 0.4, 0.38, 0.36, 0.32, 0.32, 0.3, 0.32, 0.36, 0.36, 0.38, 0.38, 0.38, 0.4, 0.44, 0.46, 0.46], "EWAM": [0.14, 0.14, 0.12, 0.12, 0.12, 0.1, 0.1, 0.1, 0.18, 0.22, 0.18, 0.16, 0.14, 0.14, 0.14, 0.16, 0.18, 0.18, 0.18, 0.16, 0.16, 0.16, 0.16, 0.14, 0.14, 0.14, 0.12, 0.12, 0.1, 0.1, 0.1, 0.12, 0.12, 0.12, 0.14, 0.14, 0.18, 0.26, 0.34, 0.46, 0.54, 0.6, 0.6, 0.56, 0.54, 0.5, 0.46, 0.44, 0.4, 0.4, 0.38, 0.38, 0.36, 0.36, 0.36, 0.34, 0.32, 0.32, 0.3, 0.3, 0.28, 0.28, 0.28, 0.28, 0.28, 0.3, 0.32, 0.34, 0.34, 0.36, 0.36, 0.36], "GWAM": [0.16, 0.16, 0.16, 0.16, 0.14, 0.14, 0.14, 0.12, 0.12, 0.12, 0.14, 0.14, 0.16, 0.16, 0.18, 0.18, 0.2, 0.2, 0.2, 0.18, 0.18, 0.18, 0.16, 0.16, 0.16, 0.14, 0.14, 0.14, 0.12, 0.12, 0.14, 0.16, 0.18, 0.18, 0.2, 0.2, 0.24, 0.26, 0.3, 0.36, 0.44, 0.5, 0.5, 0.5, 0.5, 0.48, 0.46, 0.44, 0.42, 0.42, 0.4, 0.4, 0.38, 0.38, 0.36, 0.36, 0.34, 0.32, 0.32, 0.3, 0.3, 0.3, 0.3, 0.3, 0.32, 0.32, 0.34, 0.34, 0.36, 0.38, 0.38, 0.4]}, "dirValues": ["NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "N", "N", "N", "N", "N", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "NE", "E", "E", "E", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "SE", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E"], "excludedModels": [], "openDefault": true}], "meta": {"eyebrow": "Dati reali · confronto multi-modello · ogni ora", "titleHtml": "San Benedetto del Tronto <em>&middot; dati reali</em>", "version": "Rev. 1.0.0", "subHtml": "Marche · Mar 18/08 – Gio 20/08 2026 · localit&agrave; costiera, incluso moto ondoso. Fonte: Open-Meteo (dati reali multi-modello).", "metaStripHtml": "lat 42.9568 · lon 13.8768 · 4 m"}, "notesHtml": "<ul><li><strong>Dati reali</strong>: scaricati da Open-Meteo (aggregatore ECMWF/GFS/ICON/GEM/UKMO/ARPEGE/AROME/HARMONIE/ALADIN/ICON-2I ARPAE) il 18/08/2026 alle 20:43 UTC tramite <code>fetch_forecast.py</code> + <code>fetch_marine.py</code>. Non più dati di prova.</li><li><strong>Modelli confrontati (11):</strong> ECMWF, GFS, ICON, ICON-EU, ARPEGE, AROME, GEM, UKMO, HARMONIE, ALADIN, ICON-2I. <code>best_match</code> (blend automatico di Open-Meteo) è escluso dal confronto per non falsare la media con un modello non distinto.</li><li><strong>Pressione</strong> mostrata come SLP (ridotta al livello del mare), non pressione di stazione.</li><li><strong>Direzione vento/onda</strong>: media circolare reale tra i modelli disponibili in quell'ora/giorno (non un'assunzione fissa come nei mockup precedenti).</li><li><strong>Variabili non disponibili per alcuni modelli</strong> (celle con un trattino, segnalato anche nel titolo di sezione): Temperatura: AROME (variabile non fornita da questo modello); Pressione (SLP): AROME (variabile non fornita da questo modello); Pressione (SLP): HARMONIE (variabile non fornita da questo modello); Umidità: AROME (variabile non fornita da questo modello); Copertura nuvolosa: AROME (variabile non fornita da questo modello); Probabilità pioggia: ARPEGE (variabile non fornita da questo modello); Probabilità pioggia: AROME (variabile non fornita da questo modello); Probabilità pioggia: UKMO (variabile non fornita da questo modello); Probabilità pioggia: HARMONIE (variabile non fornita da questo modello); Probabilità pioggia: ICON-2I (variabile non fornita da questo modello); Quantità precipitazione: AROME (variabile non fornita da questo modello); Vento: AROME (variabile non fornita da questo modello).</li><li><strong>Rispetto ai mockup con dati di prova</strong>: qui il roster modelli è quello realmente disponibile via Open-Meteo (12, non gli stessi 10 inventati prima) — MOLOCH e BOLAM sono usciti perché non hanno un'API pubblica (documentato in SKILL.md), sostituiti da ICON-EU, ARPEGE, GEM, HARMONIE-AROME, ALADIN che invece sono scaricabili davvero.</li></ul>"};
+</script>
+<script>
+/* Generic renderer for the multi-model comparison table.
+   Consumes window.TABLE_DATA (built by build_comparison_table.py from real
+   Open-Meteo data) — no synthetic generation here, only display logic. */
+
+function classify(param, v){
+  if(v===null || v===undefined || Number.isNaN(v)) return null;
+  switch(param){
+    case "temp": case "tmax": return v<28?0 : v<=31?1 : v<=33?2 : v<=36?3 : 4;
+    case "tmin": return v<20?0 : v<=24?1 : v<=27?2 : v<=30?3 : 4;
+    case "pressione": return v>=1013?0 : v>=1008?1 : v>=1003?2 : v>=998?3 : 4;
+    case "umidita": return v<60?0 : v<=70?1 : v<=80?2 : v<=90?3 : 4;
+    case "vento": return v<11?0 : v<=21?1 : v<=32?2 : v<=48?3 : 4;
+    case "copertura": return v<20?0 : v<=50?1 : v<=80?2 : v<=95?3 : 4;
+    case "pioggia": return v<=10?0 : v<=40?1 : v<=70?2 : v<=90?3 : 4;
+    case "pioggia_mm": return v<0.5?0 : v<=2?1 : v<=6?2 : v<=15?3 : 4;
+    case "pioggia_mm_daily": return v<=1?0 : v<=10?1 : v<=30?2 : v<=60?3 : 4;
+    case "ondoso": return v<0.3?0 : v<=0.6?1 : v<=1.0?2 : v<=1.5?3 : 4;
+    case "basenubi": return v<0.3?4 : v<=0.6?3 : v<=1.5?2 : v<=3.0?1 : 0;
+  }
+  return null;
+}
+
+function fmt(v, decimals){
+  if(v===null || v===undefined || Number.isNaN(v)) return "—";
+  return decimals>0 ? v.toFixed(decimals) : Math.round(v).toString();
+}
+function mean(arr){ const a = arr.filter(v=>v!==null && v!==undefined && !Number.isNaN(v)); return a.length ? a.reduce((s,v)=>s+v,0)/a.length : null; }
+
+const D = window.TABLE_DATA;
+const nCols = D.timeCols.length;
+document.documentElement.style.setProperty('--ncols', nCols);
+
+function dsc(i){
+  if(D.mode!=="hourly") return "";
+  return (D.timeCols[i].hod===0 && i>0) ? " day-start" : "";
+}
+
+// --- masthead / meta ---
+document.getElementById("mh-eyebrow").textContent = D.meta.eyebrow;
+document.getElementById("mh-title").innerHTML = D.meta.titleHtml;
+document.getElementById("mh-sub").innerHTML = D.meta.subHtml;
+document.getElementById("mh-version").textContent = D.meta.version;
+document.getElementById("mh-meta-strip").innerHTML = D.meta.metaStripHtml;
+
+// --- almanac ---
+const almanacHead = D.dayLabels.map(d=>`<div class="cell colhead"><span class="day">${d}</span></div>`).join("");
+document.getElementById("almanacGrid").style.gridTemplateColumns = `150px repeat(${D.dayLabels.length},1fr)`;
+document.getElementById("almanacGrid").innerHTML = `
+  <div class="cell rowlabel" style="font-weight:700;">Giorno</div>
+  ${almanacHead}
+  <div class="cell rowlabel">Alba</div>
+  ${D.almanac.alba.map(t=>`<div class="cell time-cell">${t||"—"}</div>`).join("")}
+  <div class="cell rowlabel">Tramonto</div>
+  ${D.almanac.tramonto.map(t=>`<div class="cell time-cell">${t||"—"}</div>`).join("")}
+  <div class="cell rowlabel" style="border-bottom:none;">Fase lunare</div>
+  ${D.almanac.luna.map(l=>`<div class="cell moon-cell" style="border-bottom:none;">
+      <span class="moonpct">${l.pct}%</span>
+      <span class="spread-track"><span class="spread-fill" style="width:${l.pct}%"></span></span>
+      <span class="moonlabel">${l.label}</span>
+    </div>`).join("")}
+`;
+
+// --- models key (toolbar) ---
+const allModels = D.modelsMeta.concat(D.waveModelsMeta||[]);
+document.getElementById("modelsKey").innerHTML = allModels.map(m=>`<span class="mk" title="${m.full}"><b>${m.code}</b></span>`).join("");
+
+const sections = document.getElementById("sections");
+
+function buildTrendSVG(p){
+  const codes = p.modelCodes;
+  const allVals = [];
+  for(const c of codes){ for(const v of p.values[c]){ if(v!==null && v!==undefined) allVals.push(v); } }
+  if(!allVals.length) return "";
+  let lo = Math.min(...allVals), hi = Math.max(...allVals);
+  const pad = (hi-lo)*0.18 || 1;
+  lo -= pad; hi += pad;
+  const n = nCols;
+  const x = i => (n>1) ? (i/(n-1))*700 : 350;
+  const y = v => 90 - ((v-lo)/(hi-lo))*76;
+
+  const modelLines = codes.map(c=>{
+    const pts = [];
+    p.values[c].forEach((v,i)=>{ if(v!==null && v!==undefined) pts.push(`${x(i).toFixed(1)},${y(v).toFixed(1)}`); });
+    if(pts.length<2) return "";
+    return `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--ink-faint)" stroke-width="1" opacity="0.28" stroke-linejoin="round" stroke-linecap="round" />`;
+  }).join("");
+
+  const meanPts = [];
+  for(let i=0;i<n;i++){
+    const v = mean(codes.map(c=>p.values[c][i]));
+    if(v!==null) meanPts.push(`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  }
+  const meanLine = meanPts.join(" ");
+  const areaPts = meanPts.length ? `${meanPts[0].split(",")[0]},96 ${meanLine} ${meanPts[meanPts.length-1].split(",")[0]},96` : "";
+
+  return `<svg viewBox="0 0 700 100" preserveAspectRatio="none">
+      ${areaPts ? `<polygon points="${areaPts}" fill="var(--accent)" opacity="0.08" />` : ""}
+      ${modelLines}
+      <polyline points="${meanLine}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+    </svg>`;
+}
+
+D.params.forEach(p=>{
+  const codes = p.modelCodes;
+  const trendSvg = buildTrendSVG(p);
+
+  const dayColsCells = D.timeCols.map((tc,i)=>{
+    const vals = codes.map(c=>p.values[c][i]);
+    const present = vals.filter(v=>v!==null && v!==undefined);
+    const avg = present.length ? present.reduce((a,b)=>a+b,0)/present.length : null;
+    const sev = classify(p.classifyAs||p.key, avg);
+    const dir = (p.hasDirection && p.dirValues && p.dirValues[i]!=null) ? `<span class="dir">${p.dirValues[i]}</span>` : "";
+    let gustHtml = "";
+    if(p.hasGust && p.gustValues){
+      const gv = codes.map(c=>p.gustValues[c] ? p.gustValues[c][i] : null);
+      const gp = gv.filter(v=>v!==null && v!==undefined);
+      const gavg = gp.length ? gp.reduce((a,b)=>a+b,0)/gp.length : null;
+      const gsev = classify(p.classifyAs||p.key, gavg);
+      gustHtml = gavg!==null ? `<span class="gust-pill sev-${gsev}" title="Raffica">R${fmt(gavg,p.decimals)}</span>` : "";
+    }
+    return `<div class="cell consensus-cell${dsc(i)}" style="grid-column:${2+i};grid-row:1;">
+        <span class="cval ${sev!==null?'sev-'+sev:''}">${fmt(avg,p.decimals)}${dir}</span>
+        ${gustHtml}
+      </div>`;
+  }).join("");
+
+  let prevGroup = null;
+  const modelRows = codes.map(code=>{
+    const meta = allModels.find(m=>m.code===code) || {code, group:null};
+    const cells = D.timeCols.map((tc,i)=>{
+      const v = p.values[code][i];
+      if(v===null || v===undefined) return `<div class="cell na${dsc(i)}">—</div>`;
+      const sev = classify(p.classifyAs||p.key, v);
+      return `<div class="cell sev-${sev}${dsc(i)}">${fmt(v,p.decimals)}</div>`;
+    }).join("");
+    const divider = (meta.group && meta.group !== prevGroup && codes.length>4)
+      ? `<div style="display:contents"><div class="cell group-label" style="grid-column:1/-1;">Modelli ${meta.group === "globale" ? "globali" : "locali (area limitata)"}</div></div>`
+      : "";
+    prevGroup = meta.group;
+    return `${divider}<div class="model-row" style="display:contents">
+        <div class="cell rowlabel">${code}</div>
+        ${cells}
+      </div>`;
+  }).join("");
+
+  const headCells = D.timeCols.map((tc,i)=>{
+    if(D.mode==="hourly"){
+      return `<div class="cell colhead${dsc(i)}">${tc.hod===0 ? `<span class="daytag">${D.dayLabels[tc.dayIndex]}</span>` : ""}<span class="day">${String(tc.hod).padStart(2,'0')}</span></div>`;
+    }
+    return `<div class="cell colhead"><span class="day">${tc.d}</span><span class="date">${tc.date}</span></div>`;
+  }).join("");
+
+  const excluded = p.excludedModels && p.excludedModels.length
+    ? `<span class="warn" title="${p.excludedModels.map(e=>e.code+': '+e.reason).join(' · ')}">${p.excludedModels.length} modell${p.excludedModels.length===1?'o':'i'} escluso${p.excludedModels.length===1?'':'i'}</span>` : "";
+
+  const section = document.createElement("details");
+  section.className = "param";
+  section.open = !!p.openDefault;
+  section.innerHTML = `
+    <summary><span class="arrow">&#9656;</span> ${p.label} <span class="unit">${p.unit}</span>${excluded}<span class="desc">${p.threshTxt}</span></summary>
+    <div class="table-wrap">
+      <div class="pgrid ${D.mode==='hourly'?'hourly':''}">
+        <div class="cell rowlabel" style="font-weight:700;">${D.mode==='hourly'?'Ora':'Giorno'}</div>
+        ${headCells}
+        <div class="consensus-row ${D.mode==='hourly'?'hourly':''}">
+          <div class="cell rowlabel" style="grid-column:1;grid-row:1;">Media modelli</div>
+          <div class="consensus-svg" style="grid-column:2/-1;grid-row:1;">${trendSvg}</div>
+          ${dayColsCells}
+        </div>
+        ${modelRows}
+      </div>
+    </div>`;
+  sections.appendChild(section);
+});
+
+document.getElementById("notesHtml").innerHTML = D.notesHtml;
+
+</script>
