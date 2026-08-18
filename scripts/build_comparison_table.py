@@ -74,6 +74,192 @@ def circular_mean_deg(degs):
     return math.degrees(math.atan2(sx, cx)) % 360
 
 
+def classify(param, v):
+    if v is None:
+        return None
+    if param in ("temp", "tmax"):
+        return 0 if v < 28 else 1 if v <= 31 else 2 if v <= 33 else 3 if v <= 36 else 4
+    if param == "tmin":
+        return 0 if v < 20 else 1 if v <= 24 else 2 if v <= 27 else 3 if v <= 30 else 4
+    if param == "pressione":
+        return 0 if v >= 1013 else 1 if v >= 1008 else 2 if v >= 1003 else 3 if v >= 998 else 4
+    if param == "umidita":
+        return 0 if v < 60 else 1 if v <= 70 else 2 if v <= 80 else 3 if v <= 90 else 4
+    if param == "vento":
+        return 0 if v < 11 else 1 if v <= 21 else 2 if v <= 32 else 3 if v <= 48 else 4
+    if param == "copertura":
+        return 0 if v < 20 else 1 if v <= 50 else 2 if v <= 80 else 3 if v <= 95 else 4
+    if param == "pioggia":
+        return 0 if v <= 10 else 1 if v <= 40 else 2 if v <= 70 else 3 if v <= 90 else 4
+    if param == "pioggia_mm":
+        return 0 if v < 0.5 else 1 if v <= 2 else 2 if v <= 6 else 3 if v <= 15 else 4
+    if param == "pioggia_mm_daily":
+        return 0 if v <= 1 else 1 if v <= 10 else 2 if v <= 30 else 3 if v <= 60 else 4
+    if param == "ondoso":
+        return 0 if v < 0.3 else 1 if v <= 0.6 else 2 if v <= 1.0 else 3 if v <= 1.5 else 4
+    if param == "basenubi":
+        return 4 if v < 0.3 else 3 if v <= 0.6 else 2 if v <= 1.5 else 1 if v <= 3.0 else 0
+    return None
+
+
+def fmt_val(v, decimals):
+    if v is None:
+        return "—"
+    return f"{v:.{decimals}f}" if decimals > 0 else str(round(v))
+
+
+def render_trend_svg(values_by_model, model_codes, ncols):
+    all_vals = [v for c in model_codes for v in values_by_model.get(c, []) if v is not None]
+    if not all_vals:
+        return ""
+    lo, hi = min(all_vals), max(all_vals)
+    pad = (hi - lo) * 0.18 or 1
+    lo -= pad
+    hi += pad
+
+    def x(i):
+        return (i / (ncols - 1)) * 700 if ncols > 1 else 350
+
+    def y(v):
+        return 90 - ((v - lo) / (hi - lo)) * 76
+
+    lines = []
+    for c in model_codes:
+        pts = [f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(values_by_model.get(c, [])) if v is not None]
+        if len(pts) >= 2:
+            lines.append(f'<polyline points="{" ".join(pts)}" fill="none" stroke="var(--ink-faint)" '
+                          f'stroke-width="1" opacity="0.28" stroke-linejoin="round" stroke-linecap="round" />')
+    mean_pts = []
+    for i in range(ncols):
+        vals = [values_by_model[c][i] for c in model_codes if values_by_model.get(c) and values_by_model[c][i] is not None]
+        if vals:
+            mean_pts.append(f"{x(i):.1f},{y(sum(vals) / len(vals)):.1f}")
+    if not mean_pts:
+        return ""
+    mean_line = " ".join(mean_pts)
+    x0 = mean_pts[0].split(",")[0]
+    x1 = mean_pts[-1].split(",")[0]
+    area = f'<polygon points="{x0},96 {mean_line} {x1},96" fill="var(--accent)" opacity="0.08" />'
+    return (f'<svg viewBox="0 0 700 100" preserveAspectRatio="none">{area}{"".join(lines)}'
+            f'<polyline points="{mean_line}" fill="none" stroke="var(--accent)" stroke-width="2" '
+            f'stroke-linejoin="round" stroke-linecap="round" /></svg>')
+
+
+def render_section(p, mode, time_cols, day_labels, models_lookup):
+    codes = p["modelCodes"]
+    ncols = len(time_cols)
+    trend_svg = render_trend_svg(p["values"], codes, ncols)
+
+    def dsc(i):
+        if mode != "hourly":
+            return ""
+        return " day-start" if (time_cols[i]["hod"] == 0 and i > 0) else ""
+
+    classify_as = p.get("classifyAs", p["key"])
+    consensus_cells = []
+    for i in range(ncols):
+        vals = [p["values"][c][i] for c in codes if p["values"].get(c) and p["values"][c][i] is not None]
+        avg = sum(vals) / len(vals) if vals else None
+        sev = classify(classify_as, avg)
+        dir_html = ""
+        if p.get("hasDirection") and p.get("dirValues") and p["dirValues"][i]:
+            dir_html = f'<span class="dir">{p["dirValues"][i]}</span>'
+        gust_html = ""
+        if p.get("hasGust") and p.get("gustValues"):
+            gvals = [p["gustValues"][c][i] for c in codes if p["gustValues"].get(c) and p["gustValues"][c][i] is not None]
+            if gvals:
+                gavg = sum(gvals) / len(gvals)
+                gsev = classify(classify_as, gavg)
+                gust_html = f'<span class="gust-pill sev-{gsev}" title="Raffica">R{fmt_val(gavg, p["decimals"])}</span>'
+        sev_class = f"sev-{sev}" if sev is not None else ""
+        consensus_cells.append(
+            f'<div class="cell consensus-cell{dsc(i)}" style="grid-column:{2 + i};grid-row:1;">'
+            f'<span class="cval {sev_class}">{fmt_val(avg, p["decimals"])}{dir_html}</span>{gust_html}</div>')
+
+    prev_group = None
+    model_rows = []
+    for code in codes:
+        meta = models_lookup.get(code, {})
+        cells = []
+        col_vals = p["values"].get(code, [None] * ncols)
+        for i in range(ncols):
+            v = col_vals[i]
+            if v is None:
+                cells.append(f'<div class="cell na{dsc(i)}">—</div>')
+            else:
+                sev = classify(classify_as, v)
+                cells.append(f'<div class="cell sev-{sev}{dsc(i)}">{fmt_val(v, p["decimals"])}</div>')
+        group = meta.get("group")
+        divider = ""
+        if group and group != prev_group and len(codes) > 4:
+            label = "globali" if group == "globale" else "locali (area limitata)" if group == "locale" else group
+            divider = (f'<div style="display:contents"><div class="cell group-label" '
+                       f'style="grid-column:1/-1;">Modelli {label}</div></div>')
+        prev_group = group
+        model_rows.append(divider + f'<div class="model-row" style="display:contents">'
+                                     f'<div class="cell rowlabel">{code}</div>{"".join(cells)}</div>')
+
+    head_cells = []
+    for i, tc in enumerate(time_cols):
+        if mode == "hourly":
+            daytag = f'<span class="daytag">{day_labels[tc["dayIndex"]]}</span>' if tc["hod"] == 0 else ""
+            head_cells.append(f'<div class="cell colhead{dsc(i)}">{daytag}<span class="day">{tc["hod"]:02d}</span></div>')
+        else:
+            head_cells.append(f'<div class="cell colhead"><span class="day">{tc["d"]}</span><span class="date">{tc["date"]}</span></div>')
+
+    excluded = p.get("excludedModels") or []
+    excluded_html = ""
+    if excluded:
+        ne = len(excluded)
+        title = " · ".join(f'{e["code"]}: {e["reason"]}' for e in excluded)
+        excluded_html = f'<span class="warn" title="{title}">{ne} modell{"o" if ne == 1 else "i"} escluso{"" if ne == 1 else "i"}</span>'
+
+    hourly_class = "hourly" if mode == "hourly" else ""
+
+    return f'''<details class="param" open>
+    <summary><span class="arrow">&#9656;</span> {p["label"]} <span class="unit">{p["unit"]}</span>{excluded_html}<span class="desc">{p["threshTxt"]}</span></summary>
+    <div class="table-wrap">
+      <div class="pgrid {hourly_class}">
+        <div class="cell rowlabel" style="font-weight:700;">{"Ora" if mode == "hourly" else "Giorno"}</div>
+        {"".join(head_cells)}
+        <div class="consensus-row {hourly_class}">
+          <div class="cell rowlabel" style="grid-column:1;grid-row:1;">Media modelli</div>
+          <div class="consensus-svg" style="grid-column:2/-1;grid-row:1;">{trend_svg}</div>
+          {"".join(consensus_cells)}
+        </div>
+        {"".join(model_rows)}
+      </div>
+    </div>
+  </details>'''
+
+
+def render_almanac(day_labels, alba, tramonto, luna):
+    head = "".join(f'<div class="cell colhead"><span class="day">{d}</span></div>' for d in day_labels)
+    alba_html = "".join(f'<div class="cell time-cell">{t or "—"}</div>' for t in alba)
+    tram_html = "".join(f'<div class="cell time-cell">{t or "—"}</div>' for t in tramonto)
+    cells = []
+    for l in luna:
+        if l["pct"] is None:
+            cells.append('<div class="cell moon-cell" style="border-bottom:none;"><span class="moonpct">n/d</span></div>')
+        else:
+            cells.append(f'<div class="cell moon-cell" style="border-bottom:none;">'
+                          f'<span class="moonpct">{l["pct"]}%</span>'
+                          f'<span class="spread-track"><span class="spread-fill" style="width:{l["pct"]}%"></span></span>'
+                          f'<span class="moonlabel">{l["label"]}</span></div>')
+    luna_html = "".join(cells)
+    ncols = len(day_labels)
+    return f'''<div class="pgrid" style="grid-template-columns:150px repeat({ncols},1fr);">
+      <div class="cell rowlabel" style="font-weight:700;">Giorno</div>
+      {head}
+      <div class="cell rowlabel">Alba</div>
+      {alba_html}
+      <div class="cell rowlabel">Tramonto</div>
+      {tram_html}
+      <div class="cell rowlabel" style="border-bottom:none;">Fase lunare</div>
+      {luna_html}
+    </div>'''
+
+
 def lcl_km(t, td):
     if t is None or td is None:
         return None
@@ -437,51 +623,45 @@ def build(args):
 
     notes_html = "<ul>" + "".join(f"<li>{it}</li>" for it in notes_items) + "</ul>"
 
-    table_data = {
-        "mode": args.mode,
-        "timeCols": time_cols,
-        "dayLabels": day_labels,
-        "almanac": {"alba": alba, "tramonto": tramonto, "luna": luna},
-        "modelsMeta": modelsMeta,
-        "waveModelsMeta": waveModelsMeta,
-        "params": params,
-        "meta": {
-            "eyebrow": f"Dati reali · confronto multi-modello · {'ogni ora' if args.mode=='hourly' else 'giornaliera'}",
-            "titleHtml": f"{loc_label} <em>&middot; dati reali</em>",
-            "version": args.version,
-            "subHtml": f"{admin or ''}{' · ' if admin else ''}{f'{elevation:.0f} m s.l.m. · ' if elevation and elevation > 200 else ''}{period_label}"
-                        f"{' · localit&agrave; costiera, incluso moto ondoso' if args.marine else ''}."
-                        f" Fonte: Open-Meteo (dati reali multi-modello).",
-            "metaStripHtml": f"lat {loc['lat']:.4f} · lon {loc['lon']:.4f}" + (f" · {elevation:.0f} m" if elevation is not None else ""),
-        },
-        "notesHtml": notes_html,
-    }
+    all_models_meta = modelsMeta + waveModelsMeta
+    models_lookup = {m["code"]: m for m in all_models_meta}
+
+    eyebrow = f"Dati reali · confronto multi-modello · {'ogni ora' if args.mode == 'hourly' else 'giornaliera'}"
+    title_html = f"{loc_label} <em>&middot; dati reali</em>"
+    sub_html = (f"{admin or ''}{' · ' if admin else ''}{f'{elevation:.0f} m s.l.m. · ' if elevation and elevation > 200 else ''}{period_label}"
+                f"{' · localit&agrave; costiera, incluso moto ondoso' if args.marine else ''}."
+                f" Fonte: Open-Meteo (dati reali multi-modello).")
+    meta_strip = f"lat {loc['lat']:.4f} · lon {loc['lon']:.4f}" + (f" · {elevation:.0f} m" if elevation is not None else "")
+
+    almanac_html = render_almanac(day_labels, alba, tramonto, luna)
+    models_key_html = "".join(f'<span class="mk" title="{m["full"]}"><b>{m["code"]}</b></span>' for m in all_models_meta)
+    sections_html = "\n".join(render_section(p, args.mode, time_cols, day_labels, models_lookup) for p in params)
 
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
-    js = open(os.path.join(SCRIPT_DIR, "table_engine.js"), encoding="utf-8").read()
+    page_style = f' style="--ncols:{n};"' if args.mode == "hourly" else ""
 
-    html = f"""<title>{loc_label} — Tabella meteo {'oraria' if args.mode=='hourly' else 'giornaliera'} (dati reali)</title>
+    html = f"""<title>{loc_label} — Tabella meteo {'oraria' if args.mode == 'hourly' else 'giornaliera'} (dati reali)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
 <style>
 {css}
 </style>
-<div class="page">
+<div class="page"{page_style}>
   <div class="masthead">
     <div class="eyebrow-row">
-      <div class="eyebrow" id="mh-eyebrow"></div>
-      <div class="version-badge" id="mh-version"></div>
+      <div class="eyebrow">{eyebrow}</div>
+      <div class="version-badge">{args.version}</div>
     </div>
-    <h1 id="mh-title"></h1>
-    <p class="sub" id="mh-sub"></p>
-    <div class="meta-strip" id="mh-meta-strip"></div>
+    <h1>{title_html}</h1>
+    <p class="sub">{sub_html}</p>
+    <div class="meta-strip">{meta_strip}</div>
     <div class="spectrum"></div>
   </div>
 
   <div class="almanac-panel">
     <span class="legend-title">Alba &middot; tramonto &middot; fase lunare (reali)</span>
     <div class="table-wrap" style="padding:0;">
-      <div class="pgrid" id="almanacGrid"></div>
+      {almanac_html}
     </div>
   </div>
 
@@ -494,28 +674,23 @@ def build(args):
       <div class="sw sw-3">Rosso <em>molto elevato</em></div>
       <div class="sw sw-4">Fucsia <em>estremo</em></div>
     </div>
-    <div class="models-key" id="modelsKey"></div>
+    <div class="models-key">{models_key_html}</div>
   </div>
 
-  <div class="sections" id="sections"></div>
+  <div class="sections">
+    {sections_html}
+  </div>
 
   <div class="notes">
     <h2>Note</h2>
-    <div id="notesHtml"></div>
+    {notes_html}
   </div>
 </div>
-
-<script>
-window.TABLE_DATA = {json.dumps(table_data, ensure_ascii=False)};
-</script>
-<script>
-{js}
-</script>
 """
 
     with open(args.out, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"OK -> {args.out} ({len(modelsMeta)} modelli, {n} colonne, {len(params)} parametri)")
+    print(f"OK -> {args.out} ({len(modelsMeta)} modelli, {n} colonne, {len(params)} parametri) — HTML statico, nessun JavaScript")
 
 
 def main():
