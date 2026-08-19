@@ -5,18 +5,21 @@ tendenza a sfondo, vento/onda con direzione) a partire da dati REALI scaricati
 con fetch_forecast.py (e opzionalmente fetch_marine.py per localita' costiere).
 
 Non scarica nulla da solo: prende in input i JSON gia' prodotti da quegli
-script, li trasforma nella forma richiesta da table_engine.js e scrive un
-singolo file HTML autonomo (CSS+JS incorporati, nessuna dipendenza esterna
-salvo i Google Fonts).
+script e scrive un singolo file HTML autonomo e statico (nessun
+JavaScript: masthead, almanacco, sezioni e linea di tendenza SVG sono
+markup generato in Python, CSS incorporato, nessuna dipendenza esterna
+salvo i Google Fonts e, se presente, il logo Meteo Garbino incorporato
+come base64).
 
 Uso:
     python3 build_comparison_table.py --data data.json --mode daily \
-        --title "Bologna" --moon-dir /tmp/moon --out bollettino_bologna.html
+        --moon-dir /tmp/moon --out bollettino_bologna.html
 
     python3 build_comparison_table.py --data data.json --marine marine.json \
-        --mode hourly --title "Punta Marina" --moon-dir /tmp/moon --out out.html
+        --mode hourly --moon-dir /tmp/moon --out out.html
 """
 import argparse
+import base64
 import datetime as dt
 import glob
 import json
@@ -24,6 +27,12 @@ import math
 import os
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_LOGO = os.path.join(SCRIPT_DIR, "..", "assets", "logo.png")
+
+
+def b64_file(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("ascii")
 
 # Mappa model-id Open-Meteo -> {codice breve, gruppo}. "best_match" e'
 # volutamente escluso dal confronto: e' un blend automatico, non un modello
@@ -662,6 +671,10 @@ def build(args):
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"' if args.mode == "hourly" else ""
 
+    logo_html = ""
+    if args.logo and os.path.exists(args.logo):
+        logo_html = f'<img class="brand-logo" src="data:image/png;base64,{b64_file(args.logo)}" alt="Meteo Garbino">'
+
     html = f"""<meta charset="utf-8">
 <title>{loc_label} — Tabella meteo {'oraria' if args.mode == 'hourly' else 'giornaliera'} (dati reali)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -672,7 +685,7 @@ def build(args):
 <div class="page"{page_style}>
   <div class="masthead">
     <div class="eyebrow-row">
-      <div class="eyebrow">{eyebrow}</div>
+      <div class="brand">{logo_html}<div class="eyebrow">{eyebrow}</div></div>
       <div class="version-badge">{args.version}</div>
     </div>
     <h1>{title_html}</h1>
@@ -725,6 +738,7 @@ def main():
     ap.add_argument("--moon-dir", help="Cartella con <data>.json prodotti da moon_phase.py per ogni giorno del periodo")
     ap.add_argument("--cloud-base", action="store_true", help="Includi la sezione Base nubi (stima LCL)")
     ap.add_argument("--version", default="Rev. 1.0.1")
+    ap.add_argument("--logo", default=DEFAULT_LOGO, help="Path al logo (default: assets/logo.png della skill). Passa --logo '' per ometterlo.")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     build(args)
