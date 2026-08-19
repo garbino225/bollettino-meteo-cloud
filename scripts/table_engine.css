@@ -141,4 +141,14 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
 .notes strong{ color:var(--ink); font-weight:600; }
 .notes a{ color:var(--accent); }
 
+.revisions{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:20px 22px; }
+.revisions h2{ font-family:"Archivo", sans-serif; font-size:15.5px; font-weight:800; margin:0 0 10px; }
+.revisions table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+.revisions th{ text-align:left; font-family:"IBM Plex Mono", monospace; font-size:10.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); padding:0 10px 8px 0; border-bottom:1px solid var(--panel-line); }
+.revisions td{ vertical-align:top; padding:9px 10px 9px 0; border-bottom:1px solid var(--panel-line); color:var(--ink-soft); line-height:1.5; }
+.revisions tr:last-child td{ border-bottom:none; }
+.revisions td.rv-version{ font-family:"IBM Plex Mono", monospace; font-weight:700; color:var(--ink); white-space:nowrap; }
+.revisions td.rv-date{ font-family:"IBM Plex Mono", monospace; white-space:nowrap; color:var(--ink-soft); }
+.revisions td.rv-changes ul{ margin:0; padding-left:16px; display:flex; flex-direction:column; gap:3px; }
+
 @media (max-width:640px){ .page{ padding:28px 14px 48px; } }

@@ -63,6 +63,28 @@ WAVE_MODEL_META = {
 IT_MONTHS = ["", "gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"]
 IT_WEEKDAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
 
+# Storico revisioni dello strumento. Aggiungere una voce in cima ad ogni
+# modifica rilasciata; viene stampata in fondo a ogni file HTML generato.
+CHANGELOG = [
+    {"version": "1.0.3", "date": "19/08/2026", "changes": [
+        "Aggiunta questa tabella delle revisioni in fondo ad ogni file generato.",
+        "Nuova convenzione nome file: Luogo_ggmm-inizio_ggmm-fine_ggmmaaaa-ora-generazione.html.",
+    ]},
+    {"version": "1.0.2", "date": "19/08/2026", "changes": [
+        "Vento: direzione e raffica mostrate anche per ogni singolo modello, non solo per la media.",
+        "Vento e moto ondoso: formato compatto medio/raffica con direzione a capo (es. 2/3 poi SO sotto), per restare dentro alla cella anche con 72 colonne orarie.",
+        "Aggiunto il logo Meteo Garbino in alto a destra nell'intestazione, ingrandito e riposizionato su richiesta.",
+        "Fix impaginazione: eliminato lo spazio vuoto sotto l'eyebrow causato dal logo piu' alto del testo.",
+    ]},
+    {"version": "1.0.1", "date": "19/08/2026", "changes": [
+        "Fix caratteri accentati: aggiunto il tag <code>&lt;meta charset=&quot;utf-8&quot;&gt;</code> mancante nei file scaricati come file locale.",
+    ]},
+    {"version": "1.0.0", "date": "18/08/2026", "changes": [
+        "Prima versione con dati reali: lo strumento passa dal mockup con dati di prova ai dati veri scaricati da Open-Meteo (fetch_forecast.py + fetch_marine.py).",
+        "Tabella HTML resa completamente statica (nessun JavaScript), per essere leggibile anche nei client che non eseguono script (anteprime, email, ecc.).",
+    ]},
+]
+
 
 def cardinal(deg):
     if deg is None:
@@ -283,6 +305,18 @@ def render_almanac(day_labels, alba, tramonto, luna):
       <div class="cell rowlabel" style="border-bottom:none;">Fase lunare</div>
       {luna_html}
     </div>'''
+
+
+def render_changelog(changelog):
+    rows = []
+    for entry in changelog:
+        changes_html = "<ul>" + "".join(f"<li>{c}</li>" for c in entry["changes"]) + "</ul>"
+        rows.append(f'<tr><td class="rv-version">{entry["version"]}</td>'
+                     f'<td class="rv-date">{entry["date"]}</td>'
+                     f'<td class="rv-changes">{changes_html}</td></tr>')
+    return (f'<div class="revisions"><h2>Revisioni</h2>'
+            f'<table><thead><tr><th>Versione</th><th>Data</th><th>Novit&agrave;</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table></div>')
 
 
 def lcl_km(t, td):
@@ -728,6 +762,8 @@ def build(args):
     <h2>Note</h2>
     {notes_html}
   </div>
+
+  {render_changelog(CHANGELOG)}
 </div>
 """
 
@@ -744,7 +780,7 @@ def main():
     ap.add_argument("--hours", type=int, default=None, help="Limita le colonne orarie (default: tutte quelle nel JSON)")
     ap.add_argument("--moon-dir", help="Cartella con <data>.json prodotti da moon_phase.py per ogni giorno del periodo")
     ap.add_argument("--cloud-base", action="store_true", help="Includi la sezione Base nubi (stima LCL)")
-    ap.add_argument("--version", default="Rev. 1.0.1")
+    ap.add_argument("--version", default=f"Rev. {CHANGELOG[0]['version']}")
     ap.add_argument("--logo", default=DEFAULT_LOGO, help="Path al logo (default: assets/logo.png della skill). Passa --logo '' per ometterlo.")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
