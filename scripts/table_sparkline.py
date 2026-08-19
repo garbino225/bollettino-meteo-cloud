@@ -75,7 +75,36 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   com'e' voluto). Aggiunto border-radius:18px al tag <img> per renderlo un'icona
 #   con angoli smussati invece di un rettangolo netto. Vecchio logo conservato in
 #   assets/logo_meteopd0_old.png.
-SCRIPT_VERSION = "1.4.3"
+# 1.4.4 (2026-08-19): aggiunta una tabella "Revisioni" in fondo alla pagina (sotto
+#   la legenda parametri, sopra il footer) che elenca ogni versione dello script e
+#   le novita' introdotte, cosi' chi apre il file vede lo storico senza dover
+#   guardare questo changelog nel codice sorgente. Contenuto letto da CHANGELOG
+#   qui sotto (stessa fonte di verita' di questi commenti, tenerli allineati ad
+#   ogni nuova versione).
+SCRIPT_VERSION = "1.4.4"
+
+# Fonte dati per la tabella "Revisioni" mostrata in fondo alla pagina generata
+# (vedi build_changelog()): tienila allineata ai commenti di versione qui sopra.
+CHANGELOG = [
+    ("1.0.0", "Prima versione di produzione: sparkline in filigrana per colonna, "
+              "legenda parametri con range osservato, copertura nuvolosa in ottavi, "
+              "colonne mare opzionali."),
+    ("1.1.0", "Colorazione delle singole celle per gravita' (giallo/arancio/rosso/"
+              "fucsia, soglie specifiche per parametro), soglie mostrate in legenda."),
+    ("1.2.0", "Aggiunte le colonne Pressione (hPa) e Umidita' (%)."),
+    ("1.3.0", "Aggiunta la riga con alba, tramonto e fase lunare prima del titolo."),
+    ("1.3.1", "Fix caratteri accentati/speciali illeggibili aprendo il file da disco "
+              "(mancava la dichiarazione <meta charset=\"utf-8\">)."),
+    ("1.3.2", "Fix sovrapposizione tra il tag del giorno e l'orario 00:00 nella "
+              "colonna Data/ora."),
+    ("1.4.0", "Allineati tutti gli orari alla stessa colonna; aggiunto il logo "
+              "opzionale in alto a destra nell'intestazione."),
+    ("1.4.1", "Logo ingrandito (44px -> 72px)."),
+    ("1.4.2", "Logo ulteriormente ingrandito (72px -> 104px) e sfondo del logo reso "
+              "trasparente."),
+    ("1.4.3", "Rebrand: nuovo logo meteogarbino225, angoli smussati."),
+    ("1.4.4", "Aggiunta questa tabella delle revisioni in fondo alla pagina."),
+]
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
 # riferimento nota) - non duplicare logica diversa altrove nella skill.
@@ -392,6 +421,13 @@ def build_legend(rows, cols):
     return rows_html
 
 
+def build_changelog():
+    return "\n".join(
+        f'<tr><td class="cl-version">v{version}</td><td class="cl-note">{note}</td></tr>'
+        for version, note in CHANGELOG
+    )
+
+
 DAY_ABBR = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
 
 
@@ -554,12 +590,14 @@ def main():
     )
 
     legend_rows = build_legend(rows, cols)
+    changelog_rows = build_changelog()
 
     html = TEMPLATE.format(
         loc=loc, lat=lat, lon=lon, start=start_label, end=end_label, generated=generated,
         light_vars=light_vars, dark_vars=dark_vars, spark_rules=spark_rules,
         colgroup=colgroup, group_row=group_row, header_cells="\n            ".join(header_cells),
         tbody=tbody, total_w=max(total_w, 900), rh=RH, legend_rows=legend_rows, version=SCRIPT_VERSION,
+        changelog_rows=changelog_rows,
         astro_line=astro_line, logo_html=logo_html,
         marine_title=" e mare" if has_marine else "",
         marine_sub="; onda da Open-Meteo Marine" if has_marine else "",
@@ -839,6 +877,39 @@ TEMPLATE = '''<meta charset="utf-8">
     .glossary-table th:nth-child(2), .glossary-table td.lg-desc {{ display: none; }}
   }}
 
+  .changelog {{ display: flex; flex-direction: column; gap: 10px; padding: 16px; }}
+
+  .changelog h2 {{
+    margin: 0; font-size: 13.5px; font-weight: 700; color: var(--text);
+    letter-spacing: -0.005em;
+  }}
+
+  .changelog-table {{ border-collapse: separate; border-spacing: 0; width: 100%; }}
+
+  .changelog-table th {{
+    background: var(--navy); color: #EAF0FA; font-weight: 600; font-size: 10.5px;
+    letter-spacing: 0.03em; text-transform: uppercase; text-align: left;
+    padding: 7px 12px; white-space: nowrap;
+  }}
+
+  .changelog-table th:first-child {{ border-top-left-radius: 6px; }}
+  .changelog-table th:last-child {{ border-top-right-radius: 6px; }}
+
+  .changelog-table td {{
+    padding: 7px 12px; font-size: 12.5px; border-bottom: 1px solid var(--line-soft);
+    color: var(--text); vertical-align: top;
+  }}
+
+  .changelog-table tr:last-child td {{ border-bottom: none; }}
+  .changelog-table tr:hover td {{ background: var(--row-hover); }}
+
+  .changelog-table td.cl-version {{
+    font-weight: 700; white-space: nowrap; color: var(--sea);
+    font-variant-numeric: tabular-nums;
+  }}
+
+  .changelog-table td.cl-note {{ color: var(--text-soft); line-height: 1.4; text-align: left; }}
+
   footer.foot {{
     display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
     padding: 2px 4px; font-size: 11px; color: var(--text-faint);
@@ -905,6 +976,18 @@ TEMPLATE = '''<meta charset="utf-8">
       </thead>
       <tbody>
 {legend_rows}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel changelog">
+    <h2>Revisioni</h2>
+    <table class="changelog-table">
+      <thead>
+        <tr><th>Versione</th><th>Novita' introdotte</th></tr>
+      </thead>
+      <tbody>
+{changelog_rows}
       </tbody>
     </table>
   </div>

@@ -502,7 +502,28 @@ bollettino PDF/HTML) — es. "puoi generare solo la tabella?", "aggiornami
 la tabella per <citta'>" — genera un unico file HTML autonomo con
 `table_sparkline.py`, pubblicalo come Artifact (skill `artifact-design` +
 tool `Artifact`) e aggiorna sempre lo **stesso** URL se ne esiste gia' uno
-in conversazione, invece di crearne uno nuovo:
+in conversazione, invece di crearne uno nuovo.
+
+Questo progetto (2026-08-19, richiesta esplicita dell'utente) genera **solo
+questa tabella** come formato di consegna, mai piu' il bollettino completo
+PDF/HTML a meno che l'utente non lo richieda esplicitamente per nome
+("bollettino"). Localita' e periodo restano ovviamente variabili in base
+alla richiesta.
+
+Convenzione nome file (fissa, richiesta esplicitamente dall'utente il
+2026-08-19 — **luogo, durata e data/ora di generazione sono tre campi
+separati**, in quest'ordine):
+
+```
+<Luogo>_<inizio_ggmmaaaa>-<fine_ggmmaaaa>_gen<ggmmaaaa>-<hhmm>.html
+```
+
+Esempio concreto (Monte Fumaiolo, periodo 19-20 agosto 2026, generato il
+19/08/2026 alle 09:00): `MonteFumaiolo_19082026-20082026_gen19082026-0900.html`.
+`<Luogo>` senza spazi/accenti (CamelCase o slug leggibile), le date del
+periodo sono le stesse passate a `--start`/`--end` di `fetch_forecast.py`,
+la data/ora di generazione e' il momento in cui lo script viene lanciato
+(non quello della richiesta dell'utente, che puo' essere precedente).
 
 ```bash
 python3 fetch_forecast.py --location "NOME LOCALITA'" --start YYYY-MM-DD --end YYYY-MM-DD --out /tmp/meteo_<slug>/data.json
@@ -516,7 +537,7 @@ python3 table_sparkline.py \
     --marine /tmp/meteo_<slug>/marine.json \
     --location-label "Nome Localita' (provincia)" \
     --logo ../assets/logo.png \
-    --out /tmp/meteo_<slug>/tabella_<slug>.html
+    --out "/tmp/meteo_<slug>/<Luogo>_<inizio_ggmmaaaa>-<fine_ggmmaaaa>_gen<ggmmaaaa>-<hhmm>.html"
 ```
 
 `--marine` e' opzionale: omettilo per localita' non costiere (lo script
@@ -533,9 +554,9 @@ luminosita'+saturazione, non tocca il file su disco) — sul logo
 meteogarbino225 attuale, che ha uno sfondo blu notte pieno voluto, non
 altera nulla; serviva per il vecchio logo su sfondo "carta" chiaro.
 
-Cosa produce (design **v1.4.3**, validato e messo in produzione con
-l'utente il 2026-08-16, non reinventarlo — vedi `SCRIPT_VERSION` in testa
-a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
+Cosa produce (design **v1.4.4**, validato e messo in produzione con
+l'utente il 2026-08-16/19, non reinventarlo — vedi `SCRIPT_VERSION` in
+testa a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
 tramonto** (dal blend Best Match, giorno d'inizio del periodo) e la
 **fase lunare** (stessa formula a mese sinodico di `moon_phase.py`,
 ricalcolata qui senza bisogno di un file `moon.json` separato — e' un
@@ -563,9 +584,14 @@ tabella una **Legenda parametri** (Parametro | Descrizione | Campo
 osservato "da X a Y unita'" | Soglie colore) allineata a sinistra per
 ogni colonna numerica (le colonne direzionali/categoriche — Dir.V, Dir.O,
 Nota — non hanno una riga in legenda: un range/soglia numerica non
-avrebbe senso per un dato circolare). Il footer riporta sempre `Tabella
-convettiva v{versione}` per sapere a colpo d'occhio a quale revisione del
-template risale una tabella generata in precedenza.
+avrebbe senso per un dato circolare). Sotto la legenda, prima del footer,
+una tabella **Revisioni** (Versione | Novita' introdotte) elenca l'intero
+storico delle versioni dello script — contenuto letto da `CHANGELOG` in
+testa a `table_sparkline.py` (tienilo allineato ai commenti di versione
+sopra `SCRIPT_VERSION` ad ogni nuova release, e' la stessa fonte di
+verita'). Il footer riporta sempre `Tabella convettiva v{versione}` per
+sapere a colpo d'occhio a quale revisione del template risale una tabella
+generata in precedenza.
 
 ATTENZIONE bug gia' preso una volta, non ripeterlo: un `<td>` che ospita
 uno sparkline (`position: relative` + `::before` con `z-index: -1`) DEVE
