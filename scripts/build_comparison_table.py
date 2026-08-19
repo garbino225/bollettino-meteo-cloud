@@ -156,25 +156,36 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
         return " day-start" if (time_cols[i]["hod"] == 0 and i > 0) else ""
 
     classify_as = p.get("classifyAs", p["key"])
+    is_wind = bool(p.get("hasGust"))  # only "vento" today: compact "media/raffica-direzione" format
+
+    def fmt_wind_compact(mean_v, gust_v, dir_v, decimals):
+        s = fmt_val(mean_v, decimals)
+        if gust_v is not None:
+            s += f"/{fmt_val(gust_v, decimals)}"
+        if dir_v:
+            s += f"-{dir_v}"
+        return s
+
     consensus_cells = []
     for i in range(ncols):
         vals = [p["values"][c][i] for c in codes if p["values"].get(c) and p["values"][c][i] is not None]
         avg = sum(vals) / len(vals) if vals else None
         sev = classify(classify_as, avg)
-        dir_html = ""
-        if p.get("hasDirection") and p.get("dirValues") and p["dirValues"][i]:
-            dir_html = f'<span class="dir">{p["dirValues"][i]}</span>'
-        gust_html = ""
-        if p.get("hasGust") and p.get("gustValues"):
-            gvals = [p["gustValues"][c][i] for c in codes if p["gustValues"].get(c) and p["gustValues"][c][i] is not None]
-            if gvals:
-                gavg = sum(gvals) / len(gvals)
-                gsev = classify(classify_as, gavg)
-                gust_html = f'<span class="gust-pill sev-{gsev}" title="Raffica">R{fmt_val(gavg, p["decimals"])}</span>'
         sev_class = f"sev-{sev}" if sev is not None else ""
+        if is_wind:
+            gavg = None
+            if p.get("gustValues"):
+                gvals = [p["gustValues"][c][i] for c in codes if p["gustValues"].get(c) and p["gustValues"][c][i] is not None]
+                gavg = sum(gvals) / len(gvals) if gvals else None
+            dir_v = p.get("dirValues", [None] * ncols)[i]
+            content = f'<span class="cval {sev_class}">{fmt_wind_compact(avg, gavg, dir_v, p["decimals"])}</span>'
+        else:
+            dir_html = ""
+            if p.get("hasDirection") and p.get("dirValues") and p["dirValues"][i]:
+                dir_html = f'<span class="dir">{p["dirValues"][i]}</span>'
+            content = f'<span class="cval {sev_class}">{fmt_val(avg, p["decimals"])}{dir_html}</span>'
         consensus_cells.append(
-            f'<div class="cell consensus-cell{dsc(i)}" style="grid-column:{2 + i};grid-row:1;">'
-            f'<span class="cval {sev_class}">{fmt_val(avg, p["decimals"])}{dir_html}</span>{gust_html}</div>')
+            f'<div class="cell consensus-cell{dsc(i)}" style="grid-column:{2 + i};grid-row:1;">{content}</div>')
 
     prev_group = None
     model_rows = []
@@ -190,12 +201,14 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
                 cells.append(f'<div class="cell na{dsc(i)}">—</div>')
             else:
                 sev = classify(classify_as, v)
-                dir_html = f'<span class="dir">{col_dirs[i]}</span>' if col_dirs and col_dirs[i] else ""
-                gust_html = ""
-                if col_gusts and col_gusts[i] is not None:
-                    gsev = classify(classify_as, col_gusts[i])
-                    gust_html = f'<span class="gust-pill sev-{gsev}" title="Raffica">R{fmt_val(col_gusts[i], p["decimals"])}</span>'
-                cells.append(f'<div class="cell sev-{sev}{dsc(i)}">{fmt_val(v, p["decimals"])}{dir_html}{gust_html}</div>')
+                if is_wind:
+                    gv = col_gusts[i] if col_gusts else None
+                    dv = col_dirs[i] if col_dirs else None
+                    text = fmt_wind_compact(v, gv, dv, p["decimals"])
+                else:
+                    dir_html = f'<span class="dir">{col_dirs[i]}</span>' if col_dirs and col_dirs[i] else ""
+                    text = f'{fmt_val(v, p["decimals"])}{dir_html}'
+                cells.append(f'<div class="cell sev-{sev}{dsc(i)}">{text}</div>')
         group = meta.get("group")
         divider = ""
         if group and group != prev_group and len(codes) > 4:
@@ -525,7 +538,7 @@ def build(args):
     dir_values_by_model = {c: [cardinal(d) for d in degs] for c, degs in dir_deg_per_model.items()}
 
     params.append({"key": "vento", "label": "Vento", "unit": "kn", "decimals": 0, "hasDirection": True, "hasGust": True,
-                    "threshTxt": "medio 10 min + raffica massima · &lt;11 bianco · 11–21 giallo · 22–32 arancio · 33–48 rosso · &ge;49 fucsia (nodi)",
+                    "threshTxt": "formato medio/raffica-direzione, es. 2/3-SO (nodi) · &lt;11 bianco · 11–21 giallo · 22–32 arancio · 33–48 rosso · &ge;49 fucsia (in base al medio)",
                     "modelCodes": model_codes_for(v_wind), "values": v_wind, "gustValues": v_gust,
                     "dirValues": dir_values, "dirValuesByModel": dir_values_by_model,
                     "excludedModels": ex_wind, "openDefault": True})
@@ -623,7 +636,7 @@ def build(args):
         f"<strong>Dati reali</strong>: scaricati da Open-Meteo (aggregatore ECMWF/GFS/ICON/GEM/UKMO/ARPEGE/AROME/HARMONIE/ALADIN/ICON-2I ARPAE) il {dt.datetime.now().strftime('%d/%m/%Y alle %H:%M')} UTC tramite <code>fetch_forecast.py</code>{' + <code>fetch_marine.py</code>' if args.marine else ''}. Non più dati di prova.",
         f"<strong>Modelli confrontati ({len(modelsMeta)}):</strong> " + ", ".join(f"{m['code']}" for m in modelsMeta) + ". <code>best_match</code> (blend automatico di Open-Meteo) è escluso dal confronto per non falsare la media con un modello non distinto.",
         "<strong>Pressione</strong> mostrata come SLP (ridotta al livello del mare), non pressione di stazione.",
-        "<strong>Direzione vento/onda</strong>: media circolare reale tra i modelli disponibili in quell'ora/giorno (non un'assunzione fissa come nei mockup precedenti). Ogni riga modello nella sezione Vento mostra ora anche la propria direzione e raffica, non solo la media.",
+        "<strong>Direzione vento/onda</strong>: media circolare reale tra i modelli disponibili in quell'ora/giorno (non un'assunzione fissa come nei mockup precedenti). La sezione Vento usa il formato compatto <strong>medio/raffica-direzione</strong> (es. 2/3-SO), sia nella media sia in ogni riga modello; il colore della cella segue la severit&agrave; del valore medio.",
     ]
     if args.cloud_base:
         notes_items.append("<strong>Base nubi</strong>: non è una variabile diretta di Open-Meteo — stimata dalla formula standard LCL (altezza ≈ 0,125 km per ogni °C di scarto tra temperatura e punto di rugiada), calcolata dai dati reali di temperatura/dew point di ciascun modello.")
