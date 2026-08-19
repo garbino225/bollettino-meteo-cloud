@@ -162,9 +162,9 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
         s = fmt_val(mean_v, decimals)
         if gust_v is not None:
             s += f"/{fmt_val(gust_v, decimals)}"
-        if dir_v:
-            s += f"-{dir_v}"
-        return s
+        top = f'<span class="wv">{s}</span>'
+        bottom = f'<span class="wd">{dir_v}</span>' if dir_v else ""
+        return f'<div class="wind-compact">{top}{bottom}</div>'
 
     consensus_cells = []
     for i in range(ncols):
@@ -178,7 +178,7 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
                 gvals = [p["gustValues"][c][i] for c in codes if p["gustValues"].get(c) and p["gustValues"][c][i] is not None]
                 gavg = sum(gvals) / len(gvals) if gvals else None
             dir_v = p.get("dirValues", [None] * ncols)[i]
-            content = f'<span class="cval {sev_class}">{fmt_wind_compact(avg, gavg, dir_v, p["decimals"])}</span>'
+            content = f'<div class="cval {sev_class}">{fmt_wind_compact(avg, gavg, dir_v, p["decimals"])}</div>'
         else:
             dir_html = ""
             if p.get("hasDirection") and p.get("dirValues") and p["dirValues"][i]:
@@ -538,7 +538,7 @@ def build(args):
     dir_values_by_model = {c: [cardinal(d) for d in degs] for c, degs in dir_deg_per_model.items()}
 
     params.append({"key": "vento", "label": "Vento", "unit": "kn", "decimals": 0, "hasDirection": True, "hasGust": True,
-                    "threshTxt": "formato medio/raffica-direzione, es. 2/3-SO (nodi) · &lt;11 bianco · 11–21 giallo · 22–32 arancio · 33–48 rosso · &ge;49 fucsia (in base al medio)",
+                    "threshTxt": "medio/raffica in nodi, direzione a capo (es. 2/3, SO sotto) · &lt;11 bianco · 11–21 giallo · 22–32 arancio · 33–48 rosso · &ge;49 fucsia (in base al medio)",
                     "modelCodes": model_codes_for(v_wind), "values": v_wind, "gustValues": v_gust,
                     "dirValues": dir_values, "dirValuesByModel": dir_values_by_model,
                     "excludedModels": ex_wind, "openDefault": True})
@@ -636,7 +636,7 @@ def build(args):
         f"<strong>Dati reali</strong>: scaricati da Open-Meteo (aggregatore ECMWF/GFS/ICON/GEM/UKMO/ARPEGE/AROME/HARMONIE/ALADIN/ICON-2I ARPAE) il {dt.datetime.now().strftime('%d/%m/%Y alle %H:%M')} UTC tramite <code>fetch_forecast.py</code>{' + <code>fetch_marine.py</code>' if args.marine else ''}. Non più dati di prova.",
         f"<strong>Modelli confrontati ({len(modelsMeta)}):</strong> " + ", ".join(f"{m['code']}" for m in modelsMeta) + ". <code>best_match</code> (blend automatico di Open-Meteo) è escluso dal confronto per non falsare la media con un modello non distinto.",
         "<strong>Pressione</strong> mostrata come SLP (ridotta al livello del mare), non pressione di stazione.",
-        "<strong>Direzione vento/onda</strong>: media circolare reale tra i modelli disponibili in quell'ora/giorno (non un'assunzione fissa come nei mockup precedenti). La sezione Vento usa il formato compatto <strong>medio/raffica-direzione</strong> (es. 2/3-SO), sia nella media sia in ogni riga modello; il colore della cella segue la severit&agrave; del valore medio.",
+        "<strong>Direzione vento/onda</strong>: media circolare reale tra i modelli disponibili in quell'ora/giorno (non un'assunzione fissa come nei mockup precedenti). La sezione Vento usa il formato compatto <strong>medio/raffica</strong> con la direzione a capo sotto (es. 2/3 e sotto SO), sia nella media sia in ogni riga modello, per stare dentro alla larghezza della cella anche con 72 colonne orarie; il colore della cella segue la severit&agrave; del valore medio.",
     ]
     if args.cloud_base:
         notes_items.append("<strong>Base nubi</strong>: non è una variabile diretta di Open-Meteo — stimata dalla formula standard LCL (altezza ≈ 0,125 km per ogni °C di scarto tra temperatura e punto di rugiada), calcolata dai dati reali di temperatura/dew point di ciascun modello.")
