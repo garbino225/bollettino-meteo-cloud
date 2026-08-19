@@ -182,13 +182,20 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
         meta = models_lookup.get(code, {})
         cells = []
         col_vals = p["values"].get(code, [None] * ncols)
+        col_dirs = (p.get("dirValuesByModel") or {}).get(code)
+        col_gusts = (p.get("gustValues") or {}).get(code)
         for i in range(ncols):
             v = col_vals[i]
             if v is None:
                 cells.append(f'<div class="cell na{dsc(i)}">—</div>')
             else:
                 sev = classify(classify_as, v)
-                cells.append(f'<div class="cell sev-{sev}{dsc(i)}">{fmt_val(v, p["decimals"])}</div>')
+                dir_html = f'<span class="dir">{col_dirs[i]}</span>' if col_dirs and col_dirs[i] else ""
+                gust_html = ""
+                if col_gusts and col_gusts[i] is not None:
+                    gsev = classify(classify_as, col_gusts[i])
+                    gust_html = f'<span class="gust-pill sev-{gsev}" title="Raffica">R{fmt_val(col_gusts[i], p["decimals"])}</span>'
+                cells.append(f'<div class="cell sev-{sev}{dsc(i)}">{fmt_val(v, p["decimals"])}{dir_html}{gust_html}</div>')
         group = meta.get("group")
         divider = ""
         if group and group != prev_group and len(codes) > 4:
@@ -515,10 +522,13 @@ def build(args):
         degs = [dir_deg_per_model[c][i] for c in dir_deg_per_model if dir_deg_per_model[c][i] is not None]
         dir_values.append(cardinal(circular_mean_deg(degs)))
 
+    dir_values_by_model = {c: [cardinal(d) for d in degs] for c, degs in dir_deg_per_model.items()}
+
     params.append({"key": "vento", "label": "Vento", "unit": "kn", "decimals": 0, "hasDirection": True, "hasGust": True,
                     "threshTxt": "medio 10 min + raffica massima · &lt;11 bianco · 11–21 giallo · 22–32 arancio · 33–48 rosso · &ge;49 fucsia (nodi)",
                     "modelCodes": model_codes_for(v_wind), "values": v_wind, "gustValues": v_gust,
-                    "dirValues": dir_values, "excludedModels": ex_wind, "openDefault": True})
+                    "dirValues": dir_values, "dirValuesByModel": dir_values_by_model,
+                    "excludedModels": ex_wind, "openDefault": True})
 
     # --- Moto ondoso (solo se marine.json fornito) ---
     waveModelsMeta = []
@@ -613,7 +623,7 @@ def build(args):
         f"<strong>Dati reali</strong>: scaricati da Open-Meteo (aggregatore ECMWF/GFS/ICON/GEM/UKMO/ARPEGE/AROME/HARMONIE/ALADIN/ICON-2I ARPAE) il {dt.datetime.now().strftime('%d/%m/%Y alle %H:%M')} UTC tramite <code>fetch_forecast.py</code>{' + <code>fetch_marine.py</code>' if args.marine else ''}. Non più dati di prova.",
         f"<strong>Modelli confrontati ({len(modelsMeta)}):</strong> " + ", ".join(f"{m['code']}" for m in modelsMeta) + ". <code>best_match</code> (blend automatico di Open-Meteo) è escluso dal confronto per non falsare la media con un modello non distinto.",
         "<strong>Pressione</strong> mostrata come SLP (ridotta al livello del mare), non pressione di stazione.",
-        "<strong>Direzione vento/onda</strong>: media circolare reale tra i modelli disponibili in quell'ora/giorno (non un'assunzione fissa come nei mockup precedenti).",
+        "<strong>Direzione vento/onda</strong>: media circolare reale tra i modelli disponibili in quell'ora/giorno (non un'assunzione fissa come nei mockup precedenti). Ogni riga modello nella sezione Vento mostra ora anche la propria direzione e raffica, non solo la media.",
     ]
     if args.cloud_base:
         notes_items.append("<strong>Base nubi</strong>: non è una variabile diretta di Open-Meteo — stimata dalla formula standard LCL (altezza ≈ 0,125 km per ogni °C di scarto tra temperatura e punto di rugiada), calcolata dai dati reali di temperatura/dew point di ciascun modello.")
