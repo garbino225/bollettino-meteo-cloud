@@ -640,7 +640,8 @@ def build(args):
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"' if args.mode == "hourly" else ""
 
-    html = f"""<title>{loc_label} — Tabella meteo {'oraria' if args.mode == 'hourly' else 'giornaliera'} (dati reali)</title>
+    html = f"""<meta charset="utf-8">
+<title>{loc_label} — Tabella meteo {'oraria' if args.mode == 'hourly' else 'giornaliera'} (dati reali)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
 <style>
@@ -701,7 +702,7 @@ def main():
     ap.add_argument("--hours", type=int, default=None, help="Limita le colonne orarie (default: tutte quelle nel JSON)")
     ap.add_argument("--moon-dir", help="Cartella con <data>.json prodotti da moon_phase.py per ogni giorno del periodo")
     ap.add_argument("--cloud-base", action="store_true", help="Includi la sezione Base nubi (stima LCL)")
-    ap.add_argument("--version", default="Rev. 1.0.0")
+    ap.add_argument("--version", default="Rev. 1.0.1")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     build(args)
