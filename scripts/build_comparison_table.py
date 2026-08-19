@@ -684,16 +684,20 @@ def build(args):
 </style>
 <div class="page"{page_style}>
   <div class="masthead">
-    <div class="eyebrow-row">
-      <div class="eyebrow">{eyebrow}</div>
+    <div class="masthead-row">
+      <div class="masthead-main">
+        <div class="eyebrow-row">
+          <div class="eyebrow">{eyebrow}</div>
+        </div>
+        <h1>{title_html}</h1>
+        <p class="sub">{sub_html}</p>
+        <div class="meta-strip">{meta_strip}</div>
+      </div>
       <div class="brand-stack">
         {logo_html}
         <div class="version-badge">{args.version}</div>
       </div>
     </div>
-    <h1>{title_html}</h1>
-    <p class="sub">{sub_html}</p>
-    <div class="meta-strip">{meta_strip}</div>
     <div class="spectrum"></div>
   </div>
 
