@@ -27,7 +27,7 @@ import math
 import os
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_LOGO = os.path.join(SCRIPT_DIR, "..", "assets", "logo.png")
+DEFAULT_LOGO = os.path.join(SCRIPT_DIR, "..", "assets", "logo_garbino.png")
 
 
 def b64_file(path):
@@ -685,8 +685,11 @@ def build(args):
 <div class="page"{page_style}>
   <div class="masthead">
     <div class="eyebrow-row">
-      <div class="brand">{logo_html}<div class="eyebrow">{eyebrow}</div></div>
-      <div class="version-badge">{args.version}</div>
+      <div class="eyebrow">{eyebrow}</div>
+      <div class="brand-stack">
+        {logo_html}
+        <div class="version-badge">{args.version}</div>
+      </div>
     </div>
     <h1>{title_html}</h1>
     <p class="sub">{sub_html}</p>
