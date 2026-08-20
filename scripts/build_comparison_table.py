@@ -277,11 +277,16 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
             xlabels.append(f'<line x1="{x(i):.1f}" y1="{margin_t}" x2="{x(i):.1f}" y2="{margin_t + plot_h}" '
                             f'stroke="var(--panel-line)" stroke-width="1" stroke-dasharray="2,2"/>')
 
+    # Il vline/hline/dot restano SVG (allineati ai dati del grafico), ma
+    # l'etichetta con i valori e' un overlay HTML in position:fixed (vedi
+    # CHART_INTERACTION_JS): un font-size SVG fisso diventerebbe illeggibile
+    # o farebbe traboccare il riquadro quando il grafico si restringe alla
+    # larghezza di uno smartphone (fino a 13 righe media+modelli), mentre un
+    # overlay HTML usa px reali indipendenti dallo scaling del viewBox e puo'
+    # sporgere liberamente sopra il resto della pagina come un tooltip.
     crosshair = ('<g class="chart-crosshair" style="display:none">'
                  '<line class="ch-vline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>'
                  '<line class="ch-hline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>'
-                 '<rect class="ch-label-bg" rx="4" ry="4" fill="var(--panel)" stroke="var(--panel-line)"/>'
-                 '<text class="ch-label" font-size="10.5" font-family="IBM Plex Mono, monospace"></text>'
                  '<circle class="ch-dot" r="4" fill="var(--accent)"/>'
                  '</g>')
 
@@ -289,7 +294,7 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
            + "".join(grid) + "".join(lines) + mean_line + "".join(circles) + "".join(xlabels) + crosshair
            + '</svg>')
     legend = render_chart_legend(model_codes) if model_codes else ""
-    return f'<div>{svg}{legend}</div>'
+    return f'<div>{svg}<div class="chart-tooltip"></div>{legend}</div>'
 
 
 def render_section(p, mode, time_cols, day_labels, models_lookup):

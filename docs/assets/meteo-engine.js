@@ -414,14 +414,12 @@
     var crosshair = '<g class="chart-crosshair" style="display:none">' +
       '<line class="ch-vline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>' +
       '<line class="ch-hline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>' +
-      '<rect class="ch-label-bg" rx="4" ry="4" fill="var(--panel)" stroke="var(--panel-line)"/>' +
-      '<text class="ch-label" font-size="10.5" font-family="IBM Plex Mono, monospace"></text>' +
       '<circle class="ch-dot" r="4" fill="var(--accent)"/></g>';
 
     var svg = '<svg class="chart-svg" viewBox="0 0 ' + W + ' ' + H + '">' +
       grid.join("") + lines.join("") + meanLine + circles.join("") + xlabels.join("") + crosshair + '</svg>';
     var legend = modelCodes.length ? renderChartLegend(modelCodes) : "";
-    return '<div>' + svg + legend + '</div>';
+    return '<div>' + svg + '<div class="chart-tooltip"></div>' + legend + '</div>';
   }
 
   function headCells(mode, timeCols, dayLabels) {

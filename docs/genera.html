@@ -13,7 +13,6 @@
 <script>(function(){try{var t=localStorage.getItem('meteo-garbino-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <button type="button" class="theme-toggle" aria-label="Cambia tema chiaro/scuro" title="Tema chiaro/scuro" onclick="(function(){var d=document.documentElement,mq=window.matchMedia('(prefers-color-scheme: dark)');var cur=d.getAttribute('data-theme')||(mq.matches?'dark':'light');var next=cur==='dark'?'light':'dark';d.setAttribute('data-theme',next);try{localStorage.setItem('meteo-garbino-theme',next);}catch(e){}})()"><span class="theme-toggle-icon icon-sun">☀️</span><span class="theme-toggle-icon icon-moon">🌙</span></button>
 <script>(function(){
-  var SVG_NS = 'http://www.w3.org/2000/svg';
   function svgPoint(svg, clientX, clientY){
     var pt = svg.createSVGPoint();
     pt.x = clientX; pt.y = clientY;
@@ -30,50 +29,48 @@
     return best;
   }
   function colorVar(c){ return c.indexOf('var(') === 0 ? c : ('var(' + c + ')'); }
+  function escHtml(s){
+    return String(s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
   function updateCrosshair(svg, pt){
     var g = svg.querySelector('.chart-crosshair');
+    var tooltip = svg.parentElement && svg.parentElement.querySelector(':scope > .chart-tooltip');
     if (!g || !pt) return;
     var vb = svg.viewBox.baseVal;
     var x = parseFloat(pt.getAttribute('data-x')), y = parseFloat(pt.getAttribute('data-y'));
-    var dateTimeLabel = pt.getAttribute('data-label') || '';
-    var rows = (pt.getAttribute('data-rows') || '').split('|').filter(Boolean).map(function(r){
-      var parts = r.split(',');
-      return { text: parts[0] + ': ' + parts[1], color: colorVar(parts[2]), bold: false };
-    });
-    rows.unshift({ text: dateTimeLabel, color: 'var(--ink)', bold: true });
-    var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'),
-        dot = g.querySelector('.ch-dot'), bg = g.querySelector('.ch-label-bg'), lbl = g.querySelector('.ch-label');
+    var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'), dot = g.querySelector('.ch-dot');
     vline.setAttribute('x1', x); vline.setAttribute('x2', x);
     vline.setAttribute('y1', vb.y); vline.setAttribute('y2', vb.y + vb.height);
     hline.setAttribute('y1', y); hline.setAttribute('y2', y);
     hline.setAttribute('x1', vb.x); hline.setAttribute('x2', vb.x + vb.width);
     dot.setAttribute('cx', x); dot.setAttribute('cy', y);
-
-    while (lbl.firstChild) lbl.removeChild(lbl.firstChild);
-    var lineH = 13, padX = 8, padTop = 13;
-    var maxLen = 0;
-    rows.forEach(function(r){ maxLen = Math.max(maxLen, r.text.length); });
-    var boxW = maxLen * 5.9 + padX * 2;
-    var boxH = rows.length * lineH + 10;
-    var lx = x + 10;
-    if (lx + boxW > vb.x + vb.width) lx = x - boxW - 10;
-    if (lx < vb.x) lx = vb.x + 2;
-    var ly = y - boxH - 8;
-    if (ly < vb.y) ly = y + 12;
-    if (ly + boxH > vb.y + vb.height) ly = vb.y + vb.height - boxH - 2;
-
-    rows.forEach(function(r, i){
-      var tspan = document.createElementNS(SVG_NS, 'tspan');
-      tspan.setAttribute('x', lx + padX);
-      tspan.setAttribute('y', ly + padTop + i * lineH);
-      tspan.setAttribute('fill', r.color);
-      if (r.bold) tspan.setAttribute('font-weight', '700');
-      tspan.textContent = r.text;
-      lbl.appendChild(tspan);
-    });
-
-    bg.setAttribute('x', lx); bg.setAttribute('y', ly); bg.setAttribute('width', boxW); bg.setAttribute('height', boxH);
     g.style.display = '';
+
+    if (!tooltip) return;
+    var dateTimeLabel = pt.getAttribute('data-label') || '';
+    var rows = (pt.getAttribute('data-rows') || '').split('|').filter(Boolean).map(function(r){
+      var parts = r.split(',');
+      return { label: parts[0], value: parts[1], color: colorVar(parts[2]) };
+    });
+    tooltip.innerHTML = '<div class="tt-date">' + escHtml(dateTimeLabel) + '</div>' +
+      rows.map(function(r){
+        return '<div class="tt-row" style="color:' + r.color + '">' + escHtml(r.label) + ': ' + escHtml(r.value) + '</div>';
+      }).join('');
+    tooltip.style.display = 'block';
+
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    var spt = svg.createSVGPoint();
+    spt.x = x; spt.y = y;
+    var screenPt = spt.matrixTransform(ctm);
+    var tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+    var left = screenPt.x + 14, top = screenPt.y - th - 14;
+    if (left + tw > window.innerWidth - 4) left = screenPt.x - tw - 14;
+    if (left < 4) left = 4;
+    if (top < 4) top = screenPt.y + 14;
+    if (top + th > window.innerHeight - 4) top = window.innerHeight - th - 4;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
   }
   function handleMove(e){
     var svg = e.target && e.target.closest && e.target.closest('.chart-svg');
@@ -127,7 +124,7 @@
     <div class="gen-row-inline">
       <div class="gen-field gen-hidden" id="field-city">
         <span class="gen-label">Nome citt&agrave;</span>
-        <input type="text" id="input-city" placeholder="es. Bologna" autocomplete="off">
+        <input type="text" id="input-city" placeholder="es. Imola" autocomplete="off">
       </div>
       <div class="gen-field gen-hidden" id="field-lat">
         <span class="gen-label">Latitudine</span>
@@ -169,6 +166,6 @@
 
   <div id="gen-result"></div>
 
-  <footer class="site-footer">MeteoGarbino225&reg; &middot; Rev. 1.0.15 &middot; <a href="revisioni.html">Revisioni e novit&agrave;</a></footer>
+  <footer class="site-footer">MeteoGarbino225&reg; &middot; Rev. 1.0.16 &middot; <a href="revisioni.html">Revisioni e novit&agrave;</a></footer>
 </div>
 <script src="assets/meteo-engine.js"></script>

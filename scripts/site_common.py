@@ -42,7 +42,6 @@ THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('mete
 # grafico restano comunque entrambi presenti nell'HTML: il grafico (SVG puro,
 # nessun JS necessario per disegnarlo) e' quello visibile di default.
 CHART_INTERACTION_JS = '''<script>(function(){
-  var SVG_NS = 'http://www.w3.org/2000/svg';
   function svgPoint(svg, clientX, clientY){
     var pt = svg.createSVGPoint();
     pt.x = clientX; pt.y = clientY;
@@ -59,50 +58,57 @@ CHART_INTERACTION_JS = '''<script>(function(){
     return best;
   }
   function colorVar(c){ return c.indexOf('var(') === 0 ? c : ('var(' + c + ')'); }
+  function escHtml(s){
+    return String(s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
+  // L'etichetta con i valori e' un tooltip HTML in position:fixed (vedi CSS
+  // .chart-tooltip), non testo SVG: un font-size SVG fisso diventerebbe
+  // illeggibile o farebbe traboccare il riquadro quando il grafico si
+  // restringe alla larghezza di uno smartphone (fino a 13 righe media+
+  // modelli su un grafico alto poche decine di pixel). Un overlay HTML usa
+  // px reali indipendenti dallo scaling del viewBox, e puo' sporgere
+  // liberamente sopra il resto della pagina come un tooltip normale (non e'
+  // vincolato all'altezza del grafico). vline/hline/dot restano invece SVG,
+  // allineati ai dati.
   function updateCrosshair(svg, pt){
     var g = svg.querySelector('.chart-crosshair');
+    var tooltip = svg.parentElement && svg.parentElement.querySelector(':scope > .chart-tooltip');
     if (!g || !pt) return;
     var vb = svg.viewBox.baseVal;
     var x = parseFloat(pt.getAttribute('data-x')), y = parseFloat(pt.getAttribute('data-y'));
-    var dateTimeLabel = pt.getAttribute('data-label') || '';
-    var rows = (pt.getAttribute('data-rows') || '').split('|').filter(Boolean).map(function(r){
-      var parts = r.split(',');
-      return { text: parts[0] + ': ' + parts[1], color: colorVar(parts[2]), bold: false };
-    });
-    rows.unshift({ text: dateTimeLabel, color: 'var(--ink)', bold: true });
-    var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'),
-        dot = g.querySelector('.ch-dot'), bg = g.querySelector('.ch-label-bg'), lbl = g.querySelector('.ch-label');
+    var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'), dot = g.querySelector('.ch-dot');
     vline.setAttribute('x1', x); vline.setAttribute('x2', x);
     vline.setAttribute('y1', vb.y); vline.setAttribute('y2', vb.y + vb.height);
     hline.setAttribute('y1', y); hline.setAttribute('y2', y);
     hline.setAttribute('x1', vb.x); hline.setAttribute('x2', vb.x + vb.width);
     dot.setAttribute('cx', x); dot.setAttribute('cy', y);
-
-    while (lbl.firstChild) lbl.removeChild(lbl.firstChild);
-    var lineH = 13, padX = 8, padTop = 13;
-    var maxLen = 0;
-    rows.forEach(function(r){ maxLen = Math.max(maxLen, r.text.length); });
-    var boxW = maxLen * 5.9 + padX * 2;
-    var boxH = rows.length * lineH + 10;
-    var lx = x + 10;
-    if (lx + boxW > vb.x + vb.width) lx = x - boxW - 10;
-    if (lx < vb.x) lx = vb.x + 2;
-    var ly = y - boxH - 8;
-    if (ly < vb.y) ly = y + 12;
-    if (ly + boxH > vb.y + vb.height) ly = vb.y + vb.height - boxH - 2;
-
-    rows.forEach(function(r, i){
-      var tspan = document.createElementNS(SVG_NS, 'tspan');
-      tspan.setAttribute('x', lx + padX);
-      tspan.setAttribute('y', ly + padTop + i * lineH);
-      tspan.setAttribute('fill', r.color);
-      if (r.bold) tspan.setAttribute('font-weight', '700');
-      tspan.textContent = r.text;
-      lbl.appendChild(tspan);
-    });
-
-    bg.setAttribute('x', lx); bg.setAttribute('y', ly); bg.setAttribute('width', boxW); bg.setAttribute('height', boxH);
     g.style.display = '';
+
+    if (!tooltip) return;
+    var dateTimeLabel = pt.getAttribute('data-label') || '';
+    var rows = (pt.getAttribute('data-rows') || '').split('|').filter(Boolean).map(function(r){
+      var parts = r.split(',');
+      return { label: parts[0], value: parts[1], color: colorVar(parts[2]) };
+    });
+    tooltip.innerHTML = '<div class="tt-date">' + escHtml(dateTimeLabel) + '</div>' +
+      rows.map(function(r){
+        return '<div class="tt-row" style="color:' + r.color + '">' + escHtml(r.label) + ': ' + escHtml(r.value) + '</div>';
+      }).join('');
+    tooltip.style.display = 'block';
+
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    var spt = svg.createSVGPoint();
+    spt.x = x; spt.y = y;
+    var screenPt = spt.matrixTransform(ctm);
+    var tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+    var left = screenPt.x + 14, top = screenPt.y - th - 14;
+    if (left + tw > window.innerWidth - 4) left = screenPt.x - tw - 14;
+    if (left < 4) left = 4;
+    if (top < 4) top = screenPt.y + 14;
+    if (top + th > window.innerHeight - 4) top = window.innerHeight - th - 4;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
   }
   function handleMove(e){
     var svg = e.target && e.target.closest && e.target.closest('.chart-svg');
@@ -132,6 +138,10 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.16", "date": "20/08/2026", "changes": [
+        "Etichetta del puntatore del grafico: riscritta come riquadro HTML sovrapposto alla pagina invece che testo SVG. Un +2pt sul testo SVG restava comunque illeggibile su smartphone (il grafico si restringe alla larghezza dello schermo e ne scala in giu' anche il testo) o avrebbe fatto traboccare il riquadro nei parametri con piu' modelli (fino a 13 righe): ora il testo usa px reali (13px), sempre leggibile e identico su ogni dispositivo, e il riquadro puo' sporgere liberamente sopra il resto della pagina come un tooltip.",
+        "Generatore live: il campo \"Nome citt&agrave;\" mostra ora \"es. Imola\" come esempio invece di \"es. Bologna\", coerente con Imola come localit&agrave; principale del sito.",
+    ]},
     {"version": "1.0.15", "date": "20/08/2026", "changes": [
         "Logo centrato orizzontalmente nell'intestazione.",
         "Corretto un bug di layout che lasciava circa 260px di spazio vuoto sotto il blocco titolo/descrizione: una regola CSS scritta per il vecchio impaginato (logo a fianco del testo) faceva ancora crescere in verticale il blocco titolo dopo lo spostamento del logo sopra il testo.",
