@@ -22,7 +22,12 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.join(SCRIPT_DIR, "..")
 OUTPUT_DIR = os.path.join(ROOT_DIR, "output")
 DOCS_DIR = os.path.join(ROOT_DIR, "docs")
+DOCS_ASSETS_DIR = os.path.join(DOCS_DIR, "assets")
 LOGO_PATH = os.path.join(ROOT_DIR, "assets", "logo_garbino.png")
+
+# docs/genera.html e docs/assets/meteo-engine.js sono scritti a mano (il
+# generatore live client-side): questo script li lascia intatti, copia solo
+# gli asset condivisi (CSS, logo) e aggiunge la card di collegamento.
 
 
 def b64_file(path):
@@ -45,6 +50,11 @@ def page_meta(path):
 
 def build():
     os.makedirs(DOCS_DIR, exist_ok=True)
+    os.makedirs(DOCS_ASSETS_DIR, exist_ok=True)
+
+    shutil.copyfile(os.path.join(SCRIPT_DIR, "table_engine.css"), os.path.join(DOCS_ASSETS_DIR, "table_engine.css"))
+    if os.path.exists(LOGO_PATH):
+        shutil.copyfile(LOGO_PATH, os.path.join(DOCS_ASSETS_DIR, "logo_garbino.png"))
 
     sources = sorted(glob.glob(os.path.join(OUTPUT_DIR, "*.html")))
     if not sources:
@@ -63,7 +73,13 @@ def build():
     if os.path.exists(LOGO_PATH):
         logo_html = f'<img class="brand-logo" src="data:image/png;base64,{b64_file(LOGO_PATH)}" alt="Meteo Garbino">'
 
-    cards_html = "\n".join(
+    genera_card = '''<a class="site-card site-card-highlight" href="genera.html">
+      <div class="site-card-title">Genera il tuo bollettino</div>
+      <div class="site-card-sub">Scegli citt&agrave; (o coordinate), durata e risoluzione oraria: la tabella viene generata al volo nel browser con dati reali Open-Meteo.</div>
+      <div class="site-card-foot"><span class="version-badge">live</span><span class="site-card-arrow">apri &rarr;</span></div>
+    </a>'''
+
+    cards_html = genera_card + "\n" + "\n".join(
         f'''<a class="site-card" href="{c["file"]}">
       <div class="site-card-title">{c["title"] or c["file"]}</div>
       <div class="site-card-sub">{c["sub"] or "&nbsp;"}</div>
@@ -85,6 +101,7 @@ def build():
 .site-card-sub{{ font-size:13px; color:var(--ink-soft); line-height:1.5; flex:1; }}
 .site-card-foot{{ display:flex; align-items:center; justify-content:space-between; margin-top:4px; }}
 .site-card-arrow{{ font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:600; color:var(--accent); }}
+.site-card-highlight{{ border-color:var(--accent); background:var(--accent-soft); }}
 </style>
 <div class="page">
   <div class="masthead">

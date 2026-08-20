@@ -1,0 +1,80 @@
+<meta charset="utf-8">
+<title>Meteo Garbino — Genera il tuo bollettino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/table_engine.css">
+<style>
+/* Il report generato viene iniettato dentro #gen-result: display:contents lo
+   toglie dal flusso a scatola, cosi' i suoi figli (masthead/sections/notes...)
+   diventano figli diretti di .page e riprendono il gap:24px di .page. */
+#gen-result{ display:contents; }
+</style>
+<div class="page">
+  <div class="masthead">
+    <div class="masthead-row">
+      <div class="masthead-main">
+        <div class="eyebrow-row">
+          <div class="eyebrow">Generatore live &middot; dati reali Open-Meteo</div>
+        </div>
+        <h1>Genera il tuo <em>bollettino</em></h1>
+        <p class="sub">Scegli localit&agrave;, durata e risoluzione oraria: la tabella multi-modello viene calcolata al volo nel tuo browser, chiamando direttamente le API pubbliche di Open-Meteo (nessun server nel mezzo).</p>
+      </div>
+      <div class="brand-stack">
+        <img class="brand-logo" src="assets/logo_garbino.png" alt="Meteo Garbino">
+      </div>
+    </div>
+    <div class="spectrum"></div>
+  </div>
+
+  <form class="gen-form" id="gen-form">
+    <div class="gen-row">
+      <span class="gen-label">Localit&agrave;</span>
+      <div class="gen-loc-toggle">
+        <label class="gen-pill"><input type="radio" name="locmode" value="city" checked><span>Citt&agrave;</span></label>
+        <label class="gen-pill"><input type="radio" name="locmode" value="coords"><span>Coordinate (lat/lon)</span></label>
+      </div>
+    </div>
+
+    <div class="gen-row-inline">
+      <div class="gen-field" id="field-city">
+        <span class="gen-label">Nome citt&agrave;</span>
+        <input type="text" id="input-city" placeholder="es. Bologna" autocomplete="off">
+      </div>
+      <div class="gen-field gen-hidden" id="field-lat">
+        <span class="gen-label">Latitudine</span>
+        <input type="number" id="input-lat" step="0.0001" min="-90" max="90" placeholder="es. 44.4939">
+      </div>
+      <div class="gen-field gen-hidden" id="field-lon">
+        <span class="gen-label">Longitudine</span>
+        <input type="number" id="input-lon" step="0.0001" min="-180" max="180" placeholder="es. 11.3427">
+      </div>
+    </div>
+
+    <div class="gen-row">
+      <span class="gen-label">Durata</span>
+      <div class="gen-pillgroup" id="group-days">
+        <label class="gen-pill"><input type="radio" name="days" value="3"><span>3 giorni</span></label>
+        <label class="gen-pill"><input type="radio" name="days" value="7" checked><span>7 giorni</span></label>
+      </div>
+    </div>
+
+    <div class="gen-row">
+      <span class="gen-label">Risoluzione oraria</span>
+      <div class="gen-pillgroup" id="group-step">
+        <label class="gen-pill"><input type="radio" name="step" value="24" checked><span>24 ore (giornaliera)</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="12"><span>ogni 12 ore</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="6"><span>ogni 6 ore</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="3"><span>ogni 3 ore</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="1"><span>ogni ora</span></label>
+      </div>
+    </div>
+
+    <div>
+      <button type="submit" class="gen-submit" id="gen-submit">Genera bollettino</button>
+      <div class="gen-status" id="gen-status"></div>
+    </div>
+  </form>
+
+  <div id="gen-result"></div>
+</div>
+<script src="assets/meteo-engine.js"></script>

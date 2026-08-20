@@ -95,7 +95,7 @@ summary .desc{ font-family:"IBM Plex Sans",sans-serif; font-weight:500; font-siz
 summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:11px; color:var(--sev2-fg); background:var(--sev1-bg); padding:2px 7px; border-radius:5px; }
 
 .table-wrap{ overflow-x:auto; padding:6px 10px 14px; }
-.pgrid{ display:grid; grid-template-columns:150px repeat(7,1fr); }
+.pgrid{ display:grid; grid-template-columns:150px repeat(var(--ncols,7),1fr); }
 .pgrid.hourly{ grid-template-columns:150px repeat(var(--ncols),40px); min-width:calc(150px + var(--ncols)*40px); }
 
 .cell{ display:flex; align-items:center; padding:4px 10px; font-family:"IBM Plex Mono", monospace; border-bottom:1px solid var(--panel-line); }
@@ -156,6 +156,32 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
 .revisions td.rv-date{ font-family:"IBM Plex Mono", monospace; white-space:nowrap; color:var(--ink-soft); }
 .revisions td.rv-changes ul{ margin:0; padding-left:16px; display:flex; flex-direction:column; gap:3px; }
 
+/* --- Generatore live (docs/genera.html) --- */
+.gen-form{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:20px 22px; display:flex; flex-direction:column; gap:16px; }
+.gen-row{ display:flex; flex-direction:column; gap:8px; }
+.gen-row-inline{ display:flex; flex-wrap:wrap; gap:20px; }
+.gen-label{ font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); }
+.gen-pillgroup{ display:flex; flex-wrap:wrap; gap:6px; }
+.gen-pill{ position:relative; }
+.gen-pill input{ position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+.gen-pill span{ display:inline-flex; align-items:center; padding:7px 14px; border-radius:999px; border:1px solid var(--panel-line);
+  background:var(--panel-alt); color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; user-select:none; transition:background .12s,color .12s,border-color .12s; }
+.gen-pill input:checked + span{ background:var(--accent); border-color:var(--accent); color:#fff; }
+.gen-pill input:focus-visible + span{ outline:2px solid var(--accent); outline-offset:2px; }
+.gen-field{ display:flex; flex-direction:column; gap:6px; min-width:160px; flex:1 1 200px; }
+.gen-field input[type="text"], .gen-field input[type="number"]{
+  font-family:"IBM Plex Sans", sans-serif; font-size:14px; color:var(--ink); background:var(--panel-alt);
+  border:1px solid var(--panel-line); border-radius:8px; padding:9px 12px; width:100%; }
+.gen-field input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+.gen-coords{ display:flex; gap:10px; }
+.gen-loc-toggle{ display:flex; gap:8px; }
+.gen-submit{ align-self:flex-start; font-family:"IBM Plex Sans", sans-serif; font-size:14.5px; font-weight:700; color:#fff;
+  background:var(--accent); border:none; border-radius:8px; padding:11px 22px; cursor:pointer; }
+.gen-submit:disabled{ opacity:0.55; cursor:progress; }
+.gen-status{ font-family:"IBM Plex Mono", monospace; font-size:12.5px; color:var(--ink-soft); min-height:1.4em; }
+.gen-status.err{ color:var(--sev3-bg); font-weight:600; }
+.gen-hidden{ display:none !important; }
+
 @media (max-width:640px){ .page{ padding:28px 14px 48px; } }
 
 .site-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
@@ -165,6 +191,7 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
 .site-card-sub{ font-size:13px; color:var(--ink-soft); line-height:1.5; flex:1; }
 .site-card-foot{ display:flex; align-items:center; justify-content:space-between; margin-top:4px; }
 .site-card-arrow{ font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:600; color:var(--accent); }
+.site-card-highlight{ border-color:var(--accent); background:var(--accent-soft); }
 </style>
 <div class="page">
   <div class="masthead">
@@ -184,25 +211,30 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
   </div>
 
   <div class="site-grid">
-    <a class="site-card" href="bologna_giornaliera.html">
+    <a class="site-card site-card-highlight" href="genera.html">
+      <div class="site-card-title">Genera il tuo bollettino</div>
+      <div class="site-card-sub">Scegli citt&agrave; (o coordinate), durata e risoluzione oraria: la tabella viene generata al volo nel browser con dati reali Open-Meteo.</div>
+      <div class="site-card-foot"><span class="version-badge">live</span><span class="site-card-arrow">apri &rarr;</span></div>
+    </a>
+<a class="site-card" href="bologna_giornaliera.html">
       <div class="site-card-title">Bologna — Tabella meteo giornaliera (dati reali)</div>
       <div class="site-card-sub">Emilia-Romagna · Mar 18/08 – Lun 24/08 2026. Fonte: Open-Meteo (dati reali multi-modello).</div>
-      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.4</span><span class="site-card-arrow">apri &rarr;</span></div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.5</span><span class="site-card-arrow">apri &rarr;</span></div>
     </a>
 <a class="site-card" href="monte_fumaiolo_oraria.html">
       <div class="site-card-title">Monte Fumaiolo — Tabella meteo oraria (dati reali)</div>
       <div class="site-card-sub">Emilia-Romagna · 1408 m s.l.m. · Mer 19/08 – Ven 21/08 2026. Fonte: Open-Meteo (dati reali multi-modello).</div>
-      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.4</span><span class="site-card-arrow">apri &rarr;</span></div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.5</span><span class="site-card-arrow">apri &rarr;</span></div>
     </a>
 <a class="site-card" href="puntamarina_oraria.html">
       <div class="site-card-title">Punta Marina — Tabella meteo oraria (dati reali)</div>
       <div class="site-card-sub">Emilia-Romagna · Mar 18/08 – Gio 20/08 2026 · localit&agrave; costiera, incluso moto ondoso. Fonte: Open-Meteo (dati reali multi-modello).</div>
-      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.4</span><span class="site-card-arrow">apri &rarr;</span></div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.5</span><span class="site-card-arrow">apri &rarr;</span></div>
     </a>
 <a class="site-card" href="san_benedetto_del_tronto_oraria.html">
       <div class="site-card-title">San Benedetto del Tronto — Tabella meteo oraria (dati reali)</div>
       <div class="site-card-sub">Marche · Mar 18/08 – Gio 20/08 2026 · localit&agrave; costiera, incluso moto ondoso. Fonte: Open-Meteo (dati reali multi-modello).</div>
-      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.4</span><span class="site-card-arrow">apri &rarr;</span></div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.5</span><span class="site-card-arrow">apri &rarr;</span></div>
     </a>
   </div>
 </div>
