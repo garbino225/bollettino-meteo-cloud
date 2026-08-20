@@ -793,6 +793,7 @@ def build(args):
     # --- Moto ondoso e marea (solo se marine.json fornito) ---
     waveModelsMeta = []
     coastal_params = []
+    wave_param = None
     if args.marine:
         marine = load_json(args.marine)
         wave_models = marine.get("wave_models", {})
@@ -835,11 +836,11 @@ def build(args):
 
         wave_dir_values_by_model = {c: [cardinal(d) for d in degs] for c, degs in wave_dir_per_model.items()}
 
-        params.append({"key": "ondoso", "label": "Moto ondoso (altezza onda)", "unit": "m", "decimals": 2, "hasDirection": True,
-                        "threshTxt": "&lt;0,3 bianco (calmo) · 0,3–0,6 giallo (poco mosso) · 0,6–1,0 arancio (mosso) · 1,0–1,5 rosso (molto mosso) · &gt;1,5 fucsia (agitato)",
-                        "modelCodes": [c for c in [WAVE_MODEL_META[mk]["code"] for mk in wm_ok] if c in v_wave],
-                        "values": v_wave, "dirValues": wave_dir_values, "dirValuesByModel": wave_dir_values_by_model,
-                        "excludedModels": ex_wave, "openDefault": True})
+        wave_param = {"key": "ondoso", "label": "Moto ondoso (altezza onda)", "unit": "m", "decimals": 2, "hasDirection": True,
+                      "threshTxt": "&lt;0,3 bianco (calmo) · 0,3–0,6 giallo (poco mosso) · 0,6–1,0 arancio (mosso) · 1,0–1,5 rosso (molto mosso) · &gt;1,5 fucsia (agitato)",
+                      "modelCodes": [c for c in [WAVE_MODEL_META[mk]["code"] for mk in wm_ok] if c in v_wave],
+                      "values": v_wave, "dirValues": wave_dir_values, "dirValuesByModel": wave_dir_values_by_model,
+                      "excludedModels": ex_wave, "openDefault": True}
 
         # Marea: livello del mare (sea_level_height_msl), unica sorgente
         # (Open-Meteo Marine API la espone solo su best_match, non per
@@ -894,7 +895,7 @@ def build(args):
                     f"{IT_WEEKDAYS[dt.date.fromisoformat(seen_days[-1]).weekday()]} {seen_days[-1].split('-')[2]}/{seen_days[-1].split('-')[1]} {seen_days[-1].split('-')[0]}"
 
     all_excluded = []
-    for p in params:
+    for p in params + ([wave_param] if wave_param else []):
         for e in p.get("excludedModels", []):
             all_excluded.append(f"{p['label']}: {e['code']} ({e['reason']})")
 
@@ -936,13 +937,17 @@ def build(args):
 
     almanac_html = render_almanac(day_labels, alba, tramonto, luna)
     sections_html = "\n".join(render_section(p, args.mode, time_cols, day_labels, models_lookup) for p in params)
-    coastal_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in coastal_params)
 
-    # Marea: sorgente singola (Best Match), mostrata subito dopo le sezioni
-    # multi-modello (che includono il moto ondoso per le localita' costiere).
-    marea_block = (f'<div style="margin:2px 2px 2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, '
-                    f'sorgente singola: modello Best Match (GTSM)</span></div>'
-                    f'<div class="sections">{coastal_sections_html}</div>') if coastal_params else ""
+    # "Mare": moto ondoso (confronto multi-modello) e marea (sorgente
+    # singola, Best Match) insieme in un'unica sezione per le localita'
+    # costiere, mostrata subito dopo le sezioni Modelli.
+    sea_sections = []
+    if wave_param is not None:
+        sea_sections.append(render_section(wave_param, args.mode, time_cols, day_labels, models_lookup))
+    sea_sections.extend(render_convective_section(p, args.mode, time_cols, day_labels) for p in coastal_params)
+    sea_sections_html = "\n".join(sea_sections)
+    marea_block = (f'<div style="margin:2px 2px 2px;"><span class="legend-title">Mare &middot; localit&agrave; costiera</span></div>'
+                    f'<div class="sections">{sea_sections_html}</div>') if sea_sections else ""
 
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"'

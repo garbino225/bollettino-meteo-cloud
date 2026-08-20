@@ -936,6 +936,7 @@
 
     // --- Moto ondoso (solo se marine.json restituisce dati per questo punto) ---
     var waveModelsMeta = [], wmOk = Object.keys(waveModels).filter(function (mk) { return !waveModels[mk].error && waveModels[mk].hourly; });
+    var waveParam = null;
     if (wmOk.length) {
       var vWave = {}, exWave = [], waveDirPerModel = {};
       function waveSeries(mk, field, aggDaily) {
@@ -960,10 +961,10 @@
         }
         var waveDirByModel = {};
         Object.keys(waveDirPerModel).forEach(function (c) { waveDirByModel[c] = waveDirPerModel[c].map(cardinal); });
-        params.push({ key: "ondoso", label: "Moto ondoso (altezza onda)", unit: "m", decimals: 2, hasDirection: true,
+        waveParam = { key: "ondoso", label: "Moto ondoso (altezza onda)", unit: "m", decimals: 2, hasDirection: true,
           threshTxt: "&lt;0,3 bianco (calmo) · 0,3–0,6 giallo (poco mosso) · 0,6–1,0 arancio (mosso) · 1,0–1,5 rosso (molto mosso) · &gt;1,5 fucsia (agitato)",
           modelCodes: waveModelsMeta.map(function (m) { return m.code; }).filter(function (c) { return vWave.hasOwnProperty(c); }),
-          values: vWave, dirValues: waveDirValues, dirValuesByModel: waveDirByModel, excludedModels: exWave });
+          values: vWave, dirValues: waveDirValues, dirValuesByModel: waveDirByModel, excludedModels: exWave, openDefault: false };
       }
     }
 
@@ -1012,7 +1013,7 @@
         weekdayOf(seenDays[seenDays.length - 1]) + " " + seenDays[seenDays.length - 1].slice(8, 10) + "/" + seenDays[seenDays.length - 1].slice(5, 7));
 
     var allExcluded = [];
-    params.forEach(function (p) { (p.excludedModels || []).forEach(function (e) { allExcluded.push(p.label + ": " + e.code + " (" + e.reason + ")"); }); });
+    params.concat(waveParam ? [waveParam] : []).forEach(function (p) { (p.excludedModels || []).forEach(function (e) { allExcluded.push(p.label + ": " + e.code + " (" + e.reason + ")"); }); });
 
     var allModelsMeta = modelsMeta.concat(waveModelsMeta);
     var modelsLookup = {}; allModelsMeta.forEach(function (m) { modelsLookup[m.code] = m; });
@@ -1034,7 +1035,14 @@
 
     var almanacHtml = renderAlmanac(dayLabels, alba, tramonto, luna);
     var sectionsHtml = params.map(function (p) { return renderSection(p, mode, timeCols, dayLabels, modelsLookup); }).join("\n");
-    var coastalSectionsHtml = coastalParams.map(function (p) { return renderConvectiveSection(p, mode, timeCols, dayLabels); }).join("\n");
+
+    // "Mare": moto ondoso (confronto multi-modello) e marea (sorgente
+    // singola, Best Match) insieme in un'unica sezione per le localita'
+    // costiere, mostrata subito dopo le sezioni Modelli.
+    var seaSections = [];
+    if (waveParam) seaSections.push(renderSection(waveParam, mode, timeCols, dayLabels, modelsLookup));
+    coastalParams.forEach(function (p) { seaSections.push(renderConvectiveSection(p, mode, timeCols, dayLabels)); });
+    var seaSectionsHtml = seaSections.join("\n");
 
     var notesItems = [
       "<strong>Dati reali</strong>: scaricati da Open-Meteo direttamente dal tuo browser (nessun server nel mezzo) il " + new Date().toLocaleString("it-IT") + ".",
@@ -1055,8 +1063,8 @@
       '<div class="almanac-panel"><span class="legend-title">Alba &middot; tramonto &middot; fase lunare (reali)</span>' +
       '<div class="table-wrap" style="padding:0;">' + almanacHtml + '</div></div>' +
       '<div class="sections" style="--ncols:' + ncols + ';">' + sectionsHtml + '</div>' +
-      (coastalParams.length ? '<div style="margin:2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, sorgente singola: modello Best Match (GTSM)</span></div>' +
-        '<div class="sections" style="--ncols:' + ncols + ';">' + coastalSectionsHtml + '</div>' : "") +
+      (seaSections.length ? '<div style="margin:2px;"><span class="legend-title">Mare &middot; localit&agrave; costiera</span></div>' +
+        '<div class="sections" style="--ncols:' + ncols + ';">' + seaSectionsHtml + '</div>' : "") +
       '<div class="notes"><h2>Note</h2>' + notesHtml + '</div>';
   }
 })();

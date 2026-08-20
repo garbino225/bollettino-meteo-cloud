@@ -177,6 +177,10 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.22", "date": "20/08/2026", "changes": [
+        "Moto ondoso spostato dentro la sezione marea per le localit&agrave; costiere, rinominata \"Mare\" (prima era nell'elenco Modelli insieme a temperatura/vento/ecc., separata dalla marea).",
+        "Generatore live: intestazione semplificata da \"Generatore live &middot; dati reali Open-Meteo / Genera il tuo bollettino\" a \"Dati previsionali\".",
+    ]},
     {"version": "1.0.21", "date": "20/08/2026", "changes": [
         "Rimossi del tutto i parametri convettivi (CAPE, CIN, Lifted Index, zero termico, strato limite, acqua precipitabile) e il menu Modelli/Parametri introdotto per ospitarli nella revisione precedente. Restano moto ondoso e marea per le localit&agrave; costiere, di nuovo nell'unico elenco insieme agli altri parametri.",
     ]},
