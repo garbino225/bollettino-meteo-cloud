@@ -132,6 +132,11 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.15", "date": "20/08/2026", "changes": [
+        "Logo centrato orizzontalmente nell'intestazione.",
+        "Corretto un bug di layout che lasciava circa 260px di spazio vuoto sotto il blocco titolo/descrizione: una regola CSS scritta per il vecchio impaginato (logo a fianco del testo) faceva ancora crescere in verticale il blocco titolo dopo lo spostamento del logo sopra il testo.",
+        "Generatore live: se la citt&agrave; cercata non viene trovata, propone in ordine alfabetico le localit&agrave; pi&ugrave; simili (accorciando progressivamente il nome cercato finch&eacute; non trova corrispondenze); un clic su un suggerimento genera subito il bollettino per quella localit&agrave;.",
+    ]},
     {"version": "1.0.14", "date": "20/08/2026", "changes": [
         "Corretto il puntatore del grafico: dalla v1.0.11 mostrava media e modelli ma aveva perso la data/ora del punto (rimasta nell'attributo dati ma mai disegnata). Ora la prima riga dell'etichetta e' sempre data e ora, in grassetto, seguita da media e ogni modello.",
     ]},

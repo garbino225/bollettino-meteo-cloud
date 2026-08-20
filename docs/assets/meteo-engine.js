@@ -144,15 +144,48 @@
     });
   }
 
+  function toLoc(r) {
+    return { name: r.name, admin1: r.admin1, country: r.country, lat: r.latitude, lon: r.longitude, elevation: r.elevation, timezone: r.timezone };
+  }
+
+  // Cerca localita' alternative quando il nome esatto non da' risultati: la
+  // ricerca di Open-Meteo e' un prefix-match, quindi un refuso in coda al
+  // nome (es. "Imolla") non trova nulla mentre un prefisso piu' corto
+  // ("Imol") si'; qui accorciamo progressivamente il nome finche' non
+  // troviamo candidati, poi li ordiniamo alfabeticamente per proporli.
+  function geocodeSuggestions(name) {
+    var base = name.trim();
+    function tryPrefix(n) {
+      if (n.length < 2) return Promise.resolve([]);
+      var url = GEOCODING_URL + "?name=" + encodeURIComponent(n) + "&count=10&language=it&format=json";
+      return fetchJSON(url).then(function (js) {
+        var results = js.results || [];
+        if (results.length) return results;
+        return tryPrefix(n.slice(0, -1));
+      }).catch(function () { return []; });
+    }
+    return tryPrefix(base).then(function (results) {
+      return results
+        .map(toLoc)
+        .sort(function (a, b) { return a.name.localeCompare(b.name, "it"); })
+        .slice(0, 8);
+    });
+  }
+
   function geocode(name) {
     var url = GEOCODING_URL + "?name=" + encodeURIComponent(name) + "&count=1&language=it&format=json";
     return fetchJSON(url).then(function (js) {
       var top = js.results && js.results[0];
-      if (!top) throw new Error("Località «" + name + "» non trovata. Prova con un nome più preciso (es. «Rimini, Italia») o usa le coordinate.");
-      return {
-        name: top.name, admin1: top.admin1, country: top.country,
-        lat: top.latitude, lon: top.longitude, elevation: top.elevation, timezone: top.timezone
-      };
+      if (top) return toLoc(top);
+      return geocodeSuggestions(name).then(function (suggestions) {
+        var err = new Error(
+          suggestions.length
+            ? "Località «" + name + "» non trovata. Forse cercavi:"
+            : "Località «" + name + "» non trovata. Prova con un nome più preciso (es. «Rimini, Italia») o usa le coordinate."
+        );
+        err.suggestions = suggestions;
+        throw err;
+      });
     });
   }
 
@@ -549,6 +582,7 @@
 
   var form = document.getElementById("gen-form");
   var statusEl = document.getElementById("gen-status");
+  var suggestionsEl = document.getElementById("gen-suggestions");
   var submitBtn = document.getElementById("gen-submit");
   var resultEl = document.getElementById("gen-result");
   var fieldCity = document.getElementById("field-city");
@@ -569,16 +603,42 @@
     statusEl.classList.toggle("err", !!isErr);
   }
 
+  function renderSuggestions(list) {
+    if (!suggestionsEl) return;
+    if (!list || !list.length) { suggestionsEl.innerHTML = ""; return; }
+    suggestionsEl.innerHTML = list.map(function (loc) {
+      var label = loc.name + (loc.admin1 ? ", " + loc.admin1 : "") + (loc.country ? " (" + loc.country + ")" : "");
+      return '<button type="button" class="gen-suggestion-btn" data-city="' + esc(loc.name) + '">' + esc(label) + '</button>';
+    }).join("");
+  }
+
+  if (suggestionsEl) {
+    suggestionsEl.addEventListener("click", function (e) {
+      var btn = e.target && e.target.closest && e.target.closest(".gen-suggestion-btn");
+      if (!btn) return;
+      document.getElementById("input-city").value = btn.getAttribute("data-city");
+      renderSuggestions([]);
+      runGenerate().catch(function (err) {
+        console.error(err);
+        setStatus("Errore: " + (err && err.message ? err.message : err), true);
+        renderSuggestions(err && err.suggestions);
+        submitBtn.disabled = false;
+      });
+    });
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     runGenerate().catch(function (err) {
       console.error(err);
       setStatus("Errore: " + (err && err.message ? err.message : err), true);
+      renderSuggestions(err && err.suggestions);
       submitBtn.disabled = false;
     });
   });
 
   function runGenerate() {
+    renderSuggestions([]);
     var locModeEl = form.querySelector('input[name="locmode"]:checked');
     if (!locModeEl) { setStatus("Scegli se cercare per città o per coordinate.", true); return Promise.resolve(); }
     var locMode = locModeEl.value;
