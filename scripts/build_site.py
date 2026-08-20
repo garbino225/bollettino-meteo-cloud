@@ -139,6 +139,8 @@ def build():
   <div class="site-grid">
     {cards_html}
   </div>
+
+  <footer class="site-footer">MeteoGarbino225&reg;</footer>
 </div>
 """
 

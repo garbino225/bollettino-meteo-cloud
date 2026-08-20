@@ -84,6 +84,9 @@ THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('mete
 # Storico revisioni dello strumento. Aggiungere una voce in cima ad ogni
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato.
 CHANGELOG = [
+    {"version": "1.0.7", "date": "20/08/2026", "changes": [
+        "Aggiunto il footer \"MeteoGarbino225®\" in fondo a ogni pagina del sito.",
+    ]},
     {"version": "1.0.6", "date": "20/08/2026", "changes": [
         "Aggiunto un selettore tema chiaro/scuro (bottone in alto a destra): forza il tema scelto (salvato nel browser) invece di seguire solo il tema del sistema operativo.",
         "Rimossa la parola \"bollettini\" dal titolo del sito.",
@@ -919,6 +922,8 @@ def build(args):
   </div>
 
   {render_changelog(CHANGELOG)}
+
+  <footer class="site-footer">MeteoGarbino225&reg;</footer>
 </div>
 """
 

@@ -157,6 +157,8 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
 .revisions td.rv-date{ font-family:"IBM Plex Mono", monospace; white-space:nowrap; color:var(--ink-soft); }
 .revisions td.rv-changes ul{ margin:0; padding-left:16px; display:flex; flex-direction:column; gap:3px; }
 
+.site-footer{ text-align:center; padding:6px 0 0; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.04em; color:var(--ink-faint); }
+
 /* --- Generatore live (docs/genera.html) --- */
 .gen-form{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:20px 22px; display:flex; flex-direction:column; gap:16px; }
 .gen-row{ display:flex; flex-direction:column; gap:8px; }
