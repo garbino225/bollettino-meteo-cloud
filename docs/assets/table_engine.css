@@ -47,7 +47,6 @@
   color-scheme: dark;
 }
 *{ box-sizing:border-box; }
-html{ scroll-behavior:smooth; }
 body{ margin:0; background:var(--surface); color:var(--ink); font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
 .page{ max-width:1180px; margin:0 auto; padding:40px 24px 64px; display:flex; flex-direction:column; gap:24px; }
 /* Figli diretti di .page (flex column): senza min-width:0 un figlio con
@@ -81,12 +80,6 @@ h1 em{ font-style:normal; font-weight:700; color:var(--ink-soft); }
 .moon-cell .spread-fill{ background:var(--ink-soft); opacity:.5; }
 
 .legend-title{ font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-soft); }
-
-.section-nav{ display:flex; gap:10px; flex-wrap:wrap; }
-.section-nav-link{ font-family:"Archivo", sans-serif; font-weight:800; font-size:14px; color:var(--ink);
-  background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:10px 22px;
-  text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
-.section-nav-link:hover{ border-color:var(--accent); color:var(--accent); }
 
 .sections{ display:flex; flex-direction:column; gap:14px; }
 details.param{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; overflow:hidden; }

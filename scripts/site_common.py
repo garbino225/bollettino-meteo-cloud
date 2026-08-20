@@ -177,6 +177,9 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.21", "date": "20/08/2026", "changes": [
+        "Rimossi del tutto i parametri convettivi (CAPE, CIN, Lifted Index, zero termico, strato limite, acqua precipitabile) e il menu Modelli/Parametri introdotto per ospitarli nella revisione precedente. Restano moto ondoso e marea per le localit&agrave; costiere, di nuovo nell'unico elenco insieme agli altri parametri.",
+    ]},
     {"version": "1.0.20", "date": "20/08/2026", "changes": [
         "Ristrutturata la pagina: nuovo menu in cima con due voci, \"Modelli\" (temperatura, vento, pressione ecc., il confronto multi-modello) e \"Parametri\" (parametri convettivi e, per le localit&agrave; costiere, marea) &mdash; prima erano tutti mescolati in un unico elenco. Un clic sul menu porta direttamente alla sezione, senza scorrere.",
     ]},

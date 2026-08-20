@@ -856,33 +856,6 @@ def build(args):
                     "values": tide_series,
                 })
 
-    # --- Parametri convettivi (rischio temporali): unica sorgente, il profilo
-    # verticale del blend Best Match scaricato da fetch_forecast.py. Non e' un
-    # confronto multi-modello come gli altri parametri: ogni parametro e' una
-    # tabella separata a riga singola.
-    profile = data.get("profile") or {}
-    conv_params = []
-    if not profile.get("error") and profile.get("hourly"):
-        conv_defs = [
-            ("cape", "cape", "CAPE (energia potenziale convettiva)", "J/kg", 0, "max",
-             "&lt;300 bianco (debole) · 300–1000 giallo (moderata) · 1000–2500 arancio (forte) · 2500–4000 rosso (molto forte) · &gt;4000 fucsia (estrema)"),
-            ("cin", "convective_inhibition", "CIN (inibizione convettiva)", "J/kg", 0, "min",
-             "scala invertita: cappa debole = innesco temporali piu' facile · &ge;100 bianco (cappa forte) · 50–99 giallo · 25–49 arancio · 10–24 rosso · &lt;10 fucsia (nessuna inibizione)"),
-            ("lifted_index", "lifted_index", "Lifted Index", "°C", 1, "min",
-             "&ge;0 bianco (stabile) · 0/-2 giallo (marginale) · -2/-4 arancio (instabile) · -4/-6 rosso (molto instabile) · &lt;-6 fucsia (estremo)"),
-            ("freezing_level", "freezing_level_height", "Quota dello zero termico", "m", 0, "mean",
-             "informativo, nessuna soglia di rischio: utile per la quota neve e per stimare la dimensione della grandine"),
-            ("boundary_layer", "boundary_layer_height", "Altezza dello strato limite", "m", 0, "max",
-             "informativo, nessuna soglia di rischio: altezza di rimescolamento dell'aria vicino al suolo"),
-            ("tcwv", "total_column_integrated_water_vapour", "Acqua precipitabile (colonna totale)", "kg/m²", 0, "max",
-             "&lt;20 bianco · 20–30 giallo · 30–40 arancio · 40–50 rosso · &gt;50 fucsia (colonna satura, nubifragi possibili)"),
-        ]
-        for key, field, label, unit, decimals, agg, thresh in conv_defs:
-            s = profile_series(profile, field, args.mode, ref_times, seen_days, agg)
-            if any(v is not None for v in s):
-                conv_params.append({"key": key, "classifyAs": key, "label": label, "unit": unit,
-                                     "decimals": decimals, "threshTxt": thresh, "values": s})
-
     # --- Almanacco: alba/tramonto/luna ---
     alba, tramonto = [], []
     for i, dstr in enumerate(seen_days):
@@ -935,8 +908,6 @@ def build(args):
         notes_items.append("<strong>Base nubi</strong>: non è una variabile diretta di Open-Meteo — stimata dalla formula standard LCL (altezza ≈ 0,125 km per ogni °C di scarto tra temperatura e punto di rugiada), calcolata dai dati reali di temperatura/dew point di ciascun modello.")
     if all_excluded:
         notes_items.append("<strong>Variabili non disponibili per alcuni modelli</strong> (celle con un trattino, segnalato anche nel titolo di sezione): " + "; ".join(all_excluded) + ".")
-    if conv_params:
-        notes_items.append("<strong>Parametri convettivi</strong> (CAPE, CIN, Lifted Index, zero termico, strato limite, acqua precipitabile): a differenza degli altri parametri non sono un confronto multi-modello, ma provengono da un'unica sorgente — il profilo verticale del blend Best Match scaricato da <code>fetch_forecast.py</code> — perché Open-Meteo espone questi campi solo per quel modello, non per i singoli centri di calcolo. Nella vista giornaliera ogni parametro è aggregato con il criterio più indicativo del rischio (es. CAPE e acqua precipitabile: massimo del giorno; CIN e Lifted Index: minimo, cioè il momento più favorevole ai temporali).")
     if coastal_params:
         notes_items.append("<strong>Marea</strong>: livello del mare (<code>sea_level_height_msl</code>) da Open-Meteo Marine API, anch'essa un'unica sorgente (modello Best Match/GTSM, non un confronto multi-modello, come per il moto ondoso). Nella vista giornaliera è mostrata come media del giorno, non come range alta/bassa marea.")
     notes_items.append("<strong>Rispetto ai mockup con dati di prova</strong>: qui il roster modelli è quello realmente disponibile via Open-Meteo (12, non gli stessi 10 inventati prima) — MOLOCH e BOLAM sono usciti perché non hanno un'API pubblica (documentato in SKILL.md), sostituiti da ICON-EU, ARPEGE, GEM, HARMONIE-AROME, ALADIN che invece sono scaricabili davvero.")
@@ -960,28 +931,18 @@ def build(args):
     # nessun JavaScript necessario.
     for i, p in enumerate(params):
         p["openDefault"] = (i == 0)
-    for p in conv_params:
-        p["openDefault"] = False
     for p in coastal_params:
         p["openDefault"] = False
 
     almanac_html = render_almanac(day_labels, alba, tramonto, luna)
     sections_html = "\n".join(render_section(p, args.mode, time_cols, day_labels, models_lookup) for p in params)
-    conv_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in conv_params)
     coastal_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in coastal_params)
 
-    # Sezione "Parametri": marea + parametri convettivi, entrambi sorgente
-    # singola (Best Match), raggiungibile dal menu Modelli/Parametri in cima
-    # alla pagina. Costruita fuori dal template principale per evitare
-    # f-string annidate con le stesse triple virgolette.
+    # Marea: sorgente singola (Best Match), mostrata subito dopo le sezioni
+    # multi-modello (che includono il moto ondoso per le localita' costiere).
     marea_block = (f'<div style="margin:2px 2px 2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, '
                     f'sorgente singola: modello Best Match (GTSM)</span></div>'
                     f'<div class="sections">{coastal_sections_html}</div>') if coastal_params else ""
-    conv_block = (f'<div style="margin:2px 2px 2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; '
-                  f'sorgente singola: blend Best Match, non confronto multi-modello</span></div>'
-                  f'<div class="sections">{conv_sections_html}</div>') if conv_params else ""
-    parametri_block = f'<div id="section-parametri">{marea_block}{conv_block}</div>' if (conv_params or coastal_params) else ""
-    parametri_nav_link = '<a href="#section-parametri" class="section-nav-link">Parametri</a>' if (conv_params or coastal_params) else ""
 
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"'
@@ -1026,16 +987,11 @@ def build(args):
     </div>
   </div>
 
-  <div class="section-nav">
-    <a href="#section-modelli" class="section-nav-link">Modelli</a>
-    {parametri_nav_link}
-  </div>
-
-  <div id="section-modelli" class="sections">
+  <div class="sections">
     {sections_html}
   </div>
 
-  {parametri_block}
+  {marea_block}
 
   <div class="notes">
     <h2>Note</h2>
