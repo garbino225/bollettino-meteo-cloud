@@ -84,6 +84,9 @@ THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('mete
 # Storico revisioni dello strumento. Aggiungere una voce in cima ad ogni
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato.
 CHANGELOG = [
+    {"version": "1.0.9", "date": "20/08/2026", "changes": [
+        "Ridotta la larghezza della colonna dei modelli (etichetta di riga) da 150px a 120px, per lasciare piu' spazio alle colonne dati.",
+    ]},
     {"version": "1.0.8", "date": "20/08/2026", "changes": [
         "Sito molto piu' veloce da navigare: le pagine copiate in docs/ ora linkano CSS e logo come file esterni condivisi invece di incorporarli (base64) su ognuna — scaricati una volta sola dal browser e riusati in cache su tutte le pagine successive. La home e' passata da ~500KB a ~4KB, i bollettini da 600KB-1.1MB a 100-600KB.",
         "Solo la prima sezione (Temperatura) e' aperta di default in ogni tabella: con tabelle fino a 168 colonne orarie, tenerle tutte espanse appesantiva inutilmente il caricamento iniziale. Le altre restano un clic di distanza (funziona anche senza JavaScript: sono elementi HTML nativi).",
@@ -392,7 +395,7 @@ def render_almanac(day_labels, alba, tramonto, luna):
                           f'<span class="moonlabel">{l["label"]}</span></div>')
     luna_html = "".join(cells)
     ncols = len(day_labels)
-    return f'''<div class="pgrid" style="grid-template-columns:150px repeat({ncols},minmax(60px,1fr));">
+    return f'''<div class="pgrid" style="grid-template-columns:var(--label-w) repeat({ncols},minmax(60px,1fr));">
       <div class="cell rowlabel" style="font-weight:700;">Giorno</div>
       {head}
       <div class="cell rowlabel">Alba</div>
