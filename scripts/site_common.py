@@ -129,6 +129,10 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.13", "date": "20/08/2026", "changes": [
+        "Corretto un errore ortografico: l'avviso \"N modelli esclusi\" veniva scritto \"esclusoi\" al plurale.",
+        "Generatore live: aggiunti i pulsanti di durata \"1 giorno\" e \"2 giorni\", oltre ai gi&agrave; presenti 3 e 7 giorni.",
+    ]},
     {"version": "1.0.12", "date": "20/08/2026", "changes": [
         "Logo Meteo Garbino ingrandito (x3) nell'intestazione.",
         "Rimossa la barra \"Severit&agrave;\" (legenda colori + elenco modelli) sotto l'almanacco: era un'altra fonte di confusione simile alla sezione Attenzione gi&agrave; rimossa, e l'informazione sui colori resta comunque nella descrizione di ogni parametro.",

@@ -375,7 +375,7 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
     if excluded:
         ne = len(excluded)
         title = " · ".join(f'{e["code"]}: {e["reason"]}' for e in excluded)
-        excluded_html = f'<span class="warn" title="{title}">{ne} modell{"o" if ne == 1 else "i"} escluso{"" if ne == 1 else "i"}</span>'
+        excluded_html = f'<span class="warn" title="{title}">{ne} modell{"o" if ne == 1 else "i"} esclus{"o" if ne == 1 else "i"}</span>'
 
     hourly_class = "hourly" if mode == "hourly" else ""
     open_attr = " open" if p.get("openDefault") else ""

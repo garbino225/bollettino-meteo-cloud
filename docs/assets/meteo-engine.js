@@ -479,7 +479,7 @@
     if (excluded.length) {
       var ne = excluded.length;
       var title = excluded.map(function (e) { return e.code + ": " + e.reason; }).join(" · ");
-      excludedHtml = '<span class="warn" title="' + esc(title) + '">' + ne + " modell" + (ne === 1 ? "o" : "i") + " escluso" + (ne === 1 ? "" : "i") + '</span>';
+      excludedHtml = '<span class="warn" title="' + esc(title) + '">' + ne + " modell" + (ne === 1 ? "o" : "i") + " esclus" + (ne === 1 ? "o" : "i") + '</span>';
     }
     var hourlyClass = mode === "hourly" ? "hourly" : "";
     var openAttr = p.openDefault ? " open" : "";
@@ -584,7 +584,7 @@
     var locMode = locModeEl.value;
 
     var daysEl = form.querySelector('input[name="days"]:checked');
-    if (!daysEl) { setStatus("Scegli la durata (3 o 7 giorni).", true); return Promise.resolve(); }
+    if (!daysEl) { setStatus("Scegli la durata.", true); return Promise.resolve(); }
     var days = parseInt(daysEl.value, 10);
 
     var stepEl = form.querySelector('input[name="step"]:checked');
