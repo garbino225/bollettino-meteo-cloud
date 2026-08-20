@@ -64,10 +64,12 @@ CHART_INTERACTION_JS = '''<script>(function(){
     if (!g || !pt) return;
     var vb = svg.viewBox.baseVal;
     var x = parseFloat(pt.getAttribute('data-x')), y = parseFloat(pt.getAttribute('data-y'));
+    var dateTimeLabel = pt.getAttribute('data-label') || '';
     var rows = (pt.getAttribute('data-rows') || '').split('|').filter(Boolean).map(function(r){
       var parts = r.split(',');
-      return { label: parts[0], value: parts[1], color: parts[2] };
+      return { text: parts[0] + ': ' + parts[1], color: colorVar(parts[2]), bold: false };
     });
+    rows.unshift({ text: dateTimeLabel, color: 'var(--ink)', bold: true });
     var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'),
         dot = g.querySelector('.ch-dot'), bg = g.querySelector('.ch-label-bg'), lbl = g.querySelector('.ch-label');
     vline.setAttribute('x1', x); vline.setAttribute('x2', x);
@@ -79,7 +81,7 @@ CHART_INTERACTION_JS = '''<script>(function(){
     while (lbl.firstChild) lbl.removeChild(lbl.firstChild);
     var lineH = 13, padX = 8, padTop = 13;
     var maxLen = 0;
-    rows.forEach(function(r){ maxLen = Math.max(maxLen, (r.label + ': ' + r.value).length); });
+    rows.forEach(function(r){ maxLen = Math.max(maxLen, r.text.length); });
     var boxW = maxLen * 5.9 + padX * 2;
     var boxH = rows.length * lineH + 10;
     var lx = x + 10;
@@ -93,8 +95,9 @@ CHART_INTERACTION_JS = '''<script>(function(){
       var tspan = document.createElementNS(SVG_NS, 'tspan');
       tspan.setAttribute('x', lx + padX);
       tspan.setAttribute('y', ly + padTop + i * lineH);
-      tspan.setAttribute('fill', colorVar(r.color));
-      tspan.textContent = r.label + ': ' + r.value;
+      tspan.setAttribute('fill', r.color);
+      if (r.bold) tspan.setAttribute('font-weight', '700');
+      tspan.textContent = r.text;
       lbl.appendChild(tspan);
     });
 
@@ -129,6 +132,9 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.14", "date": "20/08/2026", "changes": [
+        "Corretto il puntatore del grafico: dalla v1.0.11 mostrava media e modelli ma aveva perso la data/ora del punto (rimasta nell'attributo dati ma mai disegnata). Ora la prima riga dell'etichetta e' sempre data e ora, in grassetto, seguita da media e ogni modello.",
+    ]},
     {"version": "1.0.13", "date": "20/08/2026", "changes": [
         "Corretto un errore ortografico: l'avviso \"N modelli esclusi\" veniva scritto \"esclusoi\" al plurale.",
         "Generatore live: aggiunti i pulsanti di durata \"1 giorno\" e \"2 giorni\", oltre ai gi&agrave; presenti 3 e 7 giorni.",
