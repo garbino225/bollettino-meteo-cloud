@@ -138,6 +138,10 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.17", "date": "20/08/2026", "changes": [
+        "Generatore live: il campo citt&agrave; propone ora un menu di localit&agrave; mentre si scrive (autocompletamento, ordinato alfabeticamente), non solo dopo una ricerca fallita: un clic riempie il campo senza generare subito il bollettino.",
+        "Rimpicciolito il riquadro del puntatore del grafico su smartphone (font e interlinea ridotti, larghezza massima limitata): sugli schermi stretti risultava sproporzionato rispetto al grafico, che invece si restringe.",
+    ]},
     {"version": "1.0.16", "date": "20/08/2026", "changes": [
         "Etichetta del puntatore del grafico: riscritta come riquadro HTML sovrapposto alla pagina invece che testo SVG. Un +2pt sul testo SVG restava comunque illeggibile su smartphone (il grafico si restringe alla larghezza dello schermo e ne scala in giu' anche il testo) o avrebbe fatto traboccare il riquadro nei parametri con piu' modelli (fino a 13 righe): ora il testo usa px reali (13px), sempre leggibile e identico su ogni dispositivo, e il riquadro puo' sporgere liberamente sopra il resto della pagina come un tooltip.",
         "Generatore live: il campo \"Nome citt&agrave;\" mostra ora \"es. Imola\" come esempio invece di \"es. Bologna\", coerente con Imola come localit&agrave; principale del sito.",

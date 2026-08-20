@@ -586,6 +586,8 @@
   var fieldCity = document.getElementById("field-city");
   var fieldLat = document.getElementById("field-lat");
   var fieldLon = document.getElementById("field-lon");
+  var cityInput = document.getElementById("input-city");
+  var cityAutocompleteEl = document.getElementById("city-autocomplete");
 
   Array.prototype.forEach.call(document.getElementsByName("locmode"), function (r) {
     r.addEventListener("change", function () {
@@ -593,8 +595,53 @@
       fieldCity.classList.toggle("gen-hidden", !isCity);
       fieldLat.classList.toggle("gen-hidden", isCity);
       fieldLon.classList.toggle("gen-hidden", isCity);
+      renderCityAutocomplete([]);
     });
   });
+
+  // Autocompletamento citta': mentre l'utente scrive, propone le localita'
+  // corrispondenti (ordinate alfabeticamente) in un menu sotto il campo, per
+  // evitare refusi prima ancora di generare. Debounce per non interrogare
+  // l'API a ogni carattere; un clic riempie il campo senza generare subito
+  // (a differenza dei suggerimenti mostrati dopo una ricerca fallita, qui
+  // l'utente sta ancora componendo il form).
+  function renderCityAutocomplete(list) {
+    if (!cityAutocompleteEl) return;
+    if (!list || !list.length) { cityAutocompleteEl.innerHTML = ""; return; }
+    cityAutocompleteEl.innerHTML = list.map(function (loc) {
+      var label = loc.name + (loc.admin1 ? ", " + loc.admin1 : "") + (loc.country ? " (" + loc.country + ")" : "");
+      return '<button type="button" class="gen-autocomplete-item" data-city="' + esc(loc.name) + '">' + esc(label) + '</button>';
+    }).join("");
+  }
+
+  if (cityInput && cityAutocompleteEl) {
+    var acTimer = null, acSeq = 0;
+    cityInput.addEventListener("input", function () {
+      var q = cityInput.value.trim();
+      clearTimeout(acTimer);
+      if (q.length < 2) { renderCityAutocomplete([]); return; }
+      var seq = ++acSeq;
+      acTimer = setTimeout(function () {
+        var url = GEOCODING_URL + "?name=" + encodeURIComponent(q) + "&count=6&language=it&format=json";
+        fetchJSON(url).then(function (js) {
+          if (seq !== acSeq) return; // l'utente ha digitato altro nel frattempo
+          var results = (js.results || []).map(toLoc).sort(function (a, b) { return a.name.localeCompare(b.name, "it"); });
+          renderCityAutocomplete(results);
+        }).catch(function () { /* autocompletamento silenzioso: nessun errore visibile per un fallimento di rete qui */ });
+      }, 300);
+    });
+    cityAutocompleteEl.addEventListener("click", function (e) {
+      var btn = e.target && e.target.closest && e.target.closest(".gen-autocomplete-item");
+      if (!btn) return;
+      cityInput.value = btn.getAttribute("data-city");
+      renderCityAutocomplete([]);
+      cityInput.focus();
+    });
+    document.addEventListener("click", function (e) {
+      if (e.target === cityInput || cityAutocompleteEl.contains(e.target)) return;
+      renderCityAutocomplete([]);
+    });
+  }
 
   function setStatus(msg, isErr) {
     statusEl.textContent = msg || "";
@@ -637,6 +684,7 @@
 
   function runGenerate() {
     renderSuggestions([]);
+    renderCityAutocomplete([]);
     var locModeEl = form.querySelector('input[name="locmode"]:checked');
     if (!locModeEl) { setStatus("Scegli se cercare per città o per coordinate.", true); return Promise.resolve(); }
     var locMode = locModeEl.value;
