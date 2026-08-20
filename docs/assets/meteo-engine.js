@@ -439,7 +439,7 @@
       '<line class="ch-hline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>' +
       '<circle class="ch-dot" r="4" fill="var(--accent)"/></g>';
 
-    var svg = '<svg class="chart-svg" viewBox="0 0 ' + W + ' ' + H + '">' +
+    var svg = '<svg class="chart-svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">' +
       grid.join("") + lines.join("") + meanLine + circles.join("") + xlabels.join("") + crosshair + '</svg>';
     var legend = modelCodes.length ? renderChartLegend(modelCodes) : "";
     return '<div>' + svg + '<div class="chart-tooltip"></div>' + legend + '</div>';

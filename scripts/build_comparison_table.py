@@ -299,7 +299,12 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
                  '<circle class="ch-dot" r="4" fill="var(--accent)"/>'
                  '</g>')
 
-    svg = (f'<svg class="chart-svg" viewBox="0 0 {W} {H}">'
+    # width/height espliciti (oltre a viewBox) necessari per Safari/iOS: senza,
+    # un <svg> con solo CSS width:100%;height:auto puo' non ricavare l'aspect
+    # ratio dal viewBox e collassare ad altezza 0 (grafico invisibile) - bug
+    # noto di WebKit, non riproducibile in Chromium quindi passato inosservato
+    # nei test in questo ambiente.
+    svg = (f'<svg class="chart-svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">'
            + "".join(grid) + "".join(lines) + mean_line + "".join(circles) + "".join(xlabels) + crosshair
            + '</svg>')
     legend = render_chart_legend(model_codes) if model_codes else ""

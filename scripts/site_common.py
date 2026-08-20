@@ -177,6 +177,9 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.19", "date": "20/08/2026", "changes": [
+        "Possibile fix per i grafici invisibili su iPhone/Safari segnalati per i parametri convettivi nel generatore live: l'SVG del grafico aveva solo larghezza/altezza via CSS (width:100%;height:auto) senza attributi width/height propri, e Safari puo' non ricavare correttamente il rapporto d'aspetto dal solo viewBox in questo caso (bug noto di WebKit, non riproducibile con gli strumenti di test disponibili in questo ambiente, solo Chromium). Aggiunti attributi width/height espliciti sull'SVG di ogni grafico, in aggiunta al CSS responsive gia' presente.",
+    ]},
     {"version": "1.0.18", "date": "20/08/2026", "changes": [
         "Nuova sezione \"Marea\" per le localit&agrave; costiere: livello del mare (Open-Meteo Marine API, modello Best Match/GTSM), stessa presentazione dei parametri convettivi (sorgente singola, non confronto multi-modello).",
         "Grafico di vento e moto ondoso: l'etichetta del puntatore mostrava solo il valore (velocit&agrave;/altezza), non la direzione. Ora mostra entrambi, sia per la media sia per ogni modello.",
