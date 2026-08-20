@@ -81,7 +81,14 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   guardare questo changelog nel codice sorgente. Contenuto letto da CHANGELOG
 #   qui sotto (stessa fonte di verita' di questi commenti, tenerli allineati ad
 #   ogni nuova versione).
-SCRIPT_VERSION = "1.4.4"
+# 1.5.0 (2026-08-19): aggiunto un pannello "Confronto multi-modello per parametro"
+#   dopo la legenda, con un grafico per Temperatura, Vento, Raffiche, Pioggia,
+#   Pressione, Umidita', Nuvolosita' (e Onda se costiera) che sovrappone tutti i
+#   modelli numerici scaricati (linee sottili colorate) al Best Match usato nella
+#   tabella sopra (linea blu scura in evidenza) - la tabella stessa resta invariata,
+#   mostra sempre solo Best Match. Dati gia' presenti in data.json/marine.json,
+#   nessun nuovo fetch. Richiede matplotlib (gia' dipendenza della skill).
+SCRIPT_VERSION = "1.5.0"
 
 # Fonte dati per la tabella "Revisioni" mostrata in fondo alla pagina generata
 # (vedi build_changelog()): tienila allineata ai commenti di versione qui sopra.
@@ -104,6 +111,9 @@ CHANGELOG = [
               "trasparente."),
     ("1.4.3", "Rebrand: nuovo logo meteogarbino225, angoli smussati."),
     ("1.4.4", "Aggiunta questa tabella delle revisioni in fondo alla pagina."),
+    ("1.5.0", "Aggiunto il pannello \"Confronto multi-modello per parametro\": un "
+              "grafico per parametro con tutti i modelli numerici sovrapposti al "
+              "Best Match usato in tabella. La tabella resta invariata."),
 ]
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
@@ -428,6 +438,121 @@ def build_changelog():
     )
 
 
+MODEL_CHART_COLORS = ["#4C6EF5", "#F76707", "#37B24D", "#E64980", "#7048E8",
+                       "#12B886", "#F59F00", "#1098AD", "#E03131", "#5C7CFA",
+                       "#099268", "#9C36B5"]
+GIORNI_IT = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
+
+# Un grafico per parametro (Temperatura, Vento, Raffiche, Pioggia, Pressione,
+# Umidita', Nuvolosita', +Onda se costiera): key nel dizionario modelli,
+# titolo, etichetta asse Y, unita'.
+MODEL_CHART_SPECS = [
+    ("temperature_2m", "Temperatura a 2m", "Temperatura", "°C"),
+    ("wind_speed_10m", "Velocita' del vento a 10m", "Vento", "kn"),
+    ("wind_gusts_10m", "Raffiche di vento a 10m", "Raffiche", "kn"),
+    ("precipitation", "Precipitazione oraria", "Pioggia", "mm"),
+    ("pressure_msl", "Pressione al livello del mare", "Pressione", "hPa"),
+    ("relative_humidity_2m", "Umidita' relativa a 2m", "Umidita'", "%"),
+    ("cloud_cover", "Copertura nuvolosa", "Nuvolosita'", "%"),
+]
+
+
+def build_model_charts(data, marine, has_marine):
+    """Un PNG (base64) per parametro: tutti i modelli scaricati sovrapposti al
+    Best Match usato nella tabella. Auto-contenuto (non importa charts.py) per
+    non introdurre una dipendenza tra i due script standalone della skill."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    from matplotlib.ticker import FuncFormatter
+
+    plt.rcParams.update({
+        "font.family": "DejaVu Sans", "font.size": 10,
+        "axes.edgecolor": "#888888", "axes.grid": True,
+        "grid.alpha": 0.25, "grid.linestyle": "--",
+        "axes.spines.top": False, "axes.spines.right": False,
+        "figure.facecolor": "white", "axes.facecolor": "white",
+    })
+
+    def parse_times(strs):
+        return [dt.datetime.fromisoformat(s) for s in strs]
+
+    def day_label(x, pos=None):
+        d = mdates.num2date(x)
+        return f"{GIORNI_IT[d.weekday()]} {d.strftime('%d/%m')}"
+
+    def fmt_time_axis(ax):
+        ax.xaxis.set_major_locator(mdates.DayLocator())
+        ax.xaxis.set_major_formatter(FuncFormatter(day_label))
+        ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=[6, 12, 18]))
+        ax.xaxis.set_minor_formatter(mdates.DateFormatter("%Hh"))
+        ax.tick_params(axis="x", which="minor", labelsize=7, colors="#777777")
+        ax.tick_params(axis="x", which="major", labelsize=9, pad=14)
+
+    def chart_png_b64(model_dict, var, title, ylabel, unit):
+        series = [(mk, mv) for mk, mv in model_dict.items()
+                  if not mv.get("error") and mv.get("hourly") and var in (mv.get("hourly") or {})]
+        if not series:
+            return None
+        fig, ax = plt.subplots(figsize=(9, 3.4))
+        best = None
+        i = 0
+        for mk, mv in series:
+            times = parse_times(mv["hourly"]["time"])
+            vals = mv["hourly"][var]
+            if mk == "best_match":
+                best = (times, vals)
+                continue
+            ax.plot(times, vals, color=MODEL_CHART_COLORS[i % len(MODEL_CHART_COLORS)],
+                    linewidth=1.1, alpha=0.75, label=mv.get("label", mk))
+            i += 1
+        if best:
+            ax.plot(best[0], best[1], color="#1a1a2e", linewidth=2.6,
+                    label="Best Match (usato in tabella)", zorder=10)
+        ax.set_title(title, fontsize=12, fontweight="bold", loc="left")
+        ax.set_ylabel(f"{ylabel} ({unit})" if unit else ylabel)
+        fmt_time_axis(ax)
+        ax.legend(fontsize=7, ncol=2, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+
+    panels = []
+    for var, title, ylabel, unit in MODEL_CHART_SPECS:
+        b64 = chart_png_b64(data["models"], var, title, ylabel, unit)
+        if b64:
+            panels.append((title, b64))
+
+    if has_marine and marine:
+        b64 = chart_png_b64(marine.get("wave_models", {}), "wave_height",
+                             "Altezza onda significativa", "Onda", "m")
+        if b64:
+            panels.append(("Altezza onda significativa", b64))
+
+    return panels
+
+
+def build_model_charts_html(panels):
+    if not panels:
+        return ""
+    figures = "\n".join(
+        f'    <img class="model-chart" src="data:image/png;base64,{b64}" alt="{title}">'
+        for title, b64 in panels
+    )
+    return f'''
+  <div class="panel model-charts">
+    <h2>Confronto multi-modello per parametro</h2>
+    <p class="model-charts-note">La tabella sopra usa sempre il solo modello Best
+      Match (blend automatico). Qui, per ogni parametro, tutti i modelli numerici
+      scaricati per questa localita' sono sovrapposti (linea sottile colorata) al
+      Best Match (linea blu scura in evidenza) &mdash; utile per vedere quanto
+      concordano o divergono tra loro.</p>
+{figures}
+  </div>'''
+
+
 DAY_ABBR = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
 
 
@@ -591,13 +716,15 @@ def main():
 
     legend_rows = build_legend(rows, cols)
     changelog_rows = build_changelog()
+    model_chart_panels = build_model_charts(data, marine, has_marine)
+    model_charts_html = build_model_charts_html(model_chart_panels)
 
     html = TEMPLATE.format(
         loc=loc, lat=lat, lon=lon, start=start_label, end=end_label, generated=generated,
         light_vars=light_vars, dark_vars=dark_vars, spark_rules=spark_rules,
         colgroup=colgroup, group_row=group_row, header_cells="\n            ".join(header_cells),
         tbody=tbody, total_w=max(total_w, 900), rh=RH, legend_rows=legend_rows, version=SCRIPT_VERSION,
-        changelog_rows=changelog_rows,
+        changelog_rows=changelog_rows, model_charts_html=model_charts_html,
         astro_line=astro_line, logo_html=logo_html,
         marine_title=" e mare" if has_marine else "",
         marine_sub="; onda da Open-Meteo Marine" if has_marine else "",
@@ -910,6 +1037,20 @@ TEMPLATE = '''<meta charset="utf-8">
 
   .changelog-table td.cl-note {{ color: var(--text-soft); line-height: 1.4; text-align: left; }}
 
+  .model-charts {{ display: flex; flex-direction: column; gap: 12px; padding: 16px; }}
+
+  .model-charts h2 {{
+    margin: 0; font-size: 13.5px; font-weight: 700; color: var(--text);
+    letter-spacing: -0.005em;
+  }}
+
+  .model-charts-note {{ margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-soft); }}
+
+  .model-chart {{
+    width: 100%; height: auto; display: block; border-radius: 6px;
+    border: 1px solid var(--line-soft); background: #fff;
+  }}
+
   footer.foot {{
     display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
     padding: 2px 4px; font-size: 11px; color: var(--text-faint);
@@ -979,6 +1120,7 @@ TEMPLATE = '''<meta charset="utf-8">
       </tbody>
     </table>
   </div>
+{model_charts_html}
 
   <div class="panel changelog">
     <h2>Revisioni</h2>

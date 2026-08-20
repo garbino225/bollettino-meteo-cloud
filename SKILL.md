@@ -554,7 +554,7 @@ luminosita'+saturazione, non tocca il file su disco) — sul logo
 meteogarbino225 attuale, che ha uno sfondo blu notte pieno voluto, non
 altera nulla; serviva per il vecchio logo su sfondo "carta" chiaro.
 
-Cosa produce (design **v1.4.4**, validato e messo in produzione con
+Cosa produce (design **v1.5.0**, validato e messo in produzione con
 l'utente il 2026-08-16/19, non reinventarlo — vedi `SCRIPT_VERSION` in
 testa a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
 tramonto** (dal blend Best Match, giorno d'inizio del periodo) e la
@@ -589,9 +589,19 @@ una tabella **Revisioni** (Versione | Novita' introdotte) elenca l'intero
 storico delle versioni dello script — contenuto letto da `CHANGELOG` in
 testa a `table_sparkline.py` (tienilo allineato ai commenti di versione
 sopra `SCRIPT_VERSION` ad ogni nuova release, e' la stessa fonte di
-verita'). Il footer riporta sempre `Tabella convettiva v{versione}` per
-sapere a colpo d'occhio a quale revisione del template risale una tabella
-generata in precedenza.
+verita'). Prima della tabella Revisioni, un pannello **Confronto
+multi-modello per parametro**: un grafico (Temperatura, Vento, Raffiche,
+Pioggia, Pressione, Umidita', Nuvolosita', +Onda se costiera) per
+ciascuno dei parametri di superficie, con tutti i modelli numerici
+scaricati per quella localita' sovrapposti (linea sottile colorata) al
+Best Match usato nella tabella (linea blu scura in evidenza) — la tabella
+stessa non cambia, mostra sempre e solo Best Match; questo pannello serve
+solo a vedere quanto i modelli concordano o divergono tra loro su un
+singolo parametro. Non copre gli indici convettivi (CAPE/CIN/ecc.): quelli
+sono calcolati solo sul profilo verticale di Best Match, nessun altro
+modello scarica un profilo verticale da confrontare. Il footer riporta
+sempre `Tabella convettiva v{versione}` per sapere a colpo d'occhio a
+quale revisione del template risale una tabella generata in precedenza.
 
 ATTENZIONE bug gia' preso una volta, non ripeterlo: un `<td>` che ospita
 uno sparkline (`position: relative` + `::before` con `z-index: -1`) DEVE
