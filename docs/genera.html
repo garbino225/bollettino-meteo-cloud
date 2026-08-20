@@ -30,13 +30,13 @@
     <div class="gen-row">
       <span class="gen-label">Localit&agrave;</span>
       <div class="gen-loc-toggle">
-        <label class="gen-pill"><input type="radio" name="locmode" value="city" checked><span>Citt&agrave;</span></label>
+        <label class="gen-pill"><input type="radio" name="locmode" value="city"><span>Citt&agrave;</span></label>
         <label class="gen-pill"><input type="radio" name="locmode" value="coords"><span>Coordinate (lat/lon)</span></label>
       </div>
     </div>
 
     <div class="gen-row-inline">
-      <div class="gen-field" id="field-city">
+      <div class="gen-field gen-hidden" id="field-city">
         <span class="gen-label">Nome citt&agrave;</span>
         <input type="text" id="input-city" placeholder="es. Bologna" autocomplete="off">
       </div>
@@ -54,14 +54,14 @@
       <span class="gen-label">Durata</span>
       <div class="gen-pillgroup" id="group-days">
         <label class="gen-pill"><input type="radio" name="days" value="3"><span>3 giorni</span></label>
-        <label class="gen-pill"><input type="radio" name="days" value="7" checked><span>7 giorni</span></label>
+        <label class="gen-pill"><input type="radio" name="days" value="7"><span>7 giorni</span></label>
       </div>
     </div>
 
     <div class="gen-row">
       <span class="gen-label">Risoluzione oraria</span>
       <div class="gen-pillgroup" id="group-step">
-        <label class="gen-pill"><input type="radio" name="step" value="24" checked><span>24 ore (giornaliera)</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="24"><span>24 ore (giornaliera)</span></label>
         <label class="gen-pill"><input type="radio" name="step" value="12"><span>ogni 12 ore</span></label>
         <label class="gen-pill"><input type="radio" name="step" value="6"><span>ogni 6 ore</span></label>
         <label class="gen-pill"><input type="radio" name="step" value="3"><span>ogni 3 ore</span></label>

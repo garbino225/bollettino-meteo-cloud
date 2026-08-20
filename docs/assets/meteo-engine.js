@@ -461,9 +461,17 @@
   });
 
   function runGenerate() {
-    var locMode = form.locmode.value;
-    var days = parseInt(form.days.value, 10);
-    var step = parseInt(form.step.value, 10);
+    var locModeEl = form.querySelector('input[name="locmode"]:checked');
+    if (!locModeEl) { setStatus("Scegli se cercare per città o per coordinate.", true); return Promise.resolve(); }
+    var locMode = locModeEl.value;
+
+    var daysEl = form.querySelector('input[name="days"]:checked');
+    if (!daysEl) { setStatus("Scegli la durata (3 o 7 giorni).", true); return Promise.resolve(); }
+    var days = parseInt(daysEl.value, 10);
+
+    var stepEl = form.querySelector('input[name="step"]:checked');
+    if (!stepEl) { setStatus("Scegli la risoluzione oraria.", true); return Promise.resolve(); }
+    var step = parseInt(stepEl.value, 10);
 
     submitBtn.disabled = true;
     resultEl.innerHTML = "";
