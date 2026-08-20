@@ -1,0 +1,60 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meteo Garbino — Confronto multi-modello</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/table_engine.css">
+<script>(function(){try{var t=localStorage.getItem('meteo-garbino-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<button type="button" class="theme-toggle" aria-label="Cambia tema chiaro/scuro" title="Tema chiaro/scuro" onclick="(function(){var d=document.documentElement,mq=window.matchMedia('(prefers-color-scheme: dark)');var cur=d.getAttribute('data-theme')||(mq.matches?'dark':'light');var next=cur==='dark'?'light':'dark';d.setAttribute('data-theme',next);try{localStorage.setItem('meteo-garbino-theme',next);}catch(e){}})()"><span class="theme-toggle-icon icon-sun">☀️</span><span class="theme-toggle-icon icon-moon">🌙</span></button>
+<div class="page">
+  <div class="masthead">
+    <div class="masthead-row">
+      <div class="brand-stack">
+        <img class="brand-logo" src="assets/logo_garbino.png" alt="Meteo Garbino">
+      </div>
+      <div class="masthead-main">
+        <div class="eyebrow-row">
+          <div class="eyebrow">Dati reali &middot; confronto multi-modello</div>
+        </div>
+        <h1>Meteo Garbino</h1>
+        <p class="sub">Tabelle di confronto multi-modello, generate da dati reali Open-Meteo. Pagine statiche e responsive; solo il generatore live e il selettore tema usano JavaScript.</p>
+      </div>
+    </div>
+    <div class="spectrum"></div>
+  </div>
+
+  <div class="site-grid">
+    <a class="site-card site-card-highlight" href="genera.html">
+      <div class="site-card-title">Genera il tuo bollettino</div>
+      <div class="site-card-sub">Scegli citt&agrave; (o coordinate), durata e risoluzione oraria: la tabella viene generata al volo nel browser con dati reali Open-Meteo.</div>
+      <div class="site-card-foot"><span class="version-badge">live</span><span class="site-card-arrow">apri &rarr;</span></div>
+    </a>
+<a class="site-card site-card-highlight" href="imola_giornaliera.html">
+      <div class="site-card-title">Imola — Tabella meteo giornaliera (dati reali)<span class="site-card-badge">citt&agrave; principale</span></div>
+      <div class="site-card-sub">Emilia-Romagna · Gio 20/08 – Mer 26/08 2026. Fonte: Open-Meteo (dati reali multi-modello).</div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.22</span><span class="site-card-arrow">apri &rarr;</span></div>
+    </a>
+<a class="site-card" href="bologna_giornaliera.html">
+      <div class="site-card-title">Bologna — Tabella meteo giornaliera (dati reali)</div>
+      <div class="site-card-sub">Emilia-Romagna · Mar 18/08 – Lun 24/08 2026. Fonte: Open-Meteo (dati reali multi-modello).</div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.22</span><span class="site-card-arrow">apri &rarr;</span></div>
+    </a>
+<a class="site-card" href="monte_fumaiolo_oraria.html">
+      <div class="site-card-title">Monte Fumaiolo — Tabella meteo oraria (dati reali)</div>
+      <div class="site-card-sub">Emilia-Romagna · 1408 m s.l.m. · Mer 19/08 – Ven 21/08 2026. Fonte: Open-Meteo (dati reali multi-modello).</div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.22</span><span class="site-card-arrow">apri &rarr;</span></div>
+    </a>
+<a class="site-card" href="puntamarina_oraria.html">
+      <div class="site-card-title">Punta Marina — Tabella meteo oraria (dati reali)</div>
+      <div class="site-card-sub">Emilia-Romagna · Mar 18/08 – Gio 20/08 2026 · localit&agrave; costiera, incluso moto ondoso e marea. Fonte: Open-Meteo (dati reali multi-modello).</div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.22</span><span class="site-card-arrow">apri &rarr;</span></div>
+    </a>
+<a class="site-card" href="san_benedetto_del_tronto_oraria.html">
+      <div class="site-card-title">San Benedetto del Tronto — Tabella meteo oraria (dati reali)</div>
+      <div class="site-card-sub">Marche · Mar 18/08 – Gio 20/08 2026 · localit&agrave; costiera, incluso moto ondoso e marea. Fonte: Open-Meteo (dati reali multi-modello).</div>
+      <div class="site-card-foot"><span class="version-badge">Rev. 1.0.22</span><span class="site-card-arrow">apri &rarr;</span></div>
+    </a>
+  </div>
+
+  <footer class="site-footer">MeteoGarbino225&reg; &middot; Rev. 1.0.22 &middot; <a href="revisioni.html">Revisioni e novit&agrave;</a></footer>
+</div>

@@ -1,0 +1,199 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meteo Garbino — Genera il tuo bollettino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="assets/table_engine.css">
+<style>
+/* Il report generato viene iniettato dentro #gen-result: display:contents lo
+   toglie dal flusso a scatola, cosi' i suoi figli (masthead/sections/notes...)
+   diventano figli diretti di .page e riprendono il gap:24px di .page. */
+#gen-result{ display:contents; }
+</style>
+<script>(function(){try{var t=localStorage.getItem('meteo-garbino-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<button type="button" class="theme-toggle" aria-label="Cambia tema chiaro/scuro" title="Tema chiaro/scuro" onclick="(function(){var d=document.documentElement,mq=window.matchMedia('(prefers-color-scheme: dark)');var cur=d.getAttribute('data-theme')||(mq.matches?'dark':'light');var next=cur==='dark'?'light':'dark';d.setAttribute('data-theme',next);try{localStorage.setItem('meteo-garbino-theme',next);}catch(e){}})()"><span class="theme-toggle-icon icon-sun">☀️</span><span class="theme-toggle-icon icon-moon">🌙</span></button>
+<script>(function(){
+  function svgPoint(svg, clientX, clientY){
+    var pt = svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    return pt.matrixTransform(ctm.inverse());
+  }
+  function nearestPoint(svg, svgX){
+    var pts = svg.querySelectorAll('.chart-pt'), best = null, bestDist = Infinity;
+    for (var i = 0; i < pts.length; i++) {
+      var d = Math.abs(parseFloat(pts[i].getAttribute('data-x')) - svgX);
+      if (d < bestDist) { bestDist = d; best = pts[i]; }
+    }
+    return best;
+  }
+  function colorVar(c){ return c.indexOf('var(') === 0 ? c : ('var(' + c + ')'); }
+  function escHtml(s){
+    return String(s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
+  var activeCharts = [];
+  function hideTooltip(svg){
+    var g = svg.querySelector('.chart-crosshair');
+    var tooltip = svg.parentElement && svg.parentElement.querySelector(':scope > .chart-tooltip');
+    if (g) g.style.display = 'none';
+    if (tooltip) tooltip.style.display = 'none';
+    svg.__activePt = null;
+    var idx = activeCharts.indexOf(svg);
+    if (idx !== -1) activeCharts.splice(idx, 1);
+  }
+  function updateCrosshair(svg, pt){
+    var g = svg.querySelector('.chart-crosshair');
+    var tooltip = svg.parentElement && svg.parentElement.querySelector(':scope > .chart-tooltip');
+    if (!g || !pt) return;
+    var vb = svg.viewBox.baseVal;
+    var x = parseFloat(pt.getAttribute('data-x')), y = parseFloat(pt.getAttribute('data-y'));
+    var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'), dot = g.querySelector('.ch-dot');
+    vline.setAttribute('x1', x); vline.setAttribute('x2', x);
+    vline.setAttribute('y1', vb.y); vline.setAttribute('y2', vb.y + vb.height);
+    hline.setAttribute('y1', y); hline.setAttribute('y2', y);
+    hline.setAttribute('x1', vb.x); hline.setAttribute('x2', vb.x + vb.width);
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+    g.style.display = '';
+    svg.__activePt = pt;
+    if (activeCharts.indexOf(svg) === -1) activeCharts.push(svg);
+
+    if (!tooltip) return;
+    var dateTimeLabel = pt.getAttribute('data-label') || '';
+    var rows = (pt.getAttribute('data-rows') || '').split('|').filter(Boolean).map(function(r){
+      var parts = r.split(',');
+      return { label: parts[0], value: parts[1], color: colorVar(parts[2]) };
+    });
+    tooltip.innerHTML = '<div class="tt-date">' + escHtml(dateTimeLabel) + '</div>' +
+      rows.map(function(r){
+        return '<div class="tt-row" style="color:' + r.color + '">' + escHtml(r.label) + ': ' + escHtml(r.value) + '</div>';
+      }).join('');
+    tooltip.style.display = 'block';
+
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    var spt = svg.createSVGPoint();
+    spt.x = x; spt.y = y;
+    var screenPt = spt.matrixTransform(ctm);
+    var tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+    var left = screenPt.x + 14, top = screenPt.y - th - 14;
+    if (left + tw > window.innerWidth - 4) left = screenPt.x - tw - 14;
+    if (left < 4) left = 4;
+    if (top < 4) top = screenPt.y + 14;
+    if (top + th > window.innerHeight - 4) top = window.innerHeight - th - 4;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+  }
+  function repositionActive(){
+    activeCharts.slice().forEach(function(svg){
+      if (!svg.isConnected || svg.getClientRects().length === 0) { hideTooltip(svg); return; }
+      if (svg.__activePt) updateCrosshair(svg, svg.__activePt);
+    });
+  }
+  var repositionScheduled = false;
+  function scheduleReposition(){
+    if (repositionScheduled) return;
+    repositionScheduled = true;
+    requestAnimationFrame(function(){ repositionScheduled = false; repositionActive(); });
+  }
+  function handleMove(e){
+    var svg = e.target && e.target.closest && e.target.closest('.chart-svg');
+    if (!svg) return;
+    var cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
+    var p = svgPoint(svg, cx, cy);
+    if (!p) return;
+    var pt = nearestPoint(svg, p.x);
+    if (pt) updateCrosshair(svg, pt);
+  }
+  document.addEventListener('pointermove', handleMove);
+  document.addEventListener('pointerdown', handleMove);
+  window.addEventListener('scroll', scheduleReposition, { passive: true, capture: true });
+  window.addEventListener('resize', scheduleReposition, { passive: true });
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest && e.target.closest('.chart-toggle-btn');
+    if (!btn) return;
+    var details = btn.closest('details.param');
+    if (!details) return;
+    var tableWrap = details.querySelector(':scope > .table-wrap'), chartWrap = details.querySelector(':scope > .chart-wrap');
+    if (!tableWrap || !chartWrap) return;
+    var showingTable = !tableWrap.hasAttribute('hidden');
+    if (showingTable) { tableWrap.setAttribute('hidden', ''); chartWrap.removeAttribute('hidden'); btn.textContent = 'Tabella'; }
+    else {
+      var svgInChart = chartWrap.querySelector('.chart-svg');
+      if (svgInChart) hideTooltip(svgInChart);
+      chartWrap.setAttribute('hidden', ''); tableWrap.removeAttribute('hidden'); btn.textContent = 'Grafico';
+    }
+  });
+})();</script>
+<div class="page">
+  <div class="masthead">
+    <div class="masthead-row">
+      <div class="brand-stack">
+        <img class="brand-logo" src="assets/logo_garbino.png" alt="Meteo Garbino">
+      </div>
+      <div class="masthead-main">
+        <h1>Dati <em>previsionali</em></h1>
+        <p class="sub">Scegli localit&agrave;, durata e risoluzione oraria: la tabella multi-modello viene calcolata al volo nel tuo browser, chiamando direttamente le API pubbliche di Open-Meteo (nessun server nel mezzo).</p>
+      </div>
+    </div>
+    <div class="spectrum"></div>
+  </div>
+
+  <form class="gen-form" id="gen-form">
+    <div class="gen-row">
+      <span class="gen-label">Localit&agrave;</span>
+      <div class="gen-loc-toggle">
+        <label class="gen-pill"><input type="radio" name="locmode" value="city"><span>Citt&agrave;</span></label>
+        <label class="gen-pill"><input type="radio" name="locmode" value="coords"><span>Coordinate (lat/lon)</span></label>
+      </div>
+    </div>
+
+    <div class="gen-row-inline">
+      <div class="gen-field gen-hidden" id="field-city">
+        <span class="gen-label">Nome citt&agrave;</span>
+        <input type="text" id="input-city" placeholder="es. Imola" autocomplete="off">
+        <div class="gen-autocomplete" id="city-autocomplete"></div>
+      </div>
+      <div class="gen-field gen-hidden" id="field-lat">
+        <span class="gen-label">Latitudine</span>
+        <input type="number" id="input-lat" step="0.0001" min="-90" max="90" placeholder="es. 44.4939">
+      </div>
+      <div class="gen-field gen-hidden" id="field-lon">
+        <span class="gen-label">Longitudine</span>
+        <input type="number" id="input-lon" step="0.0001" min="-180" max="180" placeholder="es. 11.3427">
+      </div>
+    </div>
+
+    <div class="gen-row">
+      <span class="gen-label">Durata</span>
+      <div class="gen-pillgroup" id="group-days">
+        <label class="gen-pill"><input type="radio" name="days" value="1"><span>1 giorno</span></label>
+        <label class="gen-pill"><input type="radio" name="days" value="2"><span>2 giorni</span></label>
+        <label class="gen-pill"><input type="radio" name="days" value="3"><span>3 giorni</span></label>
+        <label class="gen-pill"><input type="radio" name="days" value="7"><span>7 giorni</span></label>
+      </div>
+    </div>
+
+    <div class="gen-row">
+      <span class="gen-label">Risoluzione oraria</span>
+      <div class="gen-pillgroup" id="group-step">
+        <label class="gen-pill"><input type="radio" name="step" value="24"><span>24 ore (giornaliera)</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="12"><span>ogni 12 ore</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="6"><span>ogni 6 ore</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="3"><span>ogni 3 ore</span></label>
+        <label class="gen-pill"><input type="radio" name="step" value="1"><span>ogni ora</span></label>
+      </div>
+    </div>
+
+    <div>
+      <button type="submit" class="gen-submit" id="gen-submit">Genera bollettino</button>
+      <div class="gen-status" id="gen-status"></div>
+      <div class="gen-suggestions" id="gen-suggestions"></div>
+    </div>
+  </form>
+
+  <div id="gen-result"></div>
+
+  <footer class="site-footer">MeteoGarbino225&reg; &middot; Rev. 1.0.22 &middot; <a href="revisioni.html">Revisioni e novit&agrave;</a></footer>
+</div>
+<script src="assets/meteo-engine.js"></script>

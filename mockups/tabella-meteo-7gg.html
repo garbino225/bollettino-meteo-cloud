@@ -1,0 +1,521 @@
+<title>Tabella Meteo 7 Giorni — Confronto Modelli</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
+<style>
+  :root{
+    --ink:#182230;
+    --ink-soft:#4b5768;
+    --ink-faint:#8592a3;
+    --surface:#eef1f6;
+    --panel:#ffffff;
+    --panel-alt:#f6f8fb;
+    --panel-line:#dde3ec;
+    --accent:#2f6690;
+    --accent-soft:#e4edf4;
+
+    --sev0-bg:#ffffff;
+    --sev0-line:#c9d2de;
+    --sev0-fg:#37404d;
+    --sev1-bg:#ffd23f;
+    --sev1-fg:#3a2c02;
+    --sev2-bg:#ff9142;
+    --sev2-fg:#3a1e02;
+    --sev3-bg:#e14b3f;
+    --sev3-fg:#fff7f5;
+    --sev4-bg:#c02893;
+    --sev4-fg:#fff5fb;
+
+    --consensus-bg:var(--panel-alt);
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#eef2f7; --ink-soft:#a7b2c2; --ink-faint:#6d7889;
+      --surface:#141a22; --panel:#1b232e; --panel-alt:#202934; --panel-line:#2b3543;
+      --accent:#7fb2d9; --accent-soft:#20303c;
+      --sev0-bg:#232d3a; --sev0-line:#3a4656; --sev0-fg:#c7d0dc;
+      --sev1-bg:#caa233; --sev1-fg:#241a00;
+      --sev2-bg:#cf7936; --sev2-fg:#2a1300;
+      --sev3-bg:#b6473c; --sev3-fg:#fff2ef;
+      --sev4-bg:#9c2d80; --sev4-fg:#fdeef8;
+      --consensus-bg:var(--panel-alt);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#eef2f7; --ink-soft:#a7b2c2; --ink-faint:#6d7889;
+    --surface:#141a22; --panel:#1b232e; --panel-alt:#20293d; --panel-line:#2b3543;
+    --accent:#7fb2d9; --accent-soft:#20303c;
+    --sev0-bg:#232d3a; --sev0-line:#3a4656; --sev0-fg:#c7d0dc;
+    --sev1-bg:#caa233; --sev1-fg:#241a00;
+    --sev2-bg:#cf7936; --sev2-fg:#2a1300;
+    --sev3-bg:#b6473c; --sev3-fg:#fff2ef;
+    --sev4-bg:#9c2d80; --sev4-fg:#fdeef8;
+    --consensus-bg:var(--panel-alt);
+    color-scheme: dark;
+  }
+
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--surface); color:var(--ink);
+    font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{ max-width:1180px; margin:0 auto; padding:40px 24px 64px; display:flex; flex-direction:column; gap:24px; }
+
+  .masthead{ display:flex; flex-direction:column; gap:6px; }
+  .eyebrow-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .eyebrow{ font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); }
+  .version-badge{ font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:700; letter-spacing:0.04em; color:var(--ink-soft); background:var(--panel-alt); border:1px solid var(--panel-line); padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  h1{ font-family:"Archivo", sans-serif; font-weight:900; font-size:clamp(26px,4vw,38px); line-height:1.05; letter-spacing:-0.01em; margin:2px 0 0; text-wrap:balance; }
+  h1 em{ font-style:normal; font-weight:700; color:var(--ink-soft); }
+  .sub{ margin:2px 0 0; font-size:14.5px; color:var(--ink-soft); max-width:74ch; line-height:1.5; }
+  .spectrum{ margin-top:14px; height:5px; border-radius:3px;
+    background:linear-gradient(90deg, var(--sev0-line) 0 18%, var(--sev1-bg) 18% 38%, var(--sev2-bg) 38% 58%, var(--sev3-bg) 58% 78%, var(--sev4-bg) 78% 100%); }
+
+  .toolbar{ display:flex; align-items:center; flex-wrap:wrap; gap:14px 18px; padding:14px 18px; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; }
+  .legend-title{ font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-soft); }
+  .swatches{ display:flex; flex-wrap:wrap; gap:8px; }
+  .sw{ display:flex; align-items:baseline; gap:6px; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:600; border:1px solid var(--panel-line); }
+  .sw em{ font-style:normal; font-weight:500; opacity:0.85; }
+  .sw-0{ background:var(--sev0-bg); color:var(--sev0-fg); border-color:var(--sev0-line); }
+  .sw-1{ background:var(--sev1-bg); color:var(--sev1-fg); }
+  .sw-2{ background:var(--sev2-bg); color:var(--sev2-fg); }
+  .sw-3{ background:var(--sev3-bg); color:var(--sev3-fg); }
+  .sw-4{ background:var(--sev4-bg); color:var(--sev4-fg); }
+  .models-key{ display:flex; flex-wrap:wrap; gap:6px 10px; margin-left:auto; }
+  .mk{ font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600; color:var(--ink-soft); padding:3px 8px; border:1px solid var(--panel-line); border-radius:6px; background:var(--panel-alt); }
+  .mk b{ color:var(--ink); }
+
+  .almanac-panel{ background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:14px 18px 6px; }
+  .almanac-panel .legend-title{ display:block; margin-bottom:6px; }
+  .time-cell{ flex-direction:column; align-items:flex-start; justify-content:center; gap:0; font-weight:600; font-size:13px; }
+  .time-cell .tlabel{ font-family:"IBM Plex Sans", sans-serif; font-size:9px; font-weight:600; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.05em; }
+  .moon-cell{ flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; }
+  .moon-cell .moonpct{ font-weight:700; font-size:13px; }
+  .moon-cell .moonlabel{ font-family:"IBM Plex Sans", sans-serif; font-size:9.5px; font-weight:500; color:var(--ink-faint); }
+  .moon-cell .spread-track{ background:var(--panel-line); }
+  .moon-cell .spread-fill{ background:var(--ink-soft); opacity:.5; }
+
+  .sections{ display:flex; flex-direction:column; gap:14px; }
+  details.param{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; overflow:hidden; }
+  details.param[open] summary{ border-bottom:1px solid var(--panel-line); }
+  summary{
+    list-style:none; cursor:pointer; padding:14px 18px; display:flex; align-items:baseline; gap:10px;
+    font-family:"Archivo", sans-serif; font-weight:800; font-size:16px;
+  }
+  summary::-webkit-details-marker{ display:none; }
+  summary .arrow{ font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12px; color:var(--accent); transition:transform .15s ease; }
+  details[open] summary .arrow{ transform:rotate(90deg); }
+  summary .unit{ font-family:"IBM Plex Mono", monospace; font-weight:500; font-size:12px; color:var(--ink-faint); }
+  summary .desc{ font-family:"IBM Plex Sans",sans-serif; font-weight:500; font-size:12.5px; color:var(--ink-faint); margin-left:auto; }
+
+  .table-wrap{ overflow-x:auto; padding:6px 10px 12px; }
+  .pgrid{ min-width:980px; display:grid; grid-template-columns:150px repeat(7,1fr); }
+
+  .cell{ display:flex; align-items:center; padding:4px 10px; font-family:"IBM Plex Mono", monospace; border-bottom:1px solid var(--panel-line); }
+  .rowlabel{ font-family:"IBM Plex Sans", sans-serif; font-size:12.5px; color:var(--ink-soft); position:sticky; left:0; background:var(--panel); z-index:1; }
+  .colhead{ flex-direction:column; align-items:flex-start; justify-content:center; gap:0; font-family:"Archivo", sans-serif; padding-top:8px; padding-bottom:8px; }
+  .colhead .day{ font-weight:800; font-size:13.5px; }
+  .colhead .date{ font-family:"IBM Plex Mono", monospace; font-weight:500; font-size:10.5px; color:var(--ink-faint); }
+
+  .consensus-row{ grid-column:1/9; display:grid; grid-template-columns:150px repeat(7,1fr); min-height:74px; border-top:1px solid var(--panel-line); border-bottom:1px solid var(--panel-line); }
+  .consensus-row .rowlabel{ background:var(--consensus-bg); font-weight:700; color:var(--ink); border-bottom:none; }
+  .consensus-svg{ position:relative; }
+  .consensus-svg svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .consensus-cell{ position:relative; z-index:1; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; padding:6px 10px; border-bottom:none; }
+  .consensus-cell .cval{ font-size:14.5px; font-weight:700; padding:2px 7px; border-radius:6px; }
+  .consensus-cell .crange{ font-size:9.5px; font-weight:500; color:var(--ink-faint); font-family:"IBM Plex Mono",monospace; background:var(--panel); padding:0 3px; border-radius:3px; }
+  .spread-track{ width:100%; height:3px; border-radius:2px; background:var(--panel-line); margin-top:2px; overflow:hidden; }
+  .spread-fill{ height:100%; background:var(--accent); border-radius:2px; opacity:.55; }
+
+  .dir{ font-family:"IBM Plex Sans", sans-serif; font-size:9.5px; font-weight:700; opacity:0.75; margin-left:3px; letter-spacing:0.02em; }
+  .gust-pill{ display:inline-block; font-family:"IBM Plex Mono", monospace; font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:5px; margin-left:5px; white-space:nowrap; }
+  .consensus-cell .gust-pill{ margin-left:0; margin-top:1px; }
+
+  .group-label{ font-family:"IBM Plex Mono", monospace; font-size:9.5px; font-weight:600; letter-spacing:0.09em; text-transform:uppercase; color:var(--ink-faint); background:var(--panel-alt); padding:4px 10px; }
+  .model-row .rowlabel{ font-family:"IBM Plex Mono", monospace; font-size:10.5px; font-weight:600; letter-spacing:0.02em; color:var(--ink-faint); padding-left:22px; }
+  .model-row .cell:not(.rowlabel){ font-size:12.5px; font-weight:600; padding:5px 10px; }
+  .model-row:last-child .cell{ border-bottom:none; }
+
+  .sev-0{ background:var(--sev0-bg); color:var(--sev0-fg); }
+  .sev-1{ background:var(--sev1-bg); color:var(--sev1-fg); }
+  .sev-2{ background:var(--sev2-bg); color:var(--sev2-fg); }
+  .sev-3{ background:var(--sev3-bg); color:var(--sev3-fg); }
+  .sev-4{ background:var(--sev4-bg); color:var(--sev4-fg); }
+
+  .notes{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:20px 22px; }
+  .notes h2{ font-family:"Archivo", sans-serif; font-size:15.5px; font-weight:800; margin:0 0 10px; }
+  .notes ul{ margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--ink-soft); line-height:1.5; }
+  .notes strong{ color:var(--ink); font-weight:600; }
+
+  @media (max-width:640px){ .page{ padding:28px 14px 48px; } }
+</style>
+
+<div class="page">
+
+  <div class="masthead">
+    <div class="eyebrow-row">
+      <div class="eyebrow">Prototipo &middot; confronto multi-modello, 7 giorni</div>
+      <div class="version-badge">Rev. 1.0.0</div>
+    </div>
+    <h1>Bollettino settimanale <em>&middot; dati di prova</em></h1>
+    <p class="sub">Bologna &middot; lun 18 &ndash; dom 24 agosto 2026 &middot; 9 parametri (temperatura, pressione, umidit&agrave;, vento medio 10 min + raffica con direzione, probabilit&agrave; e quantit&agrave; di pioggia, copertura nuvolosa e base delle nubi), ciascuno con la <strong style="color:var(--ink)">media dei modelli</strong> in evidenza, linea di tendenza a sfondo e il dettaglio dei 10 modelli singoli. Sezioni apri/chiudi cliccando il titolo.</p>
+    <div class="spectrum"></div>
+  </div>
+
+  <div class="almanac-panel">
+    <span class="legend-title">Alba &middot; tramonto &middot; fase lunare</span>
+    <div class="table-wrap" style="padding:0;">
+      <div class="pgrid" id="almanacGrid"></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span class="legend-title">Severit&agrave;</span>
+    <div class="swatches">
+      <div class="sw sw-0">Bianco <em>nessun rischio</em></div>
+      <div class="sw sw-1">Giallo <em>moderato</em></div>
+      <div class="sw sw-2">Arancio <em>elevato</em></div>
+      <div class="sw sw-3">Rosso <em>molto elevato</em></div>
+      <div class="sw sw-4">Fucsia <em>estremo</em></div>
+    </div>
+    <div class="models-key" id="modelsKey"></div>
+  </div>
+
+  <div class="sections" id="sections"></div>
+
+  <div class="notes">
+    <h2>Note per la revisione &mdash; da correggere insieme</h2>
+    <ul>
+      <li><strong>Dati e spread:</strong> tutto fittizio. I 10 modelli sono generati con uno scarto sintetico crescente sui giorni pi&ugrave; lontani (l'incertezza tra modelli cresce col lead time, come nella realt&agrave;) attorno alla stessa media usata nelle versioni precedenti. Da sostituire con l'output reale di ogni modello.</li>
+      <li><strong>Modelli scelti (10):</strong> ECMWF, GFS, ICON, UKMO, ARPEGE (globali) + ICON-2I, AROME, ICON-D2, MOLOCH, BOLAM (locali ad area limitata &mdash; questi ultimi due sono i modelli italiani del CNR-ISAC). Ho ancora escluso quelli non pertinenti alla localit&agrave; (HRRR/RAP solo USA, UKV solo UK) &mdash; dimmi se vuoi aggiungere anche i modelli AI (ECMWF AIFS, GraphCast) o toglierne qualcuno.</li>
+      <li><strong>Linea di tendenza a sfondo:</strong> ora presente su <em>ogni</em> parametro (non solo temperatura), dietro la riga "Media modelli": le linee sottili e chiare sono i 10 modelli singoli, quella spessa colorata &egrave; la media &mdash; cos&igrave; il colpo d'occhio mostra sia il trend sui 7 giorni sia quanto i modelli si allargano/convergono.</li>
+      <li><strong>Riga "Media modelli":</strong> sotto al numero resta il range min&ndash;max e una barretta di larghezza proporzionale allo scarto, come dettaglio numerico accanto al grafico.</li>
+      <li><strong>Righe dei singoli modelli:</strong> raggruppate ora in "Globali" e "Locali" con un'etichetta divisoria, per orientarsi meglio tra 10 righe invece di 7.</li>
+      <li><strong>Densit&agrave;:</strong> 9 sezioni &times; 12 righe ciascuna sono tante &mdash; restano richiudibili. Dimmi se preferisci comprimerle ulteriormente (es. solo 2-3 sezioni aperte di default).</li>
+      <li><strong>Vento in nodi:</strong> stessa velocit&agrave; di prima, riconvertita da km/h (1 kn = 1,852 km/h) con soglie di severit&agrave; equivalenti; la direzione (in punti cardinali) &egrave; per ora uguale per tutti i modelli in un dato giorno &mdash; nella realt&agrave; i modelli possono divergere anche sulla direzione, specie con vento debole: dimmi se vuoi differenziarla per modello.</li>
+      <li><strong>Vento corretto (18/08, dopo la tua segnalazione):</strong> nella versione precedente il vento medio sui 10 minuti di gio/ven arrivava a 38&ndash;55 nodi (70&ndash;100 km/h sostenuti) &mdash; valore da ciclone profondo, non credibile per un temporale estivo su Bologna. Errore mio: avevo scalato il "medio" con la stessa intensit&agrave; della raffica. Ora il medio resta modesto tutta la settimana (mai oltre il giallo, 4&ndash;17 kn) e solo la <strong>raffica</strong> sale marcatamente nell'ora del temporale di ven 22/08 (punta ~45&ndash;57 kn, 83&ndash;106 km/h) &mdash; un downburst intenso ma plausibile, non un valore assurdo.</li>
+      <li><strong>Origine dei dati &mdash; da dove vengono:</strong> da nessuna parte reale. Sono tutti inventati da me in questa conversazione per collaudare il layout: non ho interrogato ECMWF, GFS, ICON n&eacute; nessun'altra fonte. Non ho accesso a dati meteo live in questa sessione. Quando mi darai un luogo e un periodo reali (col protocollo giornaliera/oraria concordato) andr&ograve; a cercare i dati veri &mdash; via ricerca web o con la skill dedicata al bollettino meteo &mdash; invece di generarli.</li>
+      <li><strong>Quantit&agrave; pioggia (mm) vs probabilit&agrave; (%):</strong> ora sono due sezioni distinte, come nella meteorologia reale (probabilit&agrave; di occorrenza &ne; quantit&agrave; attesa). Soglie mm ispirate ai criteri di allerta della Protezione Civile per piogge giornaliere, da verificare.</li>
+      <li><strong>Copertura nuvolosa e base nubi:</strong> ho trattato "pi&ugrave; nuvoloso" come severit&agrave; crescente (coerente con lo schema del resto della tabella) e "base pi&ugrave; bassa" come rischio crescente (nebbia/visibilit&agrave; ridotta, rilevante su valichi e aeroporti). Se il tuo uso non richiede un giudizio di severit&agrave; su questi due &mdash; solo il dato nudo &mdash; dimmelo e tolgo la colorazione.</li>
+      <li><strong>Alba, tramonto, fase lunare:</strong> aggiunto subito sotto il titolo, come pannello a s&eacute; (dato astronomico unico, non dipende dai modelli quindi niente confronto/severit&agrave;). Orari e percentuali sono anch'essi di prova.</li>
+      <li><strong>Moto ondoso (altezza onda + direzione):</strong> non incluso qui perch&eacute; Bologna &egrave; una localit&agrave; interna &mdash; lo schema (valore + direzione, stessa resa grafica del vento) &egrave; comunque pronto e lo aggiunger&ograve; automaticamente quando mi chiederai la tabella per una localit&agrave; di mare.</li>
+      <li><strong>Protocollo per le prossime richieste:</strong> da ora, quando mi chiedi "la tabella" per un luogo, ti chieder&ograve; se la vuoi <strong>giornaliera (7 giorni)</strong> oppure <strong>oraria (3 giorni)</strong> prima di generarla.</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+const days = [
+  {d:"Lun", date:"18/08"}, {d:"Mar", date:"19/08"}, {d:"Mer", date:"20/08"},
+  {d:"Gio", date:"21/08"}, {d:"Ven", date:"22/08"}, {d:"Sab", date:"23/08"}, {d:"Dom", date:"24/08"}
+];
+
+const models = [
+  {code:"ECMWF",   full:"ECMWF IFS — globale", group:"globale"},
+  {code:"GFS",     full:"NOAA GFS — globale", group:"globale"},
+  {code:"ICON",    full:"DWD ICON — globale", group:"globale"},
+  {code:"UKMO",    full:"Met Office UM — globale", group:"globale"},
+  {code:"ARPEGE",  full:"Météo-France ARPEGE — globale", group:"globale"},
+  {code:"ICON-2I", full:"ICON-2I Aeronautica Militare — locale 2.2 km", group:"locale"},
+  {code:"AROME",   full:"Météo-France AROME — locale 1.3 km", group:"locale"},
+  {code:"ICON-D2", full:"DWD ICON-D2 — locale 2 km", group:"locale"},
+  {code:"MOLOCH",  full:"CNR-ISAC MOLOCH — locale, area limitata Italia", group:"locale"},
+  {code:"BOLAM",   full:"CNR-ISAC BOLAM — locale, area limitata Italia", group:"locale"}
+];
+
+function classify(param, v){
+  switch(param){
+    case "tmax": return v<30?0 : v<=33?1 : v<=36?2 : v<=40?3 : 4;
+    case "tmin": return v<20?0 : v<=24?1 : v<=27?2 : v<=30?3 : 4;
+    case "pressione": return v>=1013?0 : v>=1008?1 : v>=1003?2 : v>=998?3 : 4;
+    case "umidita": return v<60?0 : v<=70?1 : v<=80?2 : v<=90?3 : 4;
+    case "vento": return v<11?0 : v<=21?1 : v<=32?2 : v<=48?3 : 4;
+    case "pioggia": return v<=10?0 : v<=40?1 : v<=70?2 : v<=90?3 : 4;
+    case "pioggia_mm": return v<=1?0 : v<=10?1 : v<=30?2 : v<=60?3 : 4;
+    case "copertura": return v<20?0 : v<=50?1 : v<=80?2 : v<=95?3 : 4;
+    case "basenubi": return v<0.3?4 : v<=0.6?3 : v<=1.5?2 : v<=3.0?1 : 0;
+  }
+}
+
+const params = [
+  { key:"tmax", label:"Temperatura massima", unit:"°C", decimals:1, spreadScale:4,
+    threshTxt:"&lt;30 bianco · 30–33 giallo · 33–36 arancio · 36–40 rosso · &gt;40 fucsia",
+    values:{
+      "ECMWF":[33.0,34.0,31.0,27.0,24.0,26.0,29.0],
+      "GFS":[33.4,34.5,31.6,27.7,24.9,27.0,30.1],
+      "ICON":[32.8,33.7,30.6,26.5,23.4,25.3,28.3],
+      "UKMO":[33.1,34.2,31.2,27.2,24.3,26.3,29.4],
+      "ARPEGE":[33.3,34.4,31.5,27.6,24.7,26.8,29.9],
+      "ICON-2I":[32.6,33.4,30.3,26.1,23.0,24.8,27.7],
+      "AROME":[33.5,34.7,31.9,28.1,25.3,27.5,30.7],
+      "ICON-D2":[32.6,33.5,30.4,26.3,23.1,25.0,27.9],
+      "MOLOCH":[32.8,33.8,30.7,26.6,23.6,25.5,28.4],
+      "BOLAM":[32.9,33.8,30.8,26.8,23.7,25.7,28.6]
+    }
+  },
+  { key:"tmin", label:"Temperatura minima", unit:"°C", decimals:1, spreadScale:3.5,
+    threshTxt:"&lt;20 bianco · 20–24 giallo (notte tropicale) · &gt;24 arancio+",
+    values:{
+      "ECMWF":[21.0,22.0,21.0,19.0,17.0,16.0,18.0],
+      "GFS":[21.3,22.4,21.5,19.6,17.7,16.8,18.9],
+      "ICON":[20.8,21.7,20.7,18.6,16.5,15.5,17.4],
+      "UKMO":[21.1,22.1,21.2,19.2,17.2,16.3,18.3],
+      "ARPEGE":[21.3,22.3,21.4,19.5,17.6,16.7,18.8],
+      "ICON-2I":[20.6,21.5,20.4,18.3,16.2,15.0,16.9],
+      "AROME":[21.5,22.6,21.8,19.9,18.1,17.2,19.4],
+      "ICON-D2":[20.7,21.6,20.5,18.4,16.3,15.2,17.1],
+      "MOLOCH":[20.9,21.8,20.7,18.7,16.6,15.6,17.5],
+      "BOLAM":[20.9,21.9,20.8,18.8,16.8,15.7,17.7]
+    }
+  },
+  { key:"pressione", label:"Pressione", unit:"hPa", decimals:0, spreadScale:6,
+    threshTxt:"&ge;1013 bianco · 1008–1012 giallo · 1003–1007 arancio · 998–1002 rosso · &lt;998 fucsia",
+    values:{
+      "ECMWF":[1012,1010,1006,1002,996,1004,1009],
+      "GFS":[1013,1011,1007,1003,997,1006,1011],
+      "ICON":[1012,1009,1005,1001,995,1003,1008],
+      "UKMO":[1012,1010,1006,1002,996,1005,1010],
+      "ARPEGE":[1013,1011,1007,1003,997,1005,1011],
+      "ICON-2I":[1011,1009,1005,1001,994,1002,1007],
+      "AROME":[1013,1011,1008,1004,998,1006,1012],
+      "ICON-D2":[1011,1009,1005,1001,994,1002,1007],
+      "MOLOCH":[1012,1010,1005,1001,995,1003,1008],
+      "BOLAM":[1012,1010,1006,1002,996,1003,1008]
+    }
+  },
+  { key:"umidita", label:"Umidità", unit:"%", decimals:0, spreadScale:15,
+    threshTxt:"&lt;60 bianco · 60–70 giallo · 70–80 arancio · 80–90 rosso · &gt;90 fucsia",
+    values:{
+      "ECMWF":[55,60,68,84,92,65,58],
+      "GFS":[57,62,71,87,96,69,63],
+      "ICON":[54,59,66,82,90,62,55],
+      "UKMO":[56,61,69,85,93,66,60],
+      "ARPEGE":[56,62,70,87,95,68,62],
+      "ICON-2I":[53,58,65,80,88,60,53],
+      "AROME":[57,63,72,89,97,71,65],
+      "ICON-D2":[54,58,66,81,88,61,53],
+      "MOLOCH":[54,59,67,82,90,63,56],
+      "BOLAM":[55,59,67,83,91,64,56]
+    }
+  },
+  { key:"vento", label:"Vento", unit:"kn", decimals:0, spreadScale:5, hasDirection:true,
+    directions:["NE","E","SE","S","SO","O","NO"],
+    threshTxt:"medio 10 min + raffica · &lt;11 bianco · 11–21 giallo · 22–32 arancio · 33–48 rosso · &ge;49 fucsia (nodi)",
+    values:{
+      "ECMWF":[5,7,10,13,15,9,5],
+      "GFS":[5,8,11,14,16,10,6],
+      "ICON":[5,7,9,12,14,8,4],
+      "UKMO":[5,7,10,13,15,9,5],
+      "ARPEGE":[5,8,11,14,16,10,6],
+      "ICON-2I":[4,6,9,12,14,7,3],
+      "AROME":[6,8,11,14,17,11,7],
+      "ICON-D2":[5,6,9,12,14,8,4],
+      "MOLOCH":[5,7,10,13,14,8,4],
+      "BOLAM":[5,7,10,13,15,9,5]
+    },
+    gustValues:{
+      "ECMWF":[8,12,25,38,50,16,8],
+      "GFS":[10,15,28,42,55,19,10],
+      "ICON":[7,10,23,35,47,14,7],
+      "UKMO":[9,13,26,39,52,17,9],
+      "ARPEGE":[9,14,28,41,54,19,9],
+      "ICON-2I":[6,9,21,33,45,12,6],
+      "AROME":[11,16,30,44,57,21,11],
+      "ICON-D2":[6,9,22,34,45,13,6],
+      "MOLOCH":[7,11,23,36,48,14,7],
+      "BOLAM":[7,11,24,37,48,15,7]
+    }
+  },
+  { key:"pioggia", label:"Probabilità pioggia", unit:"%", decimals:0, spreadScale:25,
+    threshTxt:"0–10 bianco · 11–40 giallo · 41–70 arancio · 71–90 rosso · &gt;90 fucsia",
+    values:{
+      "ECMWF":[5,15,45,75,95,30,8],
+      "GFS":[7,18,49,80,99,37,15],
+      "ICON":[3,13,42,72,91,26,3],
+      "UKMO":[6,16,46,76,97,32,10],
+      "ARPEGE":[7,18,48,79,100,36,14],
+      "ICON-2I":[2,11,40,69,88,22,0],
+      "AROME":[9,20,51,82,99,40,19],
+      "ICON-D2":[3,12,41,70,89,23,1],
+      "MOLOCH":[4,13,43,73,92,27,4],
+      "BOLAM":[4,14,44,73,93,28,6]
+    }
+  },
+  { key:"pioggia_mm", label:"Quantità precipitazione", unit:"mm", decimals:1, spreadScale:40,
+    threshTxt:"&le;1 bianco · 1–10 giallo · 10–30 arancio · 30–60 rosso · &gt;60 fucsia",
+    values:{
+      "ECMWF":[0.5,3.0,18.0,42.0,78.0,8.0,1.0],
+      "GFS":[0.7,3.5,22.0,53.4,102.7,10.9,1.7],
+      "ICON":[0.3,2.6,15.3,34.4,61.5,6.1,0.5],
+      "UKMO":[0.6,3.2,19.3,45.8,86.2,9.0,1.2],
+      "ARPEGE":[0.7,3.4,21.4,51.5,98.6,10.4,1.6],
+      "ICON-2I":[0.2,2.4,13.3,28.7,49.2,4.6,0.1],
+      "AROME":[0.9,3.8,24.1,59.0,115.1,12.4,2.1],
+      "ICON-D2":[0.3,2.5,14.0,30.6,53.3,5.1,0.3],
+      "MOLOCH":[0.4,2.7,16.0,36.3,65.7,6.5,0.6],
+      "BOLAM":[0.4,2.8,16.7,38.2,69.8,7.0,0.8]
+    }
+  },
+  { key:"copertura", label:"Copertura nuvolosa", unit:"%", decimals:0, spreadScale:20,
+    threshTxt:"&lt;20 bianco (sereno) · 20–50 giallo · 50–80 arancio · 80–95 rosso · &gt;95 fucsia (coperto)",
+    values:{
+      "ECMWF":[20,35,65,90,98,55,25],
+      "GFS":[22,37,68,93,100,59,30],
+      "ICON":[19,34,63,88,96,52,22],
+      "UKMO":[21,36,66,91,99,56,27],
+      "ARPEGE":[21,37,67,93,100,58,29],
+      "ICON-2I":[18,33,62,86,94,50,20],
+      "AROME":[22,38,69,95,100,61,32],
+      "ICON-D2":[19,33,62,87,94,51,20],
+      "MOLOCH":[19,34,64,88,96,53,23],
+      "BOLAM":[20,34,64,89,97,54,23]
+    }
+  },
+  { key:"basenubi", label:"Base nubi", unit:"km", decimals:1, spreadScale:1.5,
+    threshTxt:"&lt;0,3 fucsia (nebbia) · 0,3–0,6 rosso · 0,6–1,5 arancio · 1,5–3 giallo · &gt;3 bianco (nubi alte)",
+    values:{
+      "ECMWF":[3.5,2.0,1.2,0.6,0.25,1.0,3.3],
+      "GFS":[3.6,2.1,1.4,0.8,0.5,1.2,3.6],
+      "ICON":[3.4,1.9,1.1,0.5,0.1,0.8,3.1],
+      "UKMO":[3.5,2.0,1.3,0.7,0.3,1.1,3.4],
+      "ARPEGE":[3.6,2.1,1.3,0.8,0.4,1.2,3.5],
+      "ICON-2I":[3.4,1.9,1.0,0.4,0.1,0.7,3.0],
+      "AROME":[3.6,2.2,1.4,0.9,0.6,1.4,3.7],
+      "ICON-D2":[3.4,1.9,1.0,0.4,0.1,0.8,3.0],
+      "MOLOCH":[3.5,1.9,1.1,0.5,0.1,0.9,3.2],
+      "BOLAM":[3.5,2.0,1.1,0.5,0.2,0.9,3.2]
+    }
+  }
+];
+
+function fmt(v, decimals){ return decimals>0 ? v.toFixed(decimals) : Math.round(v).toString(); }
+
+const headCells = days.map(d=>`<div class="cell colhead"><span class="day">${d.d}</span><span class="date">${d.date}</span></div>`).join("");
+
+const almanac = {
+  alba:      ["06:05","06:06","06:08","06:09","06:10","06:11","06:13"],
+  tramonto:  ["20:12","20:10","20:08","20:06","20:05","20:03","20:01"],
+  luna: [
+    {pct:78,  label:"crescente"}, {pct:87,  label:"crescente"}, {pct:94,  label:"crescente"},
+    {pct:99,  label:"crescente"}, {pct:100, label:"piena"},
+    {pct:96,  label:"calante"},   {pct:89,  label:"calante"}
+  ]
+};
+
+document.getElementById("almanacGrid").innerHTML = `
+  <div class="cell rowlabel" style="font-weight:700;">Giorno</div>
+  ${headCells}
+  <div class="cell rowlabel">Alba</div>
+  ${almanac.alba.map(t=>`<div class="cell time-cell">${t}</div>`).join("")}
+  <div class="cell rowlabel">Tramonto</div>
+  ${almanac.tramonto.map(t=>`<div class="cell time-cell">${t}</div>`).join("")}
+  <div class="cell rowlabel" style="border-bottom:none;">Fase lunare</div>
+  ${almanac.luna.map(l=>`<div class="cell moon-cell" style="border-bottom:none;">
+      <span class="moonpct">${l.pct}%</span>
+      <span class="spread-track"><span class="spread-fill" style="width:${l.pct}%"></span></span>
+      <span class="moonlabel">${l.label}</span>
+    </div>`).join("")}
+`;
+
+const modelsKey = document.getElementById("modelsKey");
+modelsKey.innerHTML = models.map(m=>`<span class="mk" title="${m.full}"><b>${m.code}</b></span>`).join("");
+
+const sections = document.getElementById("sections");
+
+function buildTrendSVG(p){
+  const allVals = models.flatMap(m=>p.values[m.code]);
+  let lo = Math.min(...allVals), hi = Math.max(...allVals);
+  const pad = (hi-lo)*0.18 || 1;
+  lo -= pad; hi += pad;
+  const x = i => 50 + i*100;
+  const y = v => 92 - ((v-lo)/(hi-lo))*80;
+
+  const modelLines = models.map(m=>{
+    const pts = p.values[m.code].map((v,i)=>`${x(i)},${y(v).toFixed(1)}`).join(" ");
+    return `<polyline points="${pts}" fill="none" stroke="var(--ink-faint)" stroke-width="1.2" opacity="0.32" stroke-linejoin="round" stroke-linecap="round" />`;
+  }).join("");
+
+  const meanVals = days.map((d,i)=> models.reduce((s,m)=>s+p.values[m.code][i],0)/models.length );
+  const meanPts = meanVals.map((v,i)=>`${x(i)},${y(v).toFixed(1)}`).join(" ");
+  const areaPts = `50,96 ${meanPts} 650,96`;
+
+  return `<svg viewBox="0 0 700 100" preserveAspectRatio="none">
+      <polygon points="${areaPts}" fill="var(--accent)" opacity="0.08" />
+      ${modelLines}
+      <polyline points="${meanPts}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" />
+    </svg>`;
+}
+
+params.forEach(p=>{
+  const trendSvg = buildTrendSVG(p);
+
+  const dayCols = days.map((d,i)=>{
+    const vals = models.map(m=>p.values[m.code][i]);
+    const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const spreadPct = Math.max(6, Math.min(100, ((max-min)/p.spreadScale)*100));
+    const sev = classify(p.key, avg);
+    const dir = p.hasDirection ? `<span class="dir">${p.directions[i]}</span>` : "";
+    let gustHtml = "";
+    if(p.gustValues){
+      const gvals = models.map(m=>p.gustValues[m.code][i]);
+      const gavg = gvals.reduce((a,b)=>a+b,0)/gvals.length;
+      const gsev = classify(p.key, gavg);
+      gustHtml = `<span class="gust-pill sev-${gsev}">raffica ${fmt(gavg,p.decimals)} ${p.unit}</span>`;
+    }
+    return `<div class="cell consensus-cell" style="grid-column:${2+i};grid-row:1;">
+        <span class="cval sev-${sev}">${fmt(avg,p.decimals)}<span style="font-size:9px;font-weight:500;opacity:.8;">${p.unit}</span>${dir}</span>
+        ${gustHtml}
+        <span class="crange">${fmt(min,p.decimals)}–${fmt(max,p.decimals)}</span>
+        <span class="spread-track"><span class="spread-fill" style="width:${spreadPct}%"></span></span>
+      </div>`;
+  }).join("");
+
+  let prevGroup = null;
+  const modelRows = models.map(m=>{
+    const cells = days.map((d,i)=>{
+      const v = p.values[m.code][i];
+      const sev = classify(p.key, v);
+      const dir = p.hasDirection ? `<span class="dir">${p.directions[i]}</span>` : "";
+      let gustHtml = "";
+      if(p.gustValues){
+        const gv = p.gustValues[m.code][i];
+        const gsev = classify(p.key, gv);
+        gustHtml = `<span class="gust-pill sev-${gsev}" title="Raffica">R ${fmt(gv,p.decimals)}</span>`;
+      }
+      return `<div class="cell sev-${sev}">${fmt(v,p.decimals)}${dir}${gustHtml}</div>`;
+    }).join("");
+    const divider = m.group !== prevGroup
+      ? `<div style="display:contents"><div class="cell group-label" style="grid-column:1/9;">Modelli ${m.group === "globale" ? "globali" : "locali (area limitata)"}</div></div>`
+      : "";
+    prevGroup = m.group;
+    return `${divider}<div class="model-row" style="display:contents">
+        <div class="cell rowlabel">${m.code}</div>
+        ${cells}
+      </div>`;
+  }).join("");
+
+  const section = document.createElement("details");
+  section.className = "param";
+  section.open = true;
+  section.innerHTML = `
+    <summary><span class="arrow">&#9656;</span> ${p.label} <span class="unit">${p.unit}</span><span class="desc">${p.threshTxt}</span></summary>
+    <div class="table-wrap">
+      <div class="pgrid">
+        <div class="cell rowlabel" style="font-weight:700;">Giorno</div>
+        ${headCells}
+        <div class="consensus-row">
+          <div class="cell rowlabel" style="grid-column:1;grid-row:1;">Media modelli</div>
+          <div class="consensus-svg" style="grid-column:2/9;grid-row:1;">${trendSvg}</div>
+          ${dayCols}
+        </div>
+        ${modelRows}
+      </div>
+    </div>`;
+  sections.appendChild(section);
+});
+</script>
