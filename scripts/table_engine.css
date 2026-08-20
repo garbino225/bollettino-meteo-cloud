@@ -159,6 +159,16 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
 
 .site-footer{ text-align:center; padding:6px 0 0; font-family:"IBM Plex Mono", monospace; font-size:11px; letter-spacing:0.04em; color:var(--ink-faint); }
 
+/* --- Indice del sito (docs/index.html) --- */
+.site-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+.site-card{ display:flex; flex-direction:column; gap:8px; background:var(--panel); border:1px solid var(--panel-line);
+  border-radius:12px; padding:18px 20px; text-decoration:none; color:inherit; }
+.site-card-title{ font-family:"Archivo", sans-serif; font-weight:800; font-size:17px; color:var(--ink); }
+.site-card-sub{ font-size:13px; color:var(--ink-soft); line-height:1.5; flex:1; }
+.site-card-foot{ display:flex; align-items:center; justify-content:space-between; margin-top:4px; }
+.site-card-arrow{ font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:600; color:var(--accent); }
+.site-card-highlight{ border-color:var(--accent); background:var(--accent-soft); }
+
 /* --- Generatore live (docs/genera.html) --- */
 .gen-form{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:20px 22px; display:flex; flex-direction:column; gap:16px; }
 .gen-row{ display:flex; flex-direction:column; gap:8px; }

@@ -84,6 +84,10 @@ THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('mete
 # Storico revisioni dello strumento. Aggiungere una voce in cima ad ogni
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato.
 CHANGELOG = [
+    {"version": "1.0.8", "date": "20/08/2026", "changes": [
+        "Sito molto piu' veloce da navigare: le pagine copiate in docs/ ora linkano CSS e logo come file esterni condivisi invece di incorporarli (base64) su ognuna — scaricati una volta sola dal browser e riusati in cache su tutte le pagine successive. La home e' passata da ~500KB a ~4KB, i bollettini da 600KB-1.1MB a 100-600KB.",
+        "Solo la prima sezione (Temperatura) e' aperta di default in ogni tabella: con tabelle fino a 168 colonne orarie, tenerle tutte espanse appesantiva inutilmente il caricamento iniziale. Le altre restano un clic di distanza (funziona anche senza JavaScript: sono elementi HTML nativi).",
+    ]},
     {"version": "1.0.7", "date": "20/08/2026", "changes": [
         "Aggiunto il footer \"MeteoGarbino225®\" in fondo a ogni pagina del sito.",
     ]},
@@ -306,8 +310,9 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
         excluded_html = f'<span class="warn" title="{title}">{ne} modell{"o" if ne == 1 else "i"} escluso{"" if ne == 1 else "i"}</span>'
 
     hourly_class = "hourly" if mode == "hourly" else ""
+    open_attr = " open" if p.get("openDefault") else ""
 
-    return f'''<details class="param" open>
+    return f'''<details class="param"{open_attr}>
     <summary><span class="arrow">&#9656;</span> {p["label"]} <span class="unit">{p["unit"]}</span>{excluded_html}<span class="desc">{p["threshTxt"]}</span></summary>
     <div class="table-wrap">
       <div class="pgrid {hourly_class}">
@@ -354,8 +359,9 @@ def render_convective_section(p, mode, time_cols, day_labels):
             head_cells.append(f'<div class="cell colhead"><span class="day">{tc["d"]}</span><span class="date">{tc["date"]}</span></div>')
 
     hourly_class = "hourly" if mode == "hourly" else ""
+    open_attr = " open" if p.get("openDefault") else ""
 
-    return f'''<details class="param" open>
+    return f'''<details class="param"{open_attr}>
     <summary><span class="arrow">&#9656;</span> {p["label"]} <span class="unit">{p["unit"]}</span><span class="desc">{p["threshTxt"]}</span></summary>
     <div class="table-wrap">
       <div class="pgrid {hourly_class}">
@@ -847,6 +853,16 @@ def build(args):
                 f"{' · localit&agrave; costiera, incluso moto ondoso' if args.marine else ''}."
                 f" Fonte: Open-Meteo (dati reali multi-modello).")
     meta_strip = f"lat {loc['lat']:.4f} · lon {loc['lon']:.4f}" + (f" · {elevation:.0f} m" if elevation is not None else "")
+
+    # Solo il primo parametro e' aperto di default: con fino a 72-168 colonne
+    # orarie per sezione, tenerle tutte espanse appesantisce inutilmente il
+    # rendering iniziale della pagina (migliaia di celle mai guardate). Le
+    # <details> chiuse non richiedono layout finche' l'utente non le apre,
+    # nessun JavaScript necessario.
+    for i, p in enumerate(params):
+        p["openDefault"] = (i == 0)
+    for p in conv_params:
+        p["openDefault"] = False
 
     almanac_html = render_almanac(day_labels, alba, tramonto, luna)
     models_key_html = "".join(f'<span class="mk" title="{m["full"]}"><b>{m["code"]}</b></span>' for m in all_models_meta)

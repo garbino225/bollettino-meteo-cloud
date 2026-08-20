@@ -6,13 +6,15 @@ docs/index.html con le card di collegamento, leggendo titolo/periodo/
 versione direttamente dall'HTML di ciascun bollettino (nessun dato
 duplicato a mano).
 
-Nessuna dipendenza da rete o JavaScript: stessa filosofia di
-build_comparison_table.py.
+A differenza dei file autonomi in output/ (pensati per essere inviati
+singolarmente, con CSS e logo incorporati), le pagine copiate qui dentro
+usano un link esterno a table_engine.css/logo_garbino.png in docs/assets/:
+scaricati una volta sola e riusati in cache su tutte le pagine del sito,
+per una navigazione interna molto piu' leggera.
 
 Uso:
     python3 build_site.py
 """
-import base64
 import glob
 import os
 import re
@@ -44,22 +46,29 @@ THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('mete
                       '''<span class="theme-toggle-icon icon-moon">\U0001f319</span></button>''')
 
 
-def b64_file(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("ascii")
-
-
 def extract(html, pattern, default=""):
     m = re.search(pattern, html, re.S)
     return m.group(1).strip() if m else default
 
 
-def page_meta(path):
-    html = open(path, encoding="utf-8").read()
+def page_meta(html):
     title = extract(html, r"<title>(.*?)</title>")
     sub = extract(html, r'class="sub">(.*?)</p>')
     version = extract(html, r'class="version-badge">(.*?)</div>')
     return {"title": title, "sub": sub, "version": version}
+
+
+def lighten_for_site(html):
+    """I bollettini di output/ sono file autonomi (CSS e logo incorporati
+    come base64) cosi' funzionano anche inviati singolarmente. Dentro al
+    sito quell'incorporamento e' solo peso morto ripetuto su ogni pagina
+    (~500KB-1MB a pagina, mai in cache): qui lo si sostituisce con un link
+    esterno a table_engine.css e al logo in docs/assets/, scaricati una
+    volta sola dal browser e riusati su tutte le pagine successive."""
+    html = re.sub(r"<style>.*?</style>", '<link rel="stylesheet" href="assets/table_engine.css">',
+                   html, count=1, flags=re.S)
+    html = re.sub(r'src="data:image/png;base64,[^"]*"', 'src="assets/logo_garbino.png"', html)
+    return html
 
 
 def build():
@@ -77,15 +86,13 @@ def build():
     cards = []
     for src in sources:
         fname = os.path.basename(src)
-        shutil.copyfile(src, os.path.join(DOCS_DIR, fname))
-        meta = page_meta(src)
+        html_src = open(src, encoding="utf-8").read()
+        meta = page_meta(html_src)
+        with open(os.path.join(DOCS_DIR, fname), "w", encoding="utf-8") as f:
+            f.write(lighten_for_site(html_src))
         cards.append({"file": fname, **meta})
 
-    css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
-
-    logo_html = ""
-    if os.path.exists(LOGO_PATH):
-        logo_html = f'<img class="brand-logo" src="data:image/png;base64,{b64_file(LOGO_PATH)}" alt="Meteo Garbino">'
+    logo_html = '<img class="brand-logo" src="assets/logo_garbino.png" alt="Meteo Garbino">' if os.path.exists(LOGO_PATH) else ""
 
     genera_card = '''<a class="site-card site-card-highlight" href="genera.html">
       <div class="site-card-title">Genera il tuo bollettino</div>
@@ -107,17 +114,7 @@ def build():
 <title>Meteo Garbino — Confronto multi-modello</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
-<style>
-{css}
-.site-grid{{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }}
-.site-card{{ display:flex; flex-direction:column; gap:8px; background:var(--panel); border:1px solid var(--panel-line);
-  border-radius:12px; padding:18px 20px; text-decoration:none; color:inherit; }}
-.site-card-title{{ font-family:"Archivo", sans-serif; font-weight:800; font-size:17px; color:var(--ink); }}
-.site-card-sub{{ font-size:13px; color:var(--ink-soft); line-height:1.5; flex:1; }}
-.site-card-foot{{ display:flex; align-items:center; justify-content:space-between; margin-top:4px; }}
-.site-card-arrow{{ font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:600; color:var(--accent); }}
-.site-card-highlight{{ border-color:var(--accent); background:var(--accent-soft); }}
-</style>
+<link rel="stylesheet" href="assets/table_engine.css">
 {THEME_TOGGLE_HTML}
 <div class="page">
   <div class="masthead">

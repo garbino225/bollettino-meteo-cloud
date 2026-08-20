@@ -374,8 +374,9 @@
       excludedHtml = '<span class="warn" title="' + esc(title) + '">' + ne + " modell" + (ne === 1 ? "o" : "i") + " escluso" + (ne === 1 ? "" : "i") + '</span>';
     }
     var hourlyClass = mode === "hourly" ? "hourly" : "";
+    var openAttr = p.openDefault ? " open" : "";
 
-    return '<details class="param" open>' +
+    return '<details class="param"' + openAttr + '>' +
       '<summary><span class="arrow">&#9656;</span> ' + esc(p.label) + ' <span class="unit">' + esc(p.unit) + '</span>' + excludedHtml + '<span class="desc">' + p.threshTxt + '</span></summary>' +
       '<div class="table-wrap"><div class="pgrid ' + hourlyClass + '">' +
       '<div class="cell rowlabel" style="font-weight:700;">' + (mode === "hourly" ? "Ora" : "Giorno") + '</div>' +
@@ -399,7 +400,8 @@
       cells.push('<div class="cell consensus-cell' + dscOf(mode, timeCols, i) + '" style="grid-column:' + (2 + i) + ';grid-row:1;"><span class="cval ' + sevClass + '">' + fmtVal(v, p.decimals) + '</span></div>');
     }
     var hourlyClass = mode === "hourly" ? "hourly" : "";
-    return '<details class="param" open>' +
+    var openAttr = p.openDefault ? " open" : "";
+    return '<details class="param"' + openAttr + '>' +
       '<summary><span class="arrow">&#9656;</span> ' + esc(p.label) + ' <span class="unit">' + esc(p.unit) + '</span><span class="desc">' + p.threshTxt + '</span></summary>' +
       '<div class="table-wrap"><div class="pgrid ' + hourlyClass + '">' +
       '<div class="cell rowlabel" style="font-weight:700;">' + (mode === "hourly" ? "Ora" : "Giorno") + '</div>' +
@@ -796,6 +798,13 @@
       esc(periodLabel) + (waveModelsMeta.length ? " · località costiera, incluso moto ondoso" : "") +
       ". Fonte: Open-Meteo (dati reali multi-modello), calcolato nel browser.";
     var metaStrip = "lat " + loc.lat.toFixed(4) + " · lon " + loc.lon.toFixed(4) + (loc.elevation !== null && loc.elevation !== undefined ? " · " + Math.round(loc.elevation) + " m" : "");
+
+    // Solo il primo parametro aperto di default: con fino a 168 colonne
+    // orarie per sezione, tenerle tutte espanse appesantisce il rendering
+    // iniziale (migliaia di celle mai guardate). Le <details> chiuse non
+    // richiedono layout finche' l'utente non le apre.
+    params.forEach(function (p, i) { p.openDefault = (i === 0); });
+    convParams.forEach(function (p) { p.openDefault = false; });
 
     var almanacHtml = renderAlmanac(dayLabels, alba, tramonto, luna);
     var modelsKeyHtml = allModelsMeta.map(function (m) { return '<span class="mk" title="' + esc(m.full) + '"><b>' + esc(m.code) + '</b></span>'; }).join("");
