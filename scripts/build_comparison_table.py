@@ -927,7 +927,6 @@ def build(args):
         p["openDefault"] = False
 
     almanac_html = render_almanac(day_labels, alba, tramonto, luna)
-    models_key_html = "".join(f'<span class="mk" title="{m["full"]}"><b>{m["code"]}</b></span>' for m in all_models_meta)
     sections_html = "\n".join(render_section(p, args.mode, time_cols, day_labels, models_lookup) for p in params)
     conv_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in conv_params)
 
@@ -972,18 +971,6 @@ def build(args):
     <div class="table-wrap" style="padding:0;">
       {almanac_html}
     </div>
-  </div>
-
-  <div class="toolbar">
-    <span class="legend-title">Severit&agrave;</span>
-    <div class="swatches">
-      <div class="sw sw-0">Bianco <em>nessun rischio</em></div>
-      <div class="sw sw-1">Giallo <em>moderato</em></div>
-      <div class="sw sw-2">Arancio <em>elevato</em></div>
-      <div class="sw sw-3">Rosso <em>molto elevato</em></div>
-      <div class="sw sw-4">Fucsia <em>estremo</em></div>
-    </div>
-    <div class="models-key">{models_key_html}</div>
   </div>
 
   <div class="sections">

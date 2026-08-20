@@ -129,6 +129,10 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.12", "date": "20/08/2026", "changes": [
+        "Logo Meteo Garbino ingrandito (x3) nell'intestazione.",
+        "Rimossa la barra \"Severit&agrave;\" (legenda colori + elenco modelli) sotto l'almanacco: era un'altra fonte di confusione simile alla sezione Attenzione gi&agrave; rimossa, e l'informazione sui colori resta comunque nella descrizione di ogni parametro.",
+    ]},
     {"version": "1.0.11", "date": "20/08/2026", "changes": [
         "Rimossa la sezione \"Attenzione\": generava confusione, l'informazione era gia' leggibile nelle celle colorate delle tabelle.",
         "Il grafico e' ora la vista di default di ogni parametro (prima era la tabella); un pulsante la converte in tabella e viceversa.",

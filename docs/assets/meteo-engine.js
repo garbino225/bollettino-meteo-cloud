@@ -923,7 +923,6 @@
     convParams.forEach(function (p) { p.openDefault = false; });
 
     var almanacHtml = renderAlmanac(dayLabels, alba, tramonto, luna);
-    var modelsKeyHtml = allModelsMeta.map(function (m) { return '<span class="mk" title="' + esc(m.full) + '"><b>' + esc(m.code) + '</b></span>'; }).join("");
     var sectionsHtml = params.map(function (p) { return renderSection(p, mode, timeCols, dayLabels, modelsLookup); }).join("\n");
     var convSectionsHtml = convParams.map(function (p) { return renderConvectiveSection(p, mode, timeCols, dayLabels); }).join("\n");
 
@@ -945,10 +944,6 @@
       '</div></div><div class="spectrum"></div></div>' +
       '<div class="almanac-panel"><span class="legend-title">Alba &middot; tramonto &middot; fase lunare (reali)</span>' +
       '<div class="table-wrap" style="padding:0;">' + almanacHtml + '</div></div>' +
-      '<div class="toolbar"><span class="legend-title">Severit&agrave;</span><div class="swatches">' +
-      '<div class="sw sw-0">Bianco <em>nessun rischio</em></div><div class="sw sw-1">Giallo <em>moderato</em></div>' +
-      '<div class="sw sw-2">Arancio <em>elevato</em></div><div class="sw sw-3">Rosso <em>molto elevato</em></div>' +
-      '<div class="sw sw-4">Fucsia <em>estremo</em></div></div><div class="models-key">' + modelsKeyHtml + '</div></div>' +
       '<div class="sections" style="--ncols:' + ncols + ';">' + sectionsHtml + '</div>' +
       (convParams.length ? '<div style="margin:2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; sorgente singola: blend Best Match</span></div>' +
         '<div class="sections" style="--ncols:' + ncols + ';">' + convSectionsHtml + '</div>' : "") +
