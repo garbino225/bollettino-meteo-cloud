@@ -66,6 +66,10 @@ IT_WEEKDAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
 # Storico revisioni dello strumento. Aggiungere una voce in cima ad ogni
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato.
 CHANGELOG = [
+    {"version": "1.0.4", "date": "19/08/2026", "changes": [
+        "Nuova sezione \"Parametri convettivi\" (rischio temporali): CAPE, CIN, Lifted Index, quota dello zero termico, altezza dello strato limite, acqua precipitabile — una tabella separata per ciascun parametro, prima della tabella delle revisioni.",
+        "A differenza degli altri parametri, i dati convettivi provengono da un'unica sorgente (profilo verticale del blend Best Match), non da un confronto multi-modello: Open-Meteo non espone questi campi per i singoli centri di calcolo.",
+    ]},
     {"version": "1.0.3", "date": "19/08/2026", "changes": [
         "Aggiunta questa tabella delle revisioni in fondo ad ogni file generato.",
         "Nuova convenzione nome file: Luogo_ggmm-inizio_ggmm-fine_ggmmaaaa-ora-generazione.html.",
@@ -130,6 +134,15 @@ def classify(param, v):
         return 0 if v < 0.3 else 1 if v <= 0.6 else 2 if v <= 1.0 else 3 if v <= 1.5 else 4
     if param == "basenubi":
         return 4 if v < 0.3 else 3 if v <= 0.6 else 2 if v <= 1.5 else 1 if v <= 3.0 else 0
+    if param == "cape":
+        return 0 if v < 300 else 1 if v <= 1000 else 2 if v <= 2500 else 3 if v <= 4000 else 4
+    if param == "cin":
+        # CIN alto = forte inibizione (cappa) = temporali meno probabili: scala invertita.
+        return 0 if v >= 100 else 1 if v >= 50 else 2 if v >= 25 else 3 if v >= 10 else 4
+    if param == "lifted_index":
+        return 0 if v >= 0 else 1 if v >= -2 else 2 if v >= -4 else 3 if v >= -6 else 4
+    if param == "tcwv":
+        return 0 if v < 20 else 1 if v <= 30 else 2 if v <= 40 else 3 if v <= 50 else 4
     return None
 
 
@@ -280,6 +293,53 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
   </details>'''
 
 
+def render_convective_section(p, mode, time_cols, day_labels):
+    """Tabella a riga singola per un parametro convettivo: a differenza degli
+    altri parametri non c'e' un confronto multi-modello, il dato viene da
+    un'unica sorgente (il profilo verticale del blend Best Match)."""
+    ncols = len(time_cols)
+    values = p["values"]
+    trend_svg = render_trend_svg({"BM": values}, ["BM"], ncols)
+
+    def dsc(i):
+        if mode != "hourly":
+            return ""
+        return " day-start" if (time_cols[i]["hod"] == 0 and i > 0) else ""
+
+    cells = []
+    for i in range(ncols):
+        v = values[i]
+        sev = classify(p.get("classifyAs", p["key"]), v)
+        sev_class = f"sev-{sev}" if sev is not None else ""
+        cells.append(f'<div class="cell consensus-cell{dsc(i)}" style="grid-column:{2 + i};grid-row:1;">'
+                      f'<span class="cval {sev_class}">{fmt_val(v, p["decimals"])}</span></div>')
+
+    head_cells = []
+    for i, tc in enumerate(time_cols):
+        if mode == "hourly":
+            daytag = f'<span class="daytag">{day_labels[tc["dayIndex"]]}</span>' if tc["hod"] == 0 else ""
+            head_cells.append(f'<div class="cell colhead{dsc(i)}">{daytag}<span class="day">{tc["hod"]:02d}</span></div>')
+        else:
+            head_cells.append(f'<div class="cell colhead"><span class="day">{tc["d"]}</span><span class="date">{tc["date"]}</span></div>')
+
+    hourly_class = "hourly" if mode == "hourly" else ""
+
+    return f'''<details class="param" open>
+    <summary><span class="arrow">&#9656;</span> {p["label"]} <span class="unit">{p["unit"]}</span><span class="desc">{p["threshTxt"]}</span></summary>
+    <div class="table-wrap">
+      <div class="pgrid {hourly_class}">
+        <div class="cell rowlabel" style="font-weight:700;">{"Ora" if mode == "hourly" else "Giorno"}</div>
+        {"".join(head_cells)}
+        <div class="consensus-row {hourly_class}">
+          <div class="cell rowlabel" style="grid-column:1;grid-row:1;">Best Match</div>
+          <div class="consensus-svg" style="grid-column:2/-1;grid-row:1;">{trend_svg}</div>
+          {"".join(cells)}
+        </div>
+      </div>
+    </div>
+  </details>'''
+
+
 def render_almanac(day_labels, alba, tramonto, luna):
     head = "".join(f'<div class="cell colhead"><span class="day">{d}</span></div>' for d in day_labels)
     alba_html = "".join(f'<div class="cell time-cell">{t or "—"}</div>' for t in alba)
@@ -323,6 +383,36 @@ def lcl_km(t, td):
     if t is None or td is None:
         return None
     return max(0.05, (t - td) * 0.125)
+
+
+def profile_series(profile, field, mode, ref_times, seen_days, agg):
+    """Serie di un campo del profilo verticale (unica sorgente: Best Match),
+    allineata alle stesse colonne orarie/giornaliere del resto della tabella."""
+    h = (profile or {}).get("hourly") or {}
+    times = h.get("time") or []
+    vals = h.get(field)
+    if not vals:
+        return [None] * (len(ref_times) if mode == "hourly" else len(seen_days))
+    tmap = dict(zip(times, vals))
+    if mode == "hourly":
+        return [tmap.get(t) for t in ref_times]
+    by_day = {d: [] for d in seen_days}
+    for t, v in zip(times, vals):
+        dp = t.split("T")[0]
+        if dp in by_day and v is not None:
+            by_day[dp].append(v)
+    out = []
+    for d in seen_days:
+        vs = by_day[d]
+        if not vs:
+            out.append(None)
+        elif agg == "max":
+            out.append(max(vs))
+        elif agg == "min":
+            out.append(min(vs))
+        else:
+            out.append(sum(vs) / len(vs))
+    return out
 
 
 def parse_date_label(iso_date):
@@ -632,6 +722,33 @@ def build(args):
                         "values": v_wave, "dirValues": wave_dir_values, "dirValuesByModel": wave_dir_values_by_model,
                         "excludedModels": ex_wave, "openDefault": True})
 
+    # --- Parametri convettivi (rischio temporali): unica sorgente, il profilo
+    # verticale del blend Best Match scaricato da fetch_forecast.py. Non e' un
+    # confronto multi-modello come gli altri parametri: ogni parametro e' una
+    # tabella separata a riga singola.
+    profile = data.get("profile") or {}
+    conv_params = []
+    if not profile.get("error") and profile.get("hourly"):
+        conv_defs = [
+            ("cape", "cape", "CAPE (energia potenziale convettiva)", "J/kg", 0, "max",
+             "&lt;300 bianco (debole) · 300–1000 giallo (moderata) · 1000–2500 arancio (forte) · 2500–4000 rosso (molto forte) · &gt;4000 fucsia (estrema)"),
+            ("cin", "convective_inhibition", "CIN (inibizione convettiva)", "J/kg", 0, "min",
+             "scala invertita: cappa debole = innesco temporali piu' facile · &ge;100 bianco (cappa forte) · 50–99 giallo · 25–49 arancio · 10–24 rosso · &lt;10 fucsia (nessuna inibizione)"),
+            ("lifted_index", "lifted_index", "Lifted Index", "°C", 1, "min",
+             "&ge;0 bianco (stabile) · 0/-2 giallo (marginale) · -2/-4 arancio (instabile) · -4/-6 rosso (molto instabile) · &lt;-6 fucsia (estremo)"),
+            ("freezing_level", "freezing_level_height", "Quota dello zero termico", "m", 0, "mean",
+             "informativo, nessuna soglia di rischio: utile per la quota neve e per stimare la dimensione della grandine"),
+            ("boundary_layer", "boundary_layer_height", "Altezza dello strato limite", "m", 0, "max",
+             "informativo, nessuna soglia di rischio: altezza di rimescolamento dell'aria vicino al suolo"),
+            ("tcwv", "total_column_integrated_water_vapour", "Acqua precipitabile (colonna totale)", "kg/m²", 0, "max",
+             "&lt;20 bianco · 20–30 giallo · 30–40 arancio · 40–50 rosso · &gt;50 fucsia (colonna satura, nubifragi possibili)"),
+        ]
+        for key, field, label, unit, decimals, agg, thresh in conv_defs:
+            s = profile_series(profile, field, args.mode, ref_times, seen_days, agg)
+            if any(v is not None for v in s):
+                conv_params.append({"key": key, "classifyAs": key, "label": label, "unit": unit,
+                                     "decimals": decimals, "threshTxt": thresh, "values": s})
+
     # --- Almanacco: alba/tramonto/luna ---
     alba, tramonto = [], []
     for i, dstr in enumerate(seen_days):
@@ -684,6 +801,8 @@ def build(args):
         notes_items.append("<strong>Base nubi</strong>: non è una variabile diretta di Open-Meteo — stimata dalla formula standard LCL (altezza ≈ 0,125 km per ogni °C di scarto tra temperatura e punto di rugiada), calcolata dai dati reali di temperatura/dew point di ciascun modello.")
     if all_excluded:
         notes_items.append("<strong>Variabili non disponibili per alcuni modelli</strong> (celle con un trattino, segnalato anche nel titolo di sezione): " + "; ".join(all_excluded) + ".")
+    if conv_params:
+        notes_items.append("<strong>Parametri convettivi</strong> (CAPE, CIN, Lifted Index, zero termico, strato limite, acqua precipitabile): a differenza degli altri parametri non sono un confronto multi-modello, ma provengono da un'unica sorgente — il profilo verticale del blend Best Match scaricato da <code>fetch_forecast.py</code> — perché Open-Meteo espone questi campi solo per quel modello, non per i singoli centri di calcolo. Nella vista giornaliera ogni parametro è aggregato con il criterio più indicativo del rischio (es. CAPE e acqua precipitabile: massimo del giorno; CIN e Lifted Index: minimo, cioè il momento più favorevole ai temporali).")
     notes_items.append("<strong>Rispetto ai mockup con dati di prova</strong>: qui il roster modelli è quello realmente disponibile via Open-Meteo (12, non gli stessi 10 inventati prima) — MOLOCH e BOLAM sono usciti perché non hanno un'API pubblica (documentato in SKILL.md), sostituiti da ICON-EU, ARPEGE, GEM, HARMONIE-AROME, ALADIN che invece sono scaricabili davvero.")
 
     notes_html = "<ul>" + "".join(f"<li>{it}</li>" for it in notes_items) + "</ul>"
@@ -701,6 +820,7 @@ def build(args):
     almanac_html = render_almanac(day_labels, alba, tramonto, luna)
     models_key_html = "".join(f'<span class="mk" title="{m["full"]}"><b>{m["code"]}</b></span>' for m in all_models_meta)
     sections_html = "\n".join(render_section(p, args.mode, time_cols, day_labels, models_lookup) for p in params)
+    conv_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in conv_params)
 
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"' if args.mode == "hourly" else ""
@@ -757,6 +877,11 @@ def build(args):
   <div class="sections">
     {sections_html}
   </div>
+
+  {f'''<div style="margin:2px 2px 2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; sorgente singola: blend Best Match, non confronto multi-modello</span></div>
+  <div class="sections">
+    {conv_sections_html}
+  </div>''' if conv_params else ''}
 
   <div class="notes">
     <h2>Note</h2>
