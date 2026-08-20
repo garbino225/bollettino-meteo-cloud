@@ -554,7 +554,7 @@ luminosita'+saturazione, non tocca il file su disco) — sul logo
 meteogarbino225 attuale, che ha uno sfondo blu notte pieno voluto, non
 altera nulla; serviva per il vecchio logo su sfondo "carta" chiaro.
 
-Cosa produce (design **v1.5.0**, validato e messo in produzione con
+Cosa produce (design **v1.5.1**, validato e messo in produzione con
 l'utente il 2026-08-16/19, non reinventarlo — vedi `SCRIPT_VERSION` in
 testa a `table_sparkline.py`): subito prima del titolo, una riga con **alba e
 tramonto** (dal blend Best Match, giorno d'inizio del periodo) e la
@@ -597,9 +597,18 @@ scaricati per quella localita' sovrapposti (linea sottile colorata) al
 Best Match usato nella tabella (linea blu scura in evidenza) — la tabella
 stessa non cambia, mostra sempre e solo Best Match; questo pannello serve
 solo a vedere quanto i modelli concordano o divergono tra loro su un
-singolo parametro. Non copre gli indici convettivi (CAPE/CIN/ecc.): quelli
-sono calcolati solo sul profilo verticale di Best Match, nessun altro
-modello scarica un profilo verticale da confrontare. Il footer riporta
+singolo parametro. Include anche CAPE, CIN e Lifted Index (v1.5.1) — ma
+qui sono la diagnostica nativa di ciascun modello (Open-Meteo espone
+`cape`/`convective_inhibition`/`lifted_index` per tutti e 13 i modelli
+nell'endpoint di superficie, verificato il 2026-08-20, aggiunti a
+`SURFACE_HOURLY` in `fetch_forecast.py`), **non** lo stesso SBCAPE/CIN/LI
+della tabella (quello resta calcolato da noi con MetPy solo sul profilo
+verticale di Best Match — troppo pesante scaricare il profilo completo
+per tutti e 13 i modelli). Il pannello marca questi tre con un asterisco
+e una nota dedicata per non confonderli col dato "ufficiale" di tabella.
+Non copre gli altri cinque indici (K-Index, Total Totals, SWEAT, Shear
+0-6km, SRH 0-3km, PWAT): quelli richiederebbero il profilo verticale
+completo per ogni modello, non ancora implementato. Il footer riporta
 sempre `Tabella convettiva v{versione}` per sapere a colpo d'occhio a
 quale revisione del template risale una tabella generata in precedenza.
 
@@ -639,6 +648,30 @@ altrimenti erediterebbe per sbaglio regole pensate solo per la tabella
 principale (successo il 2026-08-16: un `tbody td { white-space: nowrap;
 overflow: hidden }` non scoped troncava il testo della colonna
 Descrizione nella legenda invece di andare a capo).
+
+ATTENZIONE bug critico gia' preso una volta (v1.5.1, 2026-08-20), non
+ripeterlo: `TEMPLATE` DEVE iniziare con `<!doctype html>` ed essere un
+documento completo (`<html><head>...</head><body>...</body></html>`), mai
+un semplice frammento. Un frammento senza doctype aperto direttamente
+(file://, doppio click) va in "quirks mode" (`document.compatMode ==
+"BackCompat"`): il `<body>` collassa all'altezza della finestra e tutto
+il contenuto oltre viene tagliato **e reso non scrollabile**
+(`body.scrollHeight` resta uguale a `innerHeight`), non solo nascosto.
+Con contenuto breve (poche righe) puo' non manifestarsi affatto — verifica
+sempre con Playwright leggendo `document.compatMode` (deve essere
+`"CSS1Compat"`) e `document.body.scrollHeight` (deve essere maggiore
+dell'altezza del viewport quando il contenuto e' piu' alto di una
+schermata), non fidarti di uno screenshot preso con un viewport gia'
+abbastanza alto da nascondere il problema.
+
+ATTENZIONE bug scoperto nella stessa sessione: qualunque testo libero
+scritto da questo script dentro l'HTML (es. le note di `CHANGELOG`) DEVE
+passare da `html_escape()` (`from html import escape`) prima di essere
+interpolato nel template. Una nota di cronologia che descriveva proprio
+il bug del doctype conteneva letteralmente `<html>`/`<body>` come testo
+e, senza escaping, il browser li leggeva come tag veri, rompendo la
+struttura della pagina (rilevato dal controllo di bilanciamento tag, non
+a occhio).
 
 Presenta comunque in chat un riassunto testuale breve (2-3 frasi: giorni/
 ore piu' a rischio) insieme al link dell'Artifact, come da punto 9.

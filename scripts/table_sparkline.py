@@ -27,6 +27,7 @@ import datetime as dt
 import io
 import json
 import math
+from html import escape as html_escape
 
 RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo sparkline
 
@@ -88,7 +89,36 @@ RH = 32  # altezza fissa riga corpo tabella, px - deve combaciare con lo sfondo 
 #   tabella sopra (linea blu scura in evidenza) - la tabella stessa resta invariata,
 #   mostra sempre solo Best Match. Dati gia' presenti in data.json/marine.json,
 #   nessun nuovo fetch. Richiede matplotlib (gia' dipendenza della skill).
-SCRIPT_VERSION = "1.5.0"
+# 1.5.1 (2026-08-20): estesa la stessa comparazione a CAPE, CIN e Lifted Index.
+#   Verificato che tutti e 13 i modelli espongono questi tre come diagnostica
+#   nativa nell'endpoint di superficie (non serve il profilo verticale completo,
+#   troppo pesante da scaricare per 13 modelli): aggiunti "cape",
+#   "convective_inhibition", "lifted_index" a SURFACE_HOURLY in
+#   fetch_forecast.py. ATTENZIONE: questo e' il CAPE/CIN/LI calcolato da
+#   ciascun modello con la propria formula interna, NON lo stesso valore
+#   SBCAPE/CIN/LI mostrato nella tabella (quello e' calcolato da noi con MetPy
+#   sul profilo verticale di best_match, vedi indices.py) - possono differire
+#   anche parecchio, e' un proxy comparabile fra modelli, non lo stesso dato.
+#   Richiede data.json rigenerato con fetch_forecast.py >= questa versione
+#   (i data.json vecchi non hanno questi 3 campi per i modelli diversi da
+#   best_match e i grafici semplicemente non compaiono, senza errori).
+#   BUG CRITICO trovato e risolto nella stessa release, presente probabilmente
+#   fin dalla v1.0.0: TEMPLATE era un frammento HTML senza <!doctype html>,
+#   <html>, <head>, <body> - un browser che apre il file direttamente (file://,
+#   doppio click) lo renderizza in "quirks mode" (document.compatMode ==
+#   "BackCompat"), e in quel modo il flex-container .sheet + i .panel con
+#   overflow:hidden fanno collassare l'altezza del <body> a quella della sola
+#   finestra: tutto il contenuto oltre un'altezza-schermo viene tagliato E reso
+#   non scrollabile (body.scrollHeight resta uguale a innerHeight), non solo
+#   "nascosto dallo scroll" ma realmente irraggiungibile. Con tabelle brevi
+#   (poche righe, nessun grafico) capitava di non accorgersene perche' tutto
+#   il contenuto stava gia' in una schermata; e' diventato visibile e
+#   riproducibile in modo netto solo aggiungendo il pannello grafici v1.5.0/
+#   v1.5.1, molto piu' alto. Fix verificato con Playwright: aggiungendo
+#   <!doctype html> come primissima riga (e avvolgendo il resto in
+#   <html><head>...</head><body>...</body></html>) il compatMode torna
+#   "CSS1Compat" e l'intera pagina si dispone e scorre correttamente.
+SCRIPT_VERSION = "1.5.1"
 
 # Fonte dati per la tabella "Revisioni" mostrata in fondo alla pagina generata
 # (vedi build_changelog()): tienila allineata ai commenti di versione qui sopra.
@@ -114,6 +144,14 @@ CHANGELOG = [
     ("1.5.0", "Aggiunto il pannello \"Confronto multi-modello per parametro\": un "
               "grafico per parametro con tutti i modelli numerici sovrapposti al "
               "Best Match usato in tabella. La tabella resta invariata."),
+    ("1.5.1", "Estesa la comparazione multi-modello a CAPE, CIN e Lifted Index "
+              "(diagnostica nativa di ciascun modello, non lo stesso valore MetPy "
+              "mostrato in tabella). Fix critico: il file era un frammento HTML "
+              "senza <!doctype html>/<html>/<body> - aperto direttamente andava in "
+              "\"quirks mode\" e tagliava (senza possibilita' di scroll) tutto il "
+              "contenuto oltre l'altezza della finestra. Presente probabilmente "
+              "dalla v1.0.0, diventato evidente solo ora con un pannello piu' alto "
+              "di una schermata."),
 ]
 
 # Stessa formula/costanti di moon_phase.py (mese sinodico medio + epoca di
@@ -433,7 +471,7 @@ def build_legend(rows, cols):
 
 def build_changelog():
     return "\n".join(
-        f'<tr><td class="cl-version">v{version}</td><td class="cl-note">{note}</td></tr>'
+        f'<tr><td class="cl-version">v{version}</td><td class="cl-note">{html_escape(note)}</td></tr>'
         for version, note in CHANGELOG
     )
 
@@ -454,6 +492,16 @@ MODEL_CHART_SPECS = [
     ("pressure_msl", "Pressione al livello del mare", "Pressione", "hPa"),
     ("relative_humidity_2m", "Umidita' relativa a 2m", "Umidita'", "%"),
     ("cloud_cover", "Copertura nuvolosa", "Nuvolosita'", "%"),
+]
+
+# Diagnostica convettiva nativa di ciascun modello (non il MetPy calcolato sul
+# profilo di best_match che vedi in tabella - vedi nota v1.5.1): stessa forma
+# (key, titolo, etichetta, unita'), tenuta separata per marcarla chiaramente
+# in fase di rendering (titolo con asterisco + nota dedicata).
+MODEL_CHART_SPECS_NATIVE_CONV = [
+    ("cape", "CAPE*", "CAPE", "J/kg"),
+    ("convective_inhibition", "CIN*", "CIN", "J/kg"),
+    ("lifted_index", "Lifted Index*", "LI", "°C"),
 ]
 
 
@@ -525,6 +573,11 @@ def build_model_charts(data, marine, has_marine):
         if b64:
             panels.append((title, b64))
 
+    for var, title, ylabel, unit in MODEL_CHART_SPECS_NATIVE_CONV:
+        b64 = chart_png_b64(data["models"], var, title, ylabel, unit)
+        if b64:
+            panels.append((title, b64))
+
     if has_marine and marine:
         b64 = chart_png_b64(marine.get("wave_models", {}), "wave_height",
                              "Altezza onda significativa", "Onda", "m")
@@ -549,6 +602,13 @@ def build_model_charts_html(panels):
       scaricati per questa localita' sono sovrapposti (linea sottile colorata) al
       Best Match (linea blu scura in evidenza) &mdash; utile per vedere quanto
       concordano o divergono tra loro.</p>
+    <p class="model-charts-note">* CAPE/CIN/Lifted Index qui sono la diagnostica
+      convettiva calcolata internamente da ciascun modello con la propria formula
+      &mdash; NON lo stesso SBCAPE/CIN/LI della tabella sopra, che invece
+      calcoliamo noi con MetPy sul profilo verticale del solo Best Match (vedi
+      Legenda parametri). I due valori possono differire anche parecchio: qui
+      servono a confrontare i modelli fra loro, non a leggere il dato "ufficiale"
+      della tabella.</p>
 {figures}
   </div>'''
 
@@ -736,7 +796,10 @@ def main():
     print(f"OK -> {args.out} ({n} righe, mare: {'si' if has_marine else 'no'})")
 
 
-TEMPLATE = '''<meta charset="utf-8">
+TEMPLATE = '''<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
 <title>Tabella Convettiva {loc}</title>
 <style>
   :root {{
@@ -1058,7 +1121,8 @@ TEMPLATE = '''<meta charset="utf-8">
 
   @media (max-width: 640px) {{ .legend {{ font-size: 11.5px; }} }}
 </style>
-
+</head>
+<body>
 <div class="sheet">
   <header class="head">
     <div class="head-text">
@@ -1139,6 +1203,8 @@ TEMPLATE = '''<meta charset="utf-8">
     <span>Generato {generated} &middot; Tabella convettiva v{version}</span>
   </footer>
 </div>
+</body>
+</html>
 '''
 
 

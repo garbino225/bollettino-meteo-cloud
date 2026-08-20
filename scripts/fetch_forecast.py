@@ -68,6 +68,11 @@ SURFACE_HOURLY = [
     "precipitation_probability", "precipitation", "rain", "showers", "snowfall",
     "weather_code", "cloud_cover", "pressure_msl", "surface_pressure",
     "wind_speed_10m", "wind_gusts_10m", "wind_direction_10m",
+    # Diagnostica convettiva nativa di ciascun modello (non calcolata da noi con
+    # MetPy come il SBCAPE/CIN/LI del profilo verticale di best_match - vedi
+    # indices.py): serve solo per il confronto multi-modello di table_sparkline.py
+    # v1.5.1, verificata disponibile per tutti e 13 i modelli (2026-08-20).
+    "cape", "convective_inhibition", "lifted_index",
 ]
 
 SURFACE_DAILY = [
