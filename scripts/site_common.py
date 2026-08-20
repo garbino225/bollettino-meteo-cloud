@@ -70,6 +70,24 @@ CHART_INTERACTION_JS = '''<script>(function(){
   // liberamente sopra il resto della pagina come un tooltip normale (non e'
   // vincolato all'altezza del grafico). vline/hline/dot restano invece SVG,
   // allineati ai dati.
+  // Grafici il cui puntatore e' attualmente mostrato: essendo il tooltip
+  // position:fixed (coordinate di viewport, non di pagina), scorrendo la
+  // pagina il punto SVG si sposta ma il tooltip restava fermo, "staccandosi"
+  // visivamente dal grafico. Tenendo traccia dei grafici attivi possiamo
+  // ricalcolare la posizione del tooltip ad ogni scroll/resize (stesso
+  // calcolo di updateCrosshair, che usa getScreenCTM: riflette sempre la
+  // posizione a schermo corrente), cosi' il tooltip segue il punto invece di
+  // restare ancorato a coordinate ormai sbagliate.
+  var activeCharts = [];
+  function hideTooltip(svg){
+    var g = svg.querySelector('.chart-crosshair');
+    var tooltip = svg.parentElement && svg.parentElement.querySelector(':scope > .chart-tooltip');
+    if (g) g.style.display = 'none';
+    if (tooltip) tooltip.style.display = 'none';
+    svg.__activePt = null;
+    var idx = activeCharts.indexOf(svg);
+    if (idx !== -1) activeCharts.splice(idx, 1);
+  }
   function updateCrosshair(svg, pt){
     var g = svg.querySelector('.chart-crosshair');
     var tooltip = svg.parentElement && svg.parentElement.querySelector(':scope > .chart-tooltip');
@@ -83,6 +101,8 @@ CHART_INTERACTION_JS = '''<script>(function(){
     hline.setAttribute('x1', vb.x); hline.setAttribute('x2', vb.x + vb.width);
     dot.setAttribute('cx', x); dot.setAttribute('cy', y);
     g.style.display = '';
+    svg.__activePt = pt;
+    if (activeCharts.indexOf(svg) === -1) activeCharts.push(svg);
 
     if (!tooltip) return;
     var dateTimeLabel = pt.getAttribute('data-label') || '';
@@ -110,6 +130,19 @@ CHART_INTERACTION_JS = '''<script>(function(){
     tooltip.style.left = left + 'px';
     tooltip.style.top = top + 'px';
   }
+  function repositionActive(){
+    // Copia perche' hideTooltip modifica activeCharts durante l'iterazione.
+    activeCharts.slice().forEach(function(svg){
+      if (!svg.isConnected || svg.getClientRects().length === 0) { hideTooltip(svg); return; }
+      if (svg.__activePt) updateCrosshair(svg, svg.__activePt);
+    });
+  }
+  var repositionScheduled = false;
+  function scheduleReposition(){
+    if (repositionScheduled) return;
+    repositionScheduled = true;
+    requestAnimationFrame(function(){ repositionScheduled = false; repositionActive(); });
+  }
   function handleMove(e){
     var svg = e.target && e.target.closest && e.target.closest('.chart-svg');
     if (!svg) return;
@@ -121,6 +154,8 @@ CHART_INTERACTION_JS = '''<script>(function(){
   }
   document.addEventListener('pointermove', handleMove);
   document.addEventListener('pointerdown', handleMove);
+  window.addEventListener('scroll', scheduleReposition, { passive: true, capture: true });
+  window.addEventListener('resize', scheduleReposition, { passive: true });
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest && e.target.closest('.chart-toggle-btn');
     if (!btn) return;
@@ -130,7 +165,11 @@ CHART_INTERACTION_JS = '''<script>(function(){
     if (!tableWrap || !chartWrap) return;
     var showingTable = !tableWrap.hasAttribute('hidden');
     if (showingTable) { tableWrap.setAttribute('hidden', ''); chartWrap.removeAttribute('hidden'); btn.textContent = 'Tabella'; }
-    else { chartWrap.setAttribute('hidden', ''); tableWrap.removeAttribute('hidden'); btn.textContent = 'Grafico'; }
+    else {
+      var svgInChart = chartWrap.querySelector('.chart-svg');
+      if (svgInChart) hideTooltip(svgInChart);
+      chartWrap.setAttribute('hidden', ''); tableWrap.removeAttribute('hidden'); btn.textContent = 'Grafico';
+    }
   });
 })();</script>'''
 
@@ -138,6 +177,11 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.18", "date": "20/08/2026", "changes": [
+        "Nuova sezione \"Marea\" per le localit&agrave; costiere: livello del mare (Open-Meteo Marine API, modello Best Match/GTSM), stessa presentazione dei parametri convettivi (sorgente singola, non confronto multi-modello).",
+        "Grafico di vento e moto ondoso: l'etichetta del puntatore mostrava solo il valore (velocit&agrave;/altezza), non la direzione. Ora mostra entrambi, sia per la media sia per ogni modello.",
+        "Corretto un bug del puntatore: scorrendo la pagina dopo averlo usato, l'etichetta (in position:fixed, quindi ancorata allo schermo) restava ferma invece di seguire il grafico, staccandosi visivamente dal punto indicato. Ora la posizione viene ricalcolata ad ogni scroll/resize. Individuato e corretto anche un bug pi&ugrave; sottile emerso durante la verifica: il controllo che doveva nascondere il puntatore quando il grafico non &egrave; pi&ugrave; visibile (es. passando alla vista tabella) si basava su una propriet&agrave; (<code>offsetParent</code>) che per l'elemento <code>&lt;svg&gt;</code> risulta sempre vuota in Chromium anche a grafico visibile: il puntatore si nascondeva erroneamente al primo scroll o ridimensionamento della finestra, sempre. Ora il controllo usa <code>getClientRects()</code>, corretto per gli SVG.",
+    ]},
     {"version": "1.0.17", "date": "20/08/2026", "changes": [
         "Generatore live: il campo citt&agrave; propone ora un menu di localit&agrave; mentre si scrive (autocompletamento, ordinato alfabeticamente), non solo dopo una ricerca fallita: un clic riempie il campo senza generare subito il bollettino.",
         "Rimpicciolito il riquadro del puntatore del grafico su smartphone (font e interlinea ridotti, larghezza massima limitata): sugli schermi stretti risultava sproporzionato rispetto al grafico, che invece si restringe.",

@@ -196,6 +196,9 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
     unit = p["unit"]
     decimals = p["decimals"]
     mean_label = "Best Match" if is_conv else "Media modelli"
+    has_dir = bool(p.get("hasDirection"))
+    dir_values = p.get("dirValues") if has_dir else None
+    dir_values_by_model = (p.get("dirValuesByModel") or {}) if has_dir else {}
     if is_conv:
         model_codes = []
         mean_vals = p["values"]
@@ -253,10 +256,16 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
         px, py = x(i), y(v)
         mean_pts.append(f"{px:.1f},{py:.1f}")
         lbl = col_label(mode, time_cols[i], day_labels)
-        rows = [f"{mean_label},{fmt_val(v, decimals)} {unit},--accent"]
+        mean_dir_txt = f" {dir_values[i]}" if dir_values and i < len(dir_values) and dir_values[i] else ""
+        rows = [f"{mean_label},{fmt_val(v, decimals)} {unit}{mean_dir_txt},--accent"]
         for idx, c in enumerate(model_codes):
             mv = p["values"].get(c, [None] * ncols)[i]
-            mv_txt = f"{fmt_val(mv, decimals)} {unit}" if mv is not None else "—"
+            if mv is not None:
+                model_dirs = dir_values_by_model.get(c)
+                model_dir_txt = f" {model_dirs[i]}" if model_dirs and i < len(model_dirs) and model_dirs[i] else ""
+                mv_txt = f"{fmt_val(mv, decimals)} {unit}{model_dir_txt}"
+            else:
+                mv_txt = "—"
             rows.append(f"{c},{mv_txt},{series_color(idx)}")
         data_rows = "|".join(rows)
         circles.append(f'<circle class="chart-pt" cx="{px:.1f}" cy="{py:.1f}" r="10" fill="transparent" '
@@ -776,8 +785,9 @@ def build(args):
                     "dirValues": dir_values, "dirValuesByModel": dir_values_by_model,
                     "excludedModels": ex_wind, "openDefault": True})
 
-    # --- Moto ondoso (solo se marine.json fornito) ---
+    # --- Moto ondoso e marea (solo se marine.json fornito) ---
     waveModelsMeta = []
+    coastal_params = []
     if args.marine:
         marine = load_json(args.marine)
         wave_models = marine.get("wave_models", {})
@@ -825,6 +835,21 @@ def build(args):
                         "modelCodes": [c for c in [WAVE_MODEL_META[mk]["code"] for mk in wm_ok] if c in v_wave],
                         "values": v_wave, "dirValues": wave_dir_values, "dirValuesByModel": wave_dir_values_by_model,
                         "excludedModels": ex_wave, "openDefault": True})
+
+        # Marea: livello del mare (sea_level_height_msl), unica sorgente
+        # (Open-Meteo Marine API la espone solo su best_match, non per
+        # singolo modello) — stessa logica dei parametri convettivi, riusa
+        # render_convective_section().
+        tide = marine.get("tide") or {}
+        if not tide.get("error") and tide.get("hourly"):
+            tide_series = profile_series(tide, "sea_level_height_msl", args.mode, ref_times, seen_days, "mean")
+            if any(v is not None for v in tide_series):
+                coastal_params.append({
+                    "key": "marea", "label": "Marea (livello del mare)", "unit": "m", "decimals": 2,
+                    "threshTxt": "livello del mare rispetto alla media (msl): positivo = alta marea, negativo = bassa marea. "
+                                 "Sorgente singola: modello Best Match (GTSM), non un confronto multi-modello.",
+                    "values": tide_series,
+                })
 
     # --- Parametri convettivi (rischio temporali): unica sorgente, il profilo
     # verticale del blend Best Match scaricato da fetch_forecast.py. Non e' un
@@ -907,6 +932,8 @@ def build(args):
         notes_items.append("<strong>Variabili non disponibili per alcuni modelli</strong> (celle con un trattino, segnalato anche nel titolo di sezione): " + "; ".join(all_excluded) + ".")
     if conv_params:
         notes_items.append("<strong>Parametri convettivi</strong> (CAPE, CIN, Lifted Index, zero termico, strato limite, acqua precipitabile): a differenza degli altri parametri non sono un confronto multi-modello, ma provengono da un'unica sorgente — il profilo verticale del blend Best Match scaricato da <code>fetch_forecast.py</code> — perché Open-Meteo espone questi campi solo per quel modello, non per i singoli centri di calcolo. Nella vista giornaliera ogni parametro è aggregato con il criterio più indicativo del rischio (es. CAPE e acqua precipitabile: massimo del giorno; CIN e Lifted Index: minimo, cioè il momento più favorevole ai temporali).")
+    if coastal_params:
+        notes_items.append("<strong>Marea</strong>: livello del mare (<code>sea_level_height_msl</code>) da Open-Meteo Marine API, anch'essa un'unica sorgente (modello Best Match/GTSM, non un confronto multi-modello, come per il moto ondoso). Nella vista giornaliera è mostrata come media del giorno, non come range alta/bassa marea.")
     notes_items.append("<strong>Rispetto ai mockup con dati di prova</strong>: qui il roster modelli è quello realmente disponibile via Open-Meteo (12, non gli stessi 10 inventati prima) — MOLOCH e BOLAM sono usciti perché non hanno un'API pubblica (documentato in SKILL.md), sostituiti da ICON-EU, ARPEGE, GEM, HARMONIE-AROME, ALADIN che invece sono scaricabili davvero.")
 
     notes_html = "<ul>" + "".join(f"<li>{it}</li>" for it in notes_items) + "</ul>"
@@ -917,7 +944,7 @@ def build(args):
     eyebrow = f"Dati reali · confronto multi-modello · {'ogni ora' if args.mode == 'hourly' else 'giornaliera'}"
     title_html = f"{loc_label} <em>&middot; dati reali</em>"
     sub_html = (f"{admin or ''}{' · ' if admin else ''}{f'{elevation:.0f} m s.l.m. · ' if elevation and elevation > 200 else ''}{period_label}"
-                f"{' · localit&agrave; costiera, incluso moto ondoso' if args.marine else ''}."
+                f"{' · localit&agrave; costiera, incluso moto ondoso' + (' e marea' if coastal_params else '') if args.marine else ''}."
                 f" Fonte: Open-Meteo (dati reali multi-modello).")
     meta_strip = f"lat {loc['lat']:.4f} · lon {loc['lon']:.4f}" + (f" · {elevation:.0f} m" if elevation is not None else "")
 
@@ -930,10 +957,13 @@ def build(args):
         p["openDefault"] = (i == 0)
     for p in conv_params:
         p["openDefault"] = False
+    for p in coastal_params:
+        p["openDefault"] = False
 
     almanac_html = render_almanac(day_labels, alba, tramonto, luna)
     sections_html = "\n".join(render_section(p, args.mode, time_cols, day_labels, models_lookup) for p in params)
     conv_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in conv_params)
+    coastal_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in coastal_params)
 
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"'
@@ -981,6 +1011,11 @@ def build(args):
   <div class="sections">
     {sections_html}
   </div>
+
+  {f'''<div style="margin:2px 2px 2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, sorgente singola: modello Best Match (GTSM)</span></div>
+  <div class="sections">
+    {coastal_sections_html}
+  </div>''' if coastal_params else ''}
 
   {f'''<div style="margin:2px 2px 2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; sorgente singola: blend Best Match, non confronto multi-modello</span></div>
   <div class="sections">

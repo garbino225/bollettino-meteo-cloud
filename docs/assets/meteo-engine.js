@@ -53,6 +53,7 @@
     "freezing_level_height", "total_column_integrated_water_vapour", "boundary_layer_height"
   ];
   var WAVE_HOURLY = ["wave_height", "wave_direction", "wave_period"];
+  var TIDE_HOURLY = ["sea_level_height_msl"];
 
   // ---------- utilita' pure (stesse soglie/formule di build_comparison_table.py) ----------
 
@@ -215,6 +216,17 @@
       .catch(function (e) { return { error: String(e.message || e), hourly: null }; });
   }
 
+  // Marea (sea_level_height_msl): unica sorgente, Open-Meteo la espone solo
+  // su best_match, non per singolo modello (stesso motivo del profilo
+  // convettivo).
+  function fetchTide(lat, lon, start, end) {
+    var url = MARINE_URL + "?latitude=" + lat + "&longitude=" + lon + "&start_date=" + start +
+      "&end_date=" + end + "&hourly=" + TIDE_HOURLY.join(",") + "&timezone=auto&models=best_match";
+    return fetchJSON(url)
+      .then(function (js) { return { error: null, hourly: js.hourly || null }; })
+      .catch(function (e) { return { error: String(e.message || e), hourly: null }; });
+  }
+
   // ---------- fase lunare (porting di scripts/moon_phase.py) ----------
 
   var SYNODIC_MONTH = 29.530588861;
@@ -339,6 +351,9 @@
     var unit = p.unit, decimals = p.decimals;
     var meanLabel = isConv ? "Best Match" : "Media modelli";
     var modelCodes = isConv ? [] : p.modelCodes;
+    var hasDir = !!p.hasDirection;
+    var dirValues = hasDir ? p.dirValues : null;
+    var dirValuesByModel = hasDir ? (p.dirValuesByModel || {}) : {};
     var meanVals;
     if (isConv) {
       meanVals = p.values;
@@ -388,10 +403,18 @@
       var px = x(i), py = y(v);
       meanPts.push(px.toFixed(1) + "," + py.toFixed(1));
       var lbl = colLabel(mode, timeCols[i], dayLabels);
-      var rows = [meanLabel + "," + fmtVal(v, decimals) + " " + unit + ",--accent"];
+      var meanDirTxt = (dirValues && dirValues[i]) ? (" " + dirValues[i]) : "";
+      var rows = [meanLabel + "," + fmtVal(v, decimals) + " " + unit + meanDirTxt + ",--accent"];
       modelCodes.forEach(function (c, idx) {
         var mv = (p.values[c] || [])[i];
-        var mvTxt = (mv !== null && mv !== undefined) ? (fmtVal(mv, decimals) + " " + unit) : "—";
+        var mvTxt;
+        if (mv !== null && mv !== undefined) {
+          var modelDirs = dirValuesByModel[c];
+          var modelDirTxt = (modelDirs && modelDirs[i]) ? (" " + modelDirs[i]) : "";
+          mvTxt = fmtVal(mv, decimals) + " " + unit + modelDirTxt;
+        } else {
+          mvTxt = "—";
+        }
         rows.push(c + "," + mvTxt + "," + seriesColor(idx));
       });
       var dataRows = rows.join("|");
@@ -727,13 +750,15 @@
       var wavePromises = Object.keys(WAVE_MODEL_META).map(function (mk) {
         return fetchWaveModel(loc.lat, loc.lon, startISO, endISO, mk).then(function (r) { return [mk, r]; });
       });
+      var tidePromise = fetchTide(loc.lat, loc.lon, startISO, endISO);
 
-      return Promise.all([Promise.all(modelPromises), profilePromise, Promise.all(wavePromises)]).then(function (res) {
+      return Promise.all([Promise.all(modelPromises), profilePromise, Promise.all(wavePromises), tidePromise]).then(function (res) {
         var models = {}; res[0].forEach(function (pair) { models[pair[0]] = pair[1]; });
         var profile = res[1];
         var waveModels = {}; res[2].forEach(function (pair) { waveModels[pair[0]] = pair[1]; });
+        var tide = res[3];
         setStatus("Elaborazione tabella…");
-        var html = buildReport(loc, startISO, endISO, days, step, models, profile, waveModels);
+        var html = buildReport(loc, startISO, endISO, days, step, models, profile, waveModels, tide);
         resultEl.innerHTML = html;
         setStatus("Fatto — " + loc.name + ", " + startISO + " → " + endISO + (step === 24 ? " (giornaliera)" : " (ogni " + step + "h)"));
         submitBtn.disabled = false;
@@ -742,7 +767,7 @@
     });
   }
 
-  function buildReport(loc, startISO, endISO, days, step, models, profile, waveModels) {
+  function buildReport(loc, startISO, endISO, days, step, models, profile, waveModels, tide) {
     var mode = step === 24 ? "daily" : "hourly";
     var okModelIds = Object.keys(models).filter(function (mk) { return !models[mk].error && MODEL_META[mk]; });
     if (!okModelIds.length) throw new Error("Nessun modello disponibile per questa località/periodo.");
@@ -948,6 +973,23 @@
       }
     }
 
+    // --- Marea (unica sorgente: best_match, come il moto ondoso) ---
+    var coastalParams = [];
+    if (tide && !tide.error && tide.hourly) {
+      var tideMap = zipMap(tide.hourly.time, tide.hourly.sea_level_height_msl);
+      var tideSeries = mode === "daily"
+        ? seenDays.map(function (iso) { return dailyAgg(null, tideMap, iso, "mean"); })
+        : timeCols.map(function (tc) { var v = tideMap.get(hourISO(tc.date, tc.hod)); return v === undefined ? null : v; });
+      if (tideSeries.some(function (v) { return v !== null && v !== undefined; })) {
+        coastalParams.push({
+          key: "marea", label: "Marea (livello del mare)", unit: "m", decimals: 2,
+          threshTxt: "livello del mare rispetto alla media (msl): positivo = alta marea, negativo = bassa marea. "
+            + "Sorgente singola: modello Best Match (GTSM), non un confronto multi-modello.",
+          values: tideSeries
+        });
+      }
+    }
+
     // --- Parametri convettivi (unica sorgente: profilo Best Match) ---
     var convParams = [];
     if (!profile.error && profile.hourly) {
@@ -1017,7 +1059,7 @@
     var titleHtml = esc(loc.name) + " <em>&middot; dati reali</em>";
     var subHtml = esc(admin || "") + (admin ? " · " : "") +
       (loc.elevation && loc.elevation > 200 ? Math.round(loc.elevation) + " m s.l.m. · " : "") +
-      esc(periodLabel) + (waveModelsMeta.length ? " · località costiera, incluso moto ondoso" : "") +
+      esc(periodLabel) + (waveModelsMeta.length ? " · località costiera, incluso moto ondoso" + (coastalParams.length ? " e marea" : "") : "") +
       ". Fonte: Open-Meteo (dati reali multi-modello), calcolato nel browser.";
     var metaStrip = "lat " + loc.lat.toFixed(4) + " · lon " + loc.lon.toFixed(4) + (loc.elevation !== null && loc.elevation !== undefined ? " · " + Math.round(loc.elevation) + " m" : "");
 
@@ -1027,10 +1069,12 @@
     // richiedono layout finche' l'utente non le apre.
     params.forEach(function (p, i) { p.openDefault = (i === 0); });
     convParams.forEach(function (p) { p.openDefault = false; });
+    coastalParams.forEach(function (p) { p.openDefault = false; });
 
     var almanacHtml = renderAlmanac(dayLabels, alba, tramonto, luna);
     var sectionsHtml = params.map(function (p) { return renderSection(p, mode, timeCols, dayLabels, modelsLookup); }).join("\n");
     var convSectionsHtml = convParams.map(function (p) { return renderConvectiveSection(p, mode, timeCols, dayLabels); }).join("\n");
+    var coastalSectionsHtml = coastalParams.map(function (p) { return renderConvectiveSection(p, mode, timeCols, dayLabels); }).join("\n");
 
     var notesItems = [
       "<strong>Dati reali</strong>: scaricati da Open-Meteo direttamente dal tuo browser (nessun server nel mezzo) il " + new Date().toLocaleString("it-IT") + ".",
@@ -1038,6 +1082,7 @@
       "<strong>Risoluzione</strong>: " + (mode === "daily" ? "una colonna per giorno (aggregati: max/min/somma a seconda del parametro)." : "una colonna ogni " + step + " " + (step === 1 ? "ora" : "ore") + " (valore puntuale, tranne pioggia/raffica che sono aggregate sulla finestra)."),
       "<strong>Parametri convettivi</strong>: a differenza degli altri, provengono da un'unica sorgente (profilo Best Match), non da un confronto multi-modello."
     ];
+    if (coastalParams.length) notesItems.push("<strong>Marea</strong>: livello del mare (<code>sea_level_height_msl</code>) da Open-Meteo Marine API, anch'essa un'unica sorgente (modello Best Match/GTSM, non un confronto multi-modello, come per il moto ondoso). Nella vista giornaliera è mostrata come media del giorno, non come range alta/bassa marea.");
     if (allExcluded.length) notesItems.push("<strong>Variabili non disponibili per alcuni modelli</strong>: " + allExcluded.join("; ") + ".");
     var notesHtml = "<ul>" + notesItems.map(function (it) { return "<li>" + it + "</li>"; }).join("") + "</ul>";
 
@@ -1051,6 +1096,8 @@
       '<div class="almanac-panel"><span class="legend-title">Alba &middot; tramonto &middot; fase lunare (reali)</span>' +
       '<div class="table-wrap" style="padding:0;">' + almanacHtml + '</div></div>' +
       '<div class="sections" style="--ncols:' + ncols + ';">' + sectionsHtml + '</div>' +
+      (coastalParams.length ? '<div style="margin:2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, sorgente singola: modello Best Match (GTSM)</span></div>' +
+        '<div class="sections" style="--ncols:' + ncols + ';">' + coastalSectionsHtml + '</div>' : "") +
       (convParams.length ? '<div style="margin:2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; sorgente singola: blend Best Match</span></div>' +
         '<div class="sections" style="--ncols:' + ncols + ';">' + convSectionsHtml + '</div>' : "") +
       '<div class="notes"><h2>Note</h2>' + notesHtml + '</div>';
