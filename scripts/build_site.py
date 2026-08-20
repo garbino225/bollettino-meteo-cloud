@@ -29,6 +29,20 @@ LOGO_PATH = os.path.join(ROOT_DIR, "assets", "logo_garbino.png")
 # generatore live client-side): questo script li lascia intatti, copia solo
 # gli asset condivisi (CSS, logo) e aggiunge la card di collegamento.
 
+# Stesso selettore tema chiaro/scuro di build_comparison_table.py (duplicato
+# qui perche' i due script restano indipendenti/eseguibili da soli).
+THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('meteo-garbino-theme');'''
+                      '''if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);'''
+                      '''}catch(e){}})();</script>\n'''
+                      '''<button type="button" class="theme-toggle" aria-label="Cambia tema chiaro/scuro" '''
+                      '''title="Tema chiaro/scuro" onclick="(function(){var d=document.documentElement,'''
+                      '''mq=window.matchMedia('(prefers-color-scheme: dark)');'''
+                      '''var cur=d.getAttribute('data-theme')||(mq.matches?'dark':'light');'''
+                      '''var next=cur==='dark'?'light':'dark';d.setAttribute('data-theme',next);'''
+                      '''try{localStorage.setItem('meteo-garbino-theme',next);}catch(e){}})()">'''
+                      '''<span class="theme-toggle-icon icon-sun">☀️</span>'''
+                      '''<span class="theme-toggle-icon icon-moon">\U0001f319</span></button>''')
+
 
 def b64_file(path):
     with open(path, "rb") as f:
@@ -89,7 +103,8 @@ def build():
     )
 
     html = f"""<meta charset="utf-8">
-<title>Meteo Garbino — Bollettini multi-modello</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meteo Garbino — Confronto multi-modello</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
 <style>
@@ -103,6 +118,7 @@ def build():
 .site-card-arrow{{ font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:600; color:var(--accent); }}
 .site-card-highlight{{ border-color:var(--accent); background:var(--accent-soft); }}
 </style>
+{THEME_TOGGLE_HTML}
 <div class="page">
   <div class="masthead">
     <div class="masthead-row">
@@ -110,8 +126,8 @@ def build():
         <div class="eyebrow-row">
           <div class="eyebrow">Dati reali &middot; confronto multi-modello</div>
         </div>
-        <h1>Meteo Garbino <em>&middot; bollettini</em></h1>
-        <p class="sub">Tabelle di confronto multi-modello, generate da dati reali Open-Meteo. Nessun JavaScript: pagine statiche autonome.</p>
+        <h1>Meteo Garbino</h1>
+        <p class="sub">Tabelle di confronto multi-modello, generate da dati reali Open-Meteo. Pagine statiche e responsive; solo il generatore live e il selettore tema usano JavaScript.</p>
       </div>
       <div class="brand-stack">
         {logo_html}

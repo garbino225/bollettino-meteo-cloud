@@ -39,6 +39,11 @@
 *{ box-sizing:border-box; }
 body{ margin:0; background:var(--surface); color:var(--ink); font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
 .page{ max-width:1180px; margin:0 auto; padding:40px 24px 64px; display:flex; flex-direction:column; gap:24px; }
+/* Figli diretti di .page (flex column): senza min-width:0 un figlio con
+   contenuto largo (es. la tabella oraria dentro .table-wrap) non si
+   restringe mai sotto la sua dimensione intrinseca, e fa scorrere
+   l'intera pagina in orizzontale invece di scorrere solo al suo interno. */
+.page > *{ min-width:0; }
 
 .masthead{ display:flex; flex-direction:column; gap:12px; }
 .masthead-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; }
@@ -90,7 +95,7 @@ summary .desc{ font-family:"IBM Plex Sans",sans-serif; font-weight:500; font-siz
 summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:11px; color:var(--sev2-fg); background:var(--sev1-bg); padding:2px 7px; border-radius:5px; }
 
 .table-wrap{ overflow-x:auto; padding:6px 10px 14px; }
-.pgrid{ display:grid; grid-template-columns:150px repeat(var(--ncols,7),1fr); }
+.pgrid{ display:grid; grid-template-columns:150px repeat(var(--ncols,7),minmax(60px,1fr)); }
 .pgrid.hourly{ grid-template-columns:150px repeat(var(--ncols),40px); min-width:calc(150px + var(--ncols)*40px); }
 
 .cell{ display:flex; align-items:center; padding:4px 10px; font-family:"IBM Plex Mono", monospace; border-bottom:1px solid var(--panel-line); }
@@ -105,7 +110,7 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
 .daytag{ position:absolute; top:2px; left:2px; right:2px; font-size:8px; font-weight:700; color:var(--accent); white-space:nowrap; text-align:center; letter-spacing:0.01em; }
 .day-start{ border-left:2px solid var(--accent) !important; }
 
-.consensus-row{ grid-column:1/9; display:grid; grid-template-columns:150px repeat(7,1fr); min-height:74px; border-top:1px solid var(--panel-line); border-bottom:1px solid var(--panel-line); }
+.consensus-row{ grid-column:1/-1; display:grid; grid-template-columns:150px repeat(var(--ncols,7),minmax(60px,1fr)); min-height:74px; border-top:1px solid var(--panel-line); border-bottom:1px solid var(--panel-line); }
 .consensus-row.hourly{ grid-column:1/-1; grid-template-columns:150px repeat(var(--ncols),40px); min-height:58px; }
 .consensus-row .rowlabel{ background:var(--consensus-bg); font-weight:700; color:var(--ink); border-bottom:none; }
 .consensus-svg{ position:relative; }
@@ -138,6 +143,7 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
 .notes{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:20px 22px; }
 .notes h2{ font-family:"Archivo", sans-serif; font-size:15.5px; font-weight:800; margin:0 0 10px; }
 .notes ul{ margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--ink-soft); line-height:1.5; }
+.notes li, .revisions li{ min-width:0; overflow-wrap:anywhere; }
 .notes strong{ color:var(--ink); font-weight:600; }
 .notes a{ color:var(--accent); }
 
@@ -177,4 +183,26 @@ summary .warn{ font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-siz
 .gen-status.err{ color:var(--sev3-bg); font-weight:600; }
 .gen-hidden{ display:none !important; }
 
-@media (max-width:640px){ .page{ padding:28px 14px 48px; } }
+/* --- Selettore tema chiaro/scuro (le variabili sopra gia' supportano
+   :root[data-theme="dark"|"light"]; qui solo il controllo visivo) --- */
+.theme-toggle{ position:fixed; top:16px; right:16px; z-index:100; width:40px; height:40px; padding:0;
+  display:flex; align-items:center; justify-content:center; font-size:17px; line-height:1;
+  background:var(--panel); border:1px solid var(--panel-line); border-radius:999px; cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,0.14); }
+.theme-toggle .icon-sun{ display:none; }
+.theme-toggle .icon-moon{ display:inline; }
+:root[data-theme="dark"] .theme-toggle .icon-sun{ display:inline; }
+:root[data-theme="dark"] .theme-toggle .icon-moon{ display:none; }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .theme-toggle .icon-sun{ display:inline; }
+  :root:not([data-theme="light"]) .theme-toggle .icon-moon{ display:none; }
+}
+
+@media (max-width:640px){
+  .page{ padding:64px 14px 48px; }
+  .theme-toggle{ top:10px; right:10px; width:34px; height:34px; font-size:14px; }
+  .brand-logo{ height:56px; }
+  .masthead-row{ gap:12px; }
+  .gen-row-inline{ gap:14px; }
+  .models-key{ margin-left:0; }
+}

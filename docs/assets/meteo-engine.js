@@ -420,7 +420,7 @@
         '<span class="spread-track"><span class="spread-fill" style="width:' + l.pct + '%"></span></span>' +
         '<span class="moonlabel">' + esc(l.label) + '</span></div>';
     }).join("");
-    return '<div class="pgrid" style="grid-template-columns:150px repeat(' + dayLabels.length + ',1fr);">' +
+    return '<div class="pgrid" style="grid-template-columns:150px repeat(' + dayLabels.length + ',minmax(60px,1fr));">' +
       '<div class="cell rowlabel" style="font-weight:700;">Giorno</div>' + head +
       '<div class="cell rowlabel">Alba</div>' + albaHtml +
       '<div class="cell rowlabel">Tramonto</div>' + tramHtml +

@@ -63,9 +63,33 @@ WAVE_MODEL_META = {
 IT_MONTHS = ["", "gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"]
 IT_WEEKDAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
 
+# Selettore tema chiaro/scuro: le variabili CSS in table_engine.css gia'
+# supportano :root[data-theme="dark"|"light"] (oltre a prefers-color-scheme
+# automatico); qui c'e' solo il controllo visivo + lo script minimo per
+# leggerlo/salvarlo. Se lo script non viene eseguito (anteprime senza JS) il
+# bottone semplicemente non fa nulla: il tema segue comunque il sistema
+# operativo via prefers-color-scheme, quindi il contenuto resta leggibile.
+THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('meteo-garbino-theme');'''
+                      '''if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);'''
+                      '''}catch(e){}})();</script>\n'''
+                      '''<button type="button" class="theme-toggle" aria-label="Cambia tema chiaro/scuro" '''
+                      '''title="Tema chiaro/scuro" onclick="(function(){var d=document.documentElement,'''
+                      '''mq=window.matchMedia('(prefers-color-scheme: dark)');'''
+                      '''var cur=d.getAttribute('data-theme')||(mq.matches?'dark':'light');'''
+                      '''var next=cur==='dark'?'light':'dark';d.setAttribute('data-theme',next);'''
+                      '''try{localStorage.setItem('meteo-garbino-theme',next);}catch(e){}})()">'''
+                      '''<span class="theme-toggle-icon icon-sun">☀️</span>'''
+                      '''<span class="theme-toggle-icon icon-moon">\U0001f319</span></button>''')
+
 # Storico revisioni dello strumento. Aggiungere una voce in cima ad ogni
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato.
 CHANGELOG = [
+    {"version": "1.0.6", "date": "20/08/2026", "changes": [
+        "Aggiunto un selettore tema chiaro/scuro (bottone in alto a destra): forza il tema scelto (salvato nel browser) invece di seguire solo il tema del sistema operativo.",
+        "Rimossa la parola \"bollettini\" dal titolo del sito.",
+        "Rifiniture responsive per schermi stretti (telefono): spazio per il selettore tema, logo e margini ridotti sotto i 640px.",
+        "Aggiunto il tag <code>&lt;meta name=&quot;viewport&quot;&gt;</code> mancante, e corretto uno scroll orizzontale indesiderato su schermi stretti causato dalle liste puntate (Note/Revisioni) e dalle colonne delle tabelle che non si restringevano sotto la loro larghezza di contenuto.",
+    ]},
     {"version": "1.0.5", "date": "20/08/2026", "changes": [
         "Nuovo sito su GitHub Pages (docs/): pagina indice con le tabelle già pronte, e un generatore live (docs/genera.html) dove si sceglie città/coordinate, durata (3 o 7 giorni) e risoluzione (24/12/6/3/1 ore) e la tabella viene calcolata al volo nel browser chiamando direttamente le API Open-Meteo.",
         "Fix impaginazione: la griglia delle tabelle usa sempre il numero reale di colonne (--ncols) invece di assumere 7 colonne fisse in modalità giornaliera, così anche una tabella giornaliera a 3 giorni non lascia colonne vuote.",
@@ -359,7 +383,7 @@ def render_almanac(day_labels, alba, tramonto, luna):
                           f'<span class="moonlabel">{l["label"]}</span></div>')
     luna_html = "".join(cells)
     ncols = len(day_labels)
-    return f'''<div class="pgrid" style="grid-template-columns:150px repeat({ncols},1fr);">
+    return f'''<div class="pgrid" style="grid-template-columns:150px repeat({ncols},minmax(60px,1fr));">
       <div class="cell rowlabel" style="font-weight:700;">Giorno</div>
       {head}
       <div class="cell rowlabel">Alba</div>
@@ -834,12 +858,14 @@ def build(args):
         logo_html = f'<img class="brand-logo" src="data:image/png;base64,{b64_file(args.logo)}" alt="Meteo Garbino">'
 
     html = f"""<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{loc_label} — Tabella meteo {'oraria' if args.mode == 'hourly' else 'giornaliera'} (dati reali)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
 <style>
 {css}
 </style>
+{THEME_TOGGLE_HTML}
 <div class="page"{page_style}>
   <div class="masthead">
     <div class="masthead-row">
