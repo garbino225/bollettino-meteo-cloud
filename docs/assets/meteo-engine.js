@@ -1095,11 +1095,15 @@
       '</div></div><div class="spectrum"></div></div>' +
       '<div class="almanac-panel"><span class="legend-title">Alba &middot; tramonto &middot; fase lunare (reali)</span>' +
       '<div class="table-wrap" style="padding:0;">' + almanacHtml + '</div></div>' +
-      '<div class="sections" style="--ncols:' + ncols + ';">' + sectionsHtml + '</div>' +
-      (coastalParams.length ? '<div style="margin:2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, sorgente singola: modello Best Match (GTSM)</span></div>' +
-        '<div class="sections" style="--ncols:' + ncols + ';">' + coastalSectionsHtml + '</div>' : "") +
-      (convParams.length ? '<div style="margin:2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; sorgente singola: blend Best Match</span></div>' +
-        '<div class="sections" style="--ncols:' + ncols + ';">' + convSectionsHtml + '</div>' : "") +
+      '<div class="section-nav"><a href="#section-modelli" class="section-nav-link">Modelli</a>' +
+      ((coastalParams.length || convParams.length) ? '<a href="#section-parametri" class="section-nav-link">Parametri</a>' : "") + '</div>' +
+      '<div id="section-modelli" class="sections" style="--ncols:' + ncols + ';">' + sectionsHtml + '</div>' +
+      ((coastalParams.length || convParams.length) ? '<div id="section-parametri">' +
+        (coastalParams.length ? '<div style="margin:2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, sorgente singola: modello Best Match (GTSM)</span></div>' +
+          '<div class="sections" style="--ncols:' + ncols + ';">' + coastalSectionsHtml + '</div>' : "") +
+        (convParams.length ? '<div style="margin:2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; sorgente singola: blend Best Match</span></div>' +
+          '<div class="sections" style="--ncols:' + ncols + ';">' + convSectionsHtml + '</div>' : "") +
+        '</div>' : "") +
       '<div class="notes"><h2>Note</h2>' + notesHtml + '</div>';
   }
 })();

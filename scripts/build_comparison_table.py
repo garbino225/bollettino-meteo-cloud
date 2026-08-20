@@ -970,6 +970,19 @@ def build(args):
     conv_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in conv_params)
     coastal_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in coastal_params)
 
+    # Sezione "Parametri": marea + parametri convettivi, entrambi sorgente
+    # singola (Best Match), raggiungibile dal menu Modelli/Parametri in cima
+    # alla pagina. Costruita fuori dal template principale per evitare
+    # f-string annidate con le stesse triple virgolette.
+    marea_block = (f'<div style="margin:2px 2px 2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, '
+                    f'sorgente singola: modello Best Match (GTSM)</span></div>'
+                    f'<div class="sections">{coastal_sections_html}</div>') if coastal_params else ""
+    conv_block = (f'<div style="margin:2px 2px 2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; '
+                  f'sorgente singola: blend Best Match, non confronto multi-modello</span></div>'
+                  f'<div class="sections">{conv_sections_html}</div>') if conv_params else ""
+    parametri_block = f'<div id="section-parametri">{marea_block}{conv_block}</div>' if (conv_params or coastal_params) else ""
+    parametri_nav_link = '<a href="#section-parametri" class="section-nav-link">Parametri</a>' if (conv_params or coastal_params) else ""
+
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"'
 
@@ -1013,19 +1026,16 @@ def build(args):
     </div>
   </div>
 
-  <div class="sections">
+  <div class="section-nav">
+    <a href="#section-modelli" class="section-nav-link">Modelli</a>
+    {parametri_nav_link}
+  </div>
+
+  <div id="section-modelli" class="sections">
     {sections_html}
   </div>
 
-  {f'''<div style="margin:2px 2px 2px;"><span class="legend-title">Marea &middot; localit&agrave; costiera, sorgente singola: modello Best Match (GTSM)</span></div>
-  <div class="sections">
-    {coastal_sections_html}
-  </div>''' if coastal_params else ''}
-
-  {f'''<div style="margin:2px 2px 2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; sorgente singola: blend Best Match, non confronto multi-modello</span></div>
-  <div class="sections">
-    {conv_sections_html}
-  </div>''' if conv_params else ''}
+  {parametri_block}
 
   <div class="notes">
     <h2>Note</h2>
