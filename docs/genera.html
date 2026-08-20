@@ -12,6 +12,72 @@
 </style>
 <script>(function(){try{var t=localStorage.getItem('meteo-garbino-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <button type="button" class="theme-toggle" aria-label="Cambia tema chiaro/scuro" title="Tema chiaro/scuro" onclick="(function(){var d=document.documentElement,mq=window.matchMedia('(prefers-color-scheme: dark)');var cur=d.getAttribute('data-theme')||(mq.matches?'dark':'light');var next=cur==='dark'?'light':'dark';d.setAttribute('data-theme',next);try{localStorage.setItem('meteo-garbino-theme',next);}catch(e){}})()"><span class="theme-toggle-icon icon-sun">☀️</span><span class="theme-toggle-icon icon-moon">🌙</span></button>
+<script>(function(){
+  function svgPoint(svg, clientX, clientY){
+    var pt = svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    return pt.matrixTransform(ctm.inverse());
+  }
+  function nearestPoint(svg, svgX){
+    var pts = svg.querySelectorAll('.chart-pt'), best = null, bestDist = Infinity;
+    for (var i = 0; i < pts.length; i++) {
+      var d = Math.abs(parseFloat(pts[i].getAttribute('data-x')) - svgX);
+      if (d < bestDist) { bestDist = d; best = pts[i]; }
+    }
+    return best;
+  }
+  function updateCrosshair(svg, pt){
+    var g = svg.querySelector('.chart-crosshair');
+    if (!g) return;
+    if (!pt) { g.style.display = 'none'; return; }
+    var vb = svg.viewBox.baseVal;
+    var x = parseFloat(pt.getAttribute('data-x')), y = parseFloat(pt.getAttribute('data-y'));
+    var text = pt.getAttribute('data-label') + '   ' + pt.getAttribute('data-value');
+    var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'),
+        dot = g.querySelector('.ch-dot'), bg = g.querySelector('.ch-label-bg'), lbl = g.querySelector('.ch-label');
+    vline.setAttribute('x1', x); vline.setAttribute('x2', x);
+    vline.setAttribute('y1', vb.y); vline.setAttribute('y2', vb.y + vb.height);
+    hline.setAttribute('y1', y); hline.setAttribute('y2', y);
+    hline.setAttribute('x1', vb.x); hline.setAttribute('x2', vb.x + vb.width);
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+    lbl.textContent = text;
+    var approxW = text.length * 6.4 + 16;
+    var lx = x + 10;
+    if (lx + approxW > vb.x + vb.width) lx = x - approxW - 10;
+    var ly = y - 28;
+    if (ly < vb.y) ly = y + 12;
+    bg.setAttribute('x', lx); bg.setAttribute('y', ly); bg.setAttribute('width', approxW); bg.setAttribute('height', 22);
+    lbl.setAttribute('x', lx + 8); lbl.setAttribute('y', ly + 15);
+    g.style.display = '';
+  }
+  function handleMove(e){
+    var svg = e.target && e.target.closest && e.target.closest('.chart-svg');
+    if (!svg) return;
+    var cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
+    var p = svgPoint(svg, cx, cy);
+    if (!p) return;
+    updateCrosshair(svg, nearestPoint(svg, p.x));
+  }
+  document.addEventListener('pointermove', handleMove);
+  document.addEventListener('pointerdown', handleMove);
+  document.addEventListener('pointerleave', function(e){
+    var svg = e.target && e.target.closest && e.target.closest('.chart-svg');
+    if (svg) updateCrosshair(svg, null);
+  }, true);
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest && e.target.closest('.chart-toggle-btn');
+    if (!btn) return;
+    var details = btn.closest('details.param');
+    if (!details) return;
+    var tableWrap = details.querySelector(':scope > .table-wrap'), chartWrap = details.querySelector(':scope > .chart-wrap');
+    if (!tableWrap || !chartWrap) return;
+    var showingChart = !chartWrap.hasAttribute('hidden');
+    if (showingChart) { chartWrap.setAttribute('hidden', ''); tableWrap.removeAttribute('hidden'); btn.textContent = 'Grafico'; }
+    else { tableWrap.setAttribute('hidden', ''); chartWrap.removeAttribute('hidden'); btn.textContent = 'Tabella'; }
+  });
+})();</script>
 <div class="page">
   <div class="masthead">
     <div class="masthead-row">
@@ -80,6 +146,6 @@
 
   <div id="gen-result"></div>
 
-  <footer class="site-footer">MeteoGarbino225&reg;</footer>
+  <footer class="site-footer">MeteoGarbino225&reg; &middot; Rev. 1.0.10 &middot; <a href="revisioni.html">Revisioni e novit&agrave;</a></footer>
 </div>
 <script src="assets/meteo-engine.js"></script>

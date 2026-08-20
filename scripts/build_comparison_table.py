@@ -63,69 +63,7 @@ WAVE_MODEL_META = {
 IT_MONTHS = ["", "gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"]
 IT_WEEKDAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
 
-# Selettore tema chiaro/scuro: le variabili CSS in table_engine.css gia'
-# supportano :root[data-theme="dark"|"light"] (oltre a prefers-color-scheme
-# automatico); qui c'e' solo il controllo visivo + lo script minimo per
-# leggerlo/salvarlo. Se lo script non viene eseguito (anteprime senza JS) il
-# bottone semplicemente non fa nulla: il tema segue comunque il sistema
-# operativo via prefers-color-scheme, quindi il contenuto resta leggibile.
-THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('meteo-garbino-theme');'''
-                      '''if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);'''
-                      '''}catch(e){}})();</script>\n'''
-                      '''<button type="button" class="theme-toggle" aria-label="Cambia tema chiaro/scuro" '''
-                      '''title="Tema chiaro/scuro" onclick="(function(){var d=document.documentElement,'''
-                      '''mq=window.matchMedia('(prefers-color-scheme: dark)');'''
-                      '''var cur=d.getAttribute('data-theme')||(mq.matches?'dark':'light');'''
-                      '''var next=cur==='dark'?'light':'dark';d.setAttribute('data-theme',next);'''
-                      '''try{localStorage.setItem('meteo-garbino-theme',next);}catch(e){}})()">'''
-                      '''<span class="theme-toggle-icon icon-sun">☀️</span>'''
-                      '''<span class="theme-toggle-icon icon-moon">\U0001f319</span></button>''')
-
-# Storico revisioni dello strumento. Aggiungere una voce in cima ad ogni
-# modifica rilasciata; viene stampata in fondo a ogni file HTML generato.
-CHANGELOG = [
-    {"version": "1.0.9", "date": "20/08/2026", "changes": [
-        "Ridotta la larghezza della colonna dei modelli (etichetta di riga) da 150px a 120px, per lasciare piu' spazio alle colonne dati.",
-    ]},
-    {"version": "1.0.8", "date": "20/08/2026", "changes": [
-        "Sito molto piu' veloce da navigare: le pagine copiate in docs/ ora linkano CSS e logo come file esterni condivisi invece di incorporarli (base64) su ognuna — scaricati una volta sola dal browser e riusati in cache su tutte le pagine successive. La home e' passata da ~500KB a ~4KB, i bollettini da 600KB-1.1MB a 100-600KB.",
-        "Solo la prima sezione (Temperatura) e' aperta di default in ogni tabella: con tabelle fino a 168 colonne orarie, tenerle tutte espanse appesantiva inutilmente il caricamento iniziale. Le altre restano un clic di distanza (funziona anche senza JavaScript: sono elementi HTML nativi).",
-    ]},
-    {"version": "1.0.7", "date": "20/08/2026", "changes": [
-        "Aggiunto il footer \"MeteoGarbino225®\" in fondo a ogni pagina del sito.",
-    ]},
-    {"version": "1.0.6", "date": "20/08/2026", "changes": [
-        "Aggiunto un selettore tema chiaro/scuro (bottone in alto a destra): forza il tema scelto (salvato nel browser) invece di seguire solo il tema del sistema operativo.",
-        "Rimossa la parola \"bollettini\" dal titolo del sito.",
-        "Rifiniture responsive per schermi stretti (telefono): spazio per il selettore tema, logo e margini ridotti sotto i 640px.",
-        "Aggiunto il tag <code>&lt;meta name=&quot;viewport&quot;&gt;</code> mancante, e corretto uno scroll orizzontale indesiderato su schermi stretti causato dalle liste puntate (Note/Revisioni) e dalle colonne delle tabelle che non si restringevano sotto la loro larghezza di contenuto.",
-    ]},
-    {"version": "1.0.5", "date": "20/08/2026", "changes": [
-        "Nuovo sito su GitHub Pages (docs/): pagina indice con le tabelle già pronte, e un generatore live (docs/genera.html) dove si sceglie città/coordinate, durata (3 o 7 giorni) e risoluzione (24/12/6/3/1 ore) e la tabella viene calcolata al volo nel browser chiamando direttamente le API Open-Meteo.",
-        "Fix impaginazione: la griglia delle tabelle usa sempre il numero reale di colonne (--ncols) invece di assumere 7 colonne fisse in modalità giornaliera, così anche una tabella giornaliera a 3 giorni non lascia colonne vuote.",
-    ]},
-    {"version": "1.0.4", "date": "19/08/2026", "changes": [
-        "Nuova sezione \"Parametri convettivi\" (rischio temporali): CAPE, CIN, Lifted Index, quota dello zero termico, altezza dello strato limite, acqua precipitabile — una tabella separata per ciascun parametro, prima della tabella delle revisioni.",
-        "A differenza degli altri parametri, i dati convettivi provengono da un'unica sorgente (profilo verticale del blend Best Match), non da un confronto multi-modello: Open-Meteo non espone questi campi per i singoli centri di calcolo.",
-    ]},
-    {"version": "1.0.3", "date": "19/08/2026", "changes": [
-        "Aggiunta questa tabella delle revisioni in fondo ad ogni file generato.",
-        "Nuova convenzione nome file: Luogo_ggmm-inizio_ggmm-fine_ggmmaaaa-ora-generazione.html.",
-    ]},
-    {"version": "1.0.2", "date": "19/08/2026", "changes": [
-        "Vento: direzione e raffica mostrate anche per ogni singolo modello, non solo per la media.",
-        "Vento e moto ondoso: formato compatto medio/raffica con direzione a capo (es. 2/3 poi SO sotto), per restare dentro alla cella anche con 72 colonne orarie.",
-        "Aggiunto il logo Meteo Garbino in alto a destra nell'intestazione, ingrandito e riposizionato su richiesta.",
-        "Fix impaginazione: eliminato lo spazio vuoto sotto l'eyebrow causato dal logo piu' alto del testo.",
-    ]},
-    {"version": "1.0.1", "date": "19/08/2026", "changes": [
-        "Fix caratteri accentati: aggiunto il tag <code>&lt;meta charset=&quot;utf-8&quot;&gt;</code> mancante nei file scaricati come file locale.",
-    ]},
-    {"version": "1.0.0", "date": "18/08/2026", "changes": [
-        "Prima versione con dati reali: lo strumento passa dal mockup con dati di prova ai dati veri scaricati da Open-Meteo (fetch_forecast.py + fetch_marine.py).",
-        "Tabella HTML resa completamente statica (nessun JavaScript), per essere leggibile anche nei client che non eseguono script (anteprime, email, ecc.).",
-    ]},
-]
+from site_common import THEME_TOGGLE_HTML, CHART_INTERACTION_JS, CHANGELOG, render_changelog, render_footer  # noqa: E402
 
 
 def cardinal(deg):
@@ -227,6 +165,113 @@ def render_trend_svg(values_by_model, model_codes, ncols):
             f'stroke-linejoin="round" stroke-linecap="round" /></svg>')
 
 
+def col_label(mode, tc, day_labels):
+    if mode == "hourly":
+        return f"{day_labels[tc['dayIndex']]} {tc['hod']:02d}:00"
+    return f"{tc['d']} {tc['date']}"
+
+
+def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
+    """Grafico a linee grande e interattivo (a differenza del mini-trend di
+    render_trend_svg, gia' usato come sfondo della riga media): una linea
+    per modello sovrapposte per il confronto, la media in evidenza, e un
+    cerchio invisibile per colonna con i dati gia' formattati (valore,
+    etichetta data/ora) che lo script CHART_INTERACTION_JS usa per
+    disegnare il crosshair al passaggio del mouse o al tocco."""
+    ncols = len(time_cols)
+    if is_conv:
+        model_codes = []
+        mean_vals = p["values"]
+    else:
+        model_codes = p["modelCodes"]
+        mean_vals = []
+        for i in range(ncols):
+            vals = [p["values"][c][i] for c in model_codes if p["values"].get(c) and p["values"][c][i] is not None]
+            mean_vals.append(sum(vals) / len(vals) if vals else None)
+
+    all_vals = [v for v in mean_vals if v is not None]
+    if not is_conv:
+        for c in model_codes:
+            all_vals += [v for v in p["values"].get(c, []) if v is not None]
+    if not all_vals:
+        return ""
+
+    lo, hi = min(all_vals), max(all_vals)
+    pad = (hi - lo) * 0.12 or 1
+    lo -= pad
+    hi += pad
+
+    margin_l, margin_r, margin_t, plot_h, margin_b = 48, 14, 14, 220, 34
+    hourly_wide = mode == "hourly"
+    W = max(860, ncols * 16) if hourly_wide else 860
+    H = plot_h + margin_t + margin_b
+
+    def x(i):
+        usable = W - margin_l - margin_r
+        return margin_l + (i / (ncols - 1)) * usable if ncols > 1 else margin_l + usable / 2
+
+    def y(v):
+        return margin_t + plot_h - ((v - lo) / (hi - lo)) * plot_h
+
+    grid = []
+    for t in range(5):
+        gv = lo + (hi - lo) * t / 4
+        gy = y(gv)
+        grid.append(f'<line x1="{margin_l}" y1="{gy:.1f}" x2="{W - margin_r}" y2="{gy:.1f}" '
+                     f'stroke="var(--panel-line)" stroke-width="1"/>')
+        grid.append(f'<text x="{margin_l - 8}" y="{gy + 3:.1f}" text-anchor="end" font-size="10" '
+                     f'fill="var(--ink-faint)" font-family="IBM Plex Mono, monospace">{fmt_val(gv, p["decimals"])}</text>')
+
+    lines = []
+    if not is_conv:
+        for c in model_codes:
+            pts = [f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(p["values"].get(c, [])) if v is not None]
+            if len(pts) >= 2:
+                lines.append(f'<polyline points="{" ".join(pts)}" fill="none" stroke="var(--ink-faint)" '
+                              f'stroke-width="1" opacity="0.35"/>')
+
+    mean_pts, circles = [], []
+    for i, v in enumerate(mean_vals):
+        if v is None:
+            continue
+        px, py = x(i), y(v)
+        mean_pts.append(f"{px:.1f},{py:.1f}")
+        lbl = col_label(mode, time_cols[i], day_labels)
+        circles.append(f'<circle class="chart-pt" cx="{px:.1f}" cy="{py:.1f}" r="10" fill="transparent" '
+                        f'data-x="{px:.1f}" data-y="{py:.1f}" '
+                        f'data-value="{fmt_val(v, p["decimals"])} {p["unit"]}" data-label="{lbl}"/>')
+    mean_line = (f'<polyline points="{" ".join(mean_pts)}" fill="none" stroke="var(--accent)" stroke-width="2.4" '
+                 f'stroke-linejoin="round" stroke-linecap="round"/>') if len(mean_pts) >= 2 else ""
+
+    xlabels = []
+    for i, tc in enumerate(time_cols):
+        show = (tc["hod"] == 0) if mode == "hourly" else True
+        if not show:
+            continue
+        lbl = day_labels[tc["dayIndex"]] if mode == "hourly" else f"{tc['d']} {tc['date']}"
+        xlabels.append(f'<text x="{x(i):.1f}" y="{H - 10}" text-anchor="middle" font-size="10" '
+                        f'fill="var(--ink-faint)" font-family="IBM Plex Mono, monospace">{lbl}</text>')
+        if mode == "hourly" and i > 0:
+            xlabels.append(f'<line x1="{x(i):.1f}" y1="{margin_t}" x2="{x(i):.1f}" y2="{margin_t + plot_h}" '
+                            f'stroke="var(--panel-line)" stroke-width="1" stroke-dasharray="2,2"/>')
+
+    crosshair = ('<g class="chart-crosshair" style="display:none">'
+                 '<line class="ch-vline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>'
+                 '<line class="ch-hline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>'
+                 '<rect class="ch-label-bg" rx="4" ry="4" fill="var(--ink)"/>'
+                 '<text class="ch-label" font-size="11" fill="var(--panel)" font-family="IBM Plex Mono, monospace"></text>'
+                 '<circle class="ch-dot" r="4" fill="var(--accent)"/>'
+                 '</g>')
+
+    style = f'width:{W}px;height:{H}px;' if hourly_wide else f'width:100%;height:{H}px;'
+    scroll_class = "chart-scroll" if hourly_wide else ""
+
+    svg = (f'<svg class="chart-svg" viewBox="0 0 {W} {H}" preserveAspectRatio="none" style="{style}">'
+           + "".join(grid) + "".join(lines) + mean_line + "".join(circles) + "".join(xlabels) + crosshair
+           + '</svg>')
+    return f'<div class="{scroll_class}">{svg}</div>'
+
+
 def render_section(p, mode, time_cols, day_labels, models_lookup):
     codes = p["modelCodes"]
     ncols = len(time_cols)
@@ -314,9 +359,11 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
 
     hourly_class = "hourly" if mode == "hourly" else ""
     open_attr = " open" if p.get("openDefault") else ""
+    chart_svg = render_chart_svg(p, mode, time_cols, day_labels)
 
     return f'''<details class="param"{open_attr}>
     <summary><span class="arrow">&#9656;</span> {p["label"]} <span class="unit">{p["unit"]}</span>{excluded_html}<span class="desc">{p["threshTxt"]}</span></summary>
+    <div class="param-toolbar"><button type="button" class="chart-toggle-btn">Grafico</button></div>
     <div class="table-wrap">
       <div class="pgrid {hourly_class}">
         <div class="cell rowlabel" style="font-weight:700;">{"Ora" if mode == "hourly" else "Giorno"}</div>
@@ -329,6 +376,7 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
         {"".join(model_rows)}
       </div>
     </div>
+    <div class="chart-wrap" hidden>{chart_svg}</div>
   </details>'''
 
 
@@ -363,9 +411,11 @@ def render_convective_section(p, mode, time_cols, day_labels):
 
     hourly_class = "hourly" if mode == "hourly" else ""
     open_attr = " open" if p.get("openDefault") else ""
+    chart_svg = render_chart_svg(p, mode, time_cols, day_labels, is_conv=True)
 
     return f'''<details class="param"{open_attr}>
     <summary><span class="arrow">&#9656;</span> {p["label"]} <span class="unit">{p["unit"]}</span><span class="desc">{p["threshTxt"]}</span></summary>
+    <div class="param-toolbar"><button type="button" class="chart-toggle-btn">Grafico</button></div>
     <div class="table-wrap">
       <div class="pgrid {hourly_class}">
         <div class="cell rowlabel" style="font-weight:700;">{"Ora" if mode == "hourly" else "Giorno"}</div>
@@ -377,6 +427,7 @@ def render_convective_section(p, mode, time_cols, day_labels):
         </div>
       </div>
     </div>
+    <div class="chart-wrap" hidden>{chart_svg}</div>
   </details>'''
 
 
@@ -407,16 +458,60 @@ def render_almanac(day_labels, alba, tramonto, luna):
     </div>'''
 
 
-def render_changelog(changelog):
+SEV_LABELS = {3: "Rosso", 4: "Fucsia"}
+
+
+def compute_alerts(params, conv_params, time_cols, day_labels, mode):
+    """Scansiona il valore medio (o, per i convettivi, l'unico valore) di
+    ogni parametro/colonna e segnala le soglie rosso/fucsia (severita' 3-4):
+    una vista rapida di cosa merita attenzione, senza dover aprire ogni
+    singola tabella."""
+    ncols = len(time_cols)
+
+    def time_label(i):
+        tc = time_cols[i]
+        if mode == "hourly":
+            return f"{day_labels[tc['dayIndex']]} {tc['hod']:02d}:00"
+        return f"{tc['d']} {tc['date']}"
+
+    alerts = []
+    for p in params:
+        classify_as = p.get("classifyAs", p["key"])
+        codes = p["modelCodes"]
+        for i in range(ncols):
+            vals = [p["values"][c][i] for c in codes if p["values"].get(c) and p["values"][c][i] is not None]
+            v = sum(vals) / len(vals) if vals else None
+            sev = classify(classify_as, v)
+            if sev is not None and sev >= 3:
+                alerts.append({"col": i, "time": time_label(i), "label": p["label"],
+                                "value": fmt_val(v, p["decimals"]), "unit": p["unit"], "sev": sev})
+    for p in conv_params:
+        classify_as = p.get("classifyAs", p["key"])
+        for i in range(ncols):
+            v = p["values"][i]
+            sev = classify(classify_as, v)
+            if sev is not None and sev >= 3:
+                alerts.append({"col": i, "time": time_label(i), "label": p["label"],
+                                "value": fmt_val(v, p["decimals"]), "unit": p["unit"], "sev": sev})
+    alerts.sort(key=lambda a: (a["col"], -a["sev"]))
+    return alerts
+
+
+def render_alerts(alerts):
+    if not alerts:
+        return ('<div class="alert-panel alert-panel-clear"><span class="legend-title">&#9888; Attenzione</span>'
+                '<p class="alert-empty">Nessuna criticit&agrave; rilevata nel periodo: nessun valore medio in soglia rossa o fucsia.</p></div>')
     rows = []
-    for entry in changelog:
-        changes_html = "<ul>" + "".join(f"<li>{c}</li>" for c in entry["changes"]) + "</ul>"
-        rows.append(f'<tr><td class="rv-version">{entry["version"]}</td>'
-                     f'<td class="rv-date">{entry["date"]}</td>'
-                     f'<td class="rv-changes">{changes_html}</td></tr>')
-    return (f'<div class="revisions"><h2>Revisioni</h2>'
-            f'<table><thead><tr><th>Versione</th><th>Data</th><th>Novit&agrave;</th></tr></thead>'
-            f'<tbody>{"".join(rows)}</tbody></table></div>')
+    for a in alerts:
+        rows.append(f'<tr><td class="al-time">{a["time"]}</td><td class="al-label">{a["label"]}</td>'
+                     f'<td class="al-value"><span class="sev-{a["sev"]} al-badge">{a["value"]} {a["unit"]}</span> '
+                     f'<span class="al-sevlabel">{SEV_LABELS[a["sev"]]}</span></td></tr>')
+    n = len(alerts)
+    return (f'<div class="alert-panel"><span class="legend-title">&#9888; Attenzione &middot; '
+            f'{n} segnalazion{"e" if n == 1 else "i"}</span>'
+            f'<div class="table-wrap" style="padding:0;"><table class="alert-table">'
+            f'<thead><tr><th>Quando</th><th>Parametro</th><th>Valore</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table></div></div>')
 
 
 def lcl_km(t, td):
@@ -871,6 +966,7 @@ def build(args):
     models_key_html = "".join(f'<span class="mk" title="{m["full"]}"><b>{m["code"]}</b></span>' for m in all_models_meta)
     sections_html = "\n".join(render_section(p, args.mode, time_cols, day_labels, models_lookup) for p in params)
     conv_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in conv_params)
+    alerts_html = render_alerts(compute_alerts(params, conv_params, time_cols, day_labels, args.mode))
 
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"'
@@ -888,6 +984,7 @@ def build(args):
 {css}
 </style>
 {THEME_TOGGLE_HTML}
+{CHART_INTERACTION_JS}
 <div class="page"{page_style}>
   <div class="masthead">
     <div class="masthead-row">
@@ -926,6 +1023,8 @@ def build(args):
     <div class="models-key">{models_key_html}</div>
   </div>
 
+  {alerts_html}
+
   <div class="sections">
     {sections_html}
   </div>
@@ -940,9 +1039,7 @@ def build(args):
     {notes_html}
   </div>
 
-  {render_changelog(CHANGELOG)}
-
-  <footer class="site-footer">MeteoGarbino225&reg;</footer>
+  {render_footer()}
 </div>
 """
 

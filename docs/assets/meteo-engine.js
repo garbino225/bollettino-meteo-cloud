@@ -283,6 +283,145 @@
       '<polyline points="' + meanLine + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /></svg>';
   }
 
+  function colLabel(mode, tc, dayLabels) {
+    return mode === "hourly" ? (dayLabels[tc.dayIndex] + " " + pad2(tc.hod) + ":00") : (tc.d + " " + tc.date);
+  }
+
+  // Grafico a linee grande e interattivo (a differenza del mini-trend sopra,
+  // usato come sfondo della riga media): stessa logica/stesse classi CSS di
+  // render_chart_svg in build_comparison_table.py, cosi' CHART_INTERACTION_JS
+  // (script condiviso, gia' caricato in questa pagina) funziona identico sia
+  // sui bollettini statici sia qui.
+  function renderChartSvg(p, mode, timeCols, dayLabels, isConv) {
+    var ncols = timeCols.length;
+    var modelCodes = isConv ? [] : p.modelCodes;
+    var meanVals;
+    if (isConv) {
+      meanVals = p.values;
+    } else {
+      meanVals = [];
+      for (var i = 0; i < ncols; i++) {
+        var vals = modelCodes.map(function (c) { return (p.values[c] || [])[i]; }).filter(function (v) { return v !== null && v !== undefined; });
+        meanVals.push(vals.length ? mean(vals) : null);
+      }
+    }
+    var allVals = meanVals.filter(function (v) { return v !== null && v !== undefined; });
+    if (!isConv) {
+      modelCodes.forEach(function (c) { allVals = allVals.concat((p.values[c] || []).filter(function (v) { return v !== null && v !== undefined; })); });
+    }
+    if (!allVals.length) return "";
+
+    var lo = Math.min.apply(null, allVals), hi = Math.max.apply(null, allVals);
+    var pad = (hi - lo) * 0.12 || 1;
+    lo -= pad; hi += pad;
+
+    var marginL = 48, marginR = 14, marginT = 14, plotH = 220, marginB = 34;
+    var hourlyWide = mode === "hourly";
+    var W = hourlyWide ? Math.max(860, ncols * 16) : 860;
+    var H = plotH + marginT + marginB;
+
+    function x(i) { var usable = W - marginL - marginR; return ncols > 1 ? marginL + (i / (ncols - 1)) * usable : marginL + usable / 2; }
+    function y(v) { return marginT + plotH - ((v - lo) / (hi - lo)) * plotH; }
+
+    var grid = [];
+    for (var t = 0; t <= 4; t++) {
+      var gv = lo + (hi - lo) * t / 4, gy = y(gv);
+      grid.push('<line x1="' + marginL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - marginR) + '" y2="' + gy.toFixed(1) + '" stroke="var(--panel-line)" stroke-width="1"/>');
+      grid.push('<text x="' + (marginL - 8) + '" y="' + (gy + 3).toFixed(1) + '" text-anchor="end" font-size="10" fill="var(--ink-faint)" font-family="IBM Plex Mono, monospace">' + fmtVal(gv, p.decimals) + '</text>');
+    }
+
+    var lines = [];
+    if (!isConv) {
+      modelCodes.forEach(function (c) {
+        var pts = [];
+        (p.values[c] || []).forEach(function (v, i) { if (v !== null && v !== undefined) pts.push(x(i).toFixed(1) + "," + y(v).toFixed(1)); });
+        if (pts.length >= 2) lines.push('<polyline points="' + pts.join(" ") + '" fill="none" stroke="var(--ink-faint)" stroke-width="1" opacity="0.35"/>');
+      });
+    }
+
+    var meanPts = [], circles = [];
+    meanVals.forEach(function (v, i) {
+      if (v === null || v === undefined) return;
+      var px = x(i), py = y(v);
+      meanPts.push(px.toFixed(1) + "," + py.toFixed(1));
+      var lbl = colLabel(mode, timeCols[i], dayLabels);
+      circles.push('<circle class="chart-pt" cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="10" fill="transparent" ' +
+        'data-x="' + px.toFixed(1) + '" data-y="' + py.toFixed(1) + '" data-value="' + esc(fmtVal(v, p.decimals) + " " + p.unit) + '" data-label="' + esc(lbl) + '"/>');
+    });
+    var meanLine = meanPts.length >= 2 ? '<polyline points="' + meanPts.join(" ") + '" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>' : "";
+
+    var xlabels = [];
+    timeCols.forEach(function (tc, i) {
+      var show = mode === "hourly" ? tc.hod === 0 : true;
+      if (!show) return;
+      var lbl = mode === "hourly" ? dayLabels[tc.dayIndex] : (tc.d + " " + tc.date);
+      xlabels.push('<text x="' + x(i).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="middle" font-size="10" fill="var(--ink-faint)" font-family="IBM Plex Mono, monospace">' + esc(lbl) + '</text>');
+      if (mode === "hourly" && i > 0) {
+        xlabels.push('<line x1="' + x(i).toFixed(1) + '" y1="' + marginT + '" x2="' + x(i).toFixed(1) + '" y2="' + (marginT + plotH) + '" stroke="var(--panel-line)" stroke-width="1" stroke-dasharray="2,2"/>');
+      }
+    });
+
+    var crosshair = '<g class="chart-crosshair" style="display:none">' +
+      '<line class="ch-vline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>' +
+      '<line class="ch-hline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>' +
+      '<rect class="ch-label-bg" rx="4" ry="4" fill="var(--ink)"/>' +
+      '<text class="ch-label" font-size="11" fill="var(--panel)" font-family="IBM Plex Mono, monospace"></text>' +
+      '<circle class="ch-dot" r="4" fill="var(--accent)"/></g>';
+
+    var style = hourlyWide ? ("width:" + W + "px;height:" + H + "px;") : ("width:100%;height:" + H + "px;");
+    var scrollClass = hourlyWide ? "chart-scroll" : "";
+
+    var svg = '<svg class="chart-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="' + style + '">' +
+      grid.join("") + lines.join("") + meanLine + circles.join("") + xlabels.join("") + crosshair + '</svg>';
+    return '<div class="' + scrollClass + '">' + svg + '</div>';
+  }
+
+  var SEV_LABELS = { 3: "Rosso", 4: "Fucsia" };
+
+  // Scansiona il valore medio (o l'unico valore, per i convettivi) di ogni
+  // parametro/colonna e segnala le soglie rosso/fucsia: stessa logica di
+  // compute_alerts/render_alerts in build_comparison_table.py.
+  function computeAlerts(params, convParams, timeCols, dayLabels, mode) {
+    var ncols = timeCols.length, alerts = [];
+    function timeLabel(i) { return colLabel(mode, timeCols[i], dayLabels); }
+    params.forEach(function (p) {
+      var classifyAs = p.classifyAs || p.key, codes = p.modelCodes;
+      for (var i = 0; i < ncols; i++) {
+        var vals = codes.map(function (c) { return (p.values[c] || [])[i]; }).filter(function (v) { return v !== null && v !== undefined; });
+        var v = vals.length ? mean(vals) : null;
+        var sev = classify(classifyAs, v);
+        if (sev !== null && sev >= 3) alerts.push({ col: i, time: timeLabel(i), label: p.label, value: fmtVal(v, p.decimals), unit: p.unit, sev: sev });
+      }
+    });
+    convParams.forEach(function (p) {
+      var classifyAs = p.classifyAs || p.key;
+      for (var i = 0; i < ncols; i++) {
+        var v = p.values[i];
+        var sev = classify(classifyAs, v);
+        if (sev !== null && sev >= 3) alerts.push({ col: i, time: timeLabel(i), label: p.label, value: fmtVal(v, p.decimals), unit: p.unit, sev: sev });
+      }
+    });
+    alerts.sort(function (a, b) { return a.col - b.col || b.sev - a.sev; });
+    return alerts;
+  }
+
+  function renderAlerts(alerts) {
+    if (!alerts.length) {
+      return '<div class="alert-panel alert-panel-clear"><span class="legend-title">&#9888; Attenzione</span>' +
+        '<p class="alert-empty">Nessuna criticit&agrave; rilevata nel periodo: nessun valore medio in soglia rossa o fucsia.</p></div>';
+    }
+    var rows = alerts.map(function (a) {
+      return '<tr><td class="al-time">' + esc(a.time) + '</td><td class="al-label">' + esc(a.label) + '</td>' +
+        '<td class="al-value"><span class="sev-' + a.sev + ' al-badge">' + esc(a.value + " " + a.unit) + '</span> ' +
+        '<span class="al-sevlabel">' + SEV_LABELS[a.sev] + '</span></td></tr>';
+    });
+    var n = alerts.length;
+    return '<div class="alert-panel"><span class="legend-title">&#9888; Attenzione &middot; ' + n + ' segnalazion' + (n === 1 ? "e" : "i") + '</span>' +
+      '<div class="table-wrap" style="padding:0;"><table class="alert-table">' +
+      '<thead><tr><th>Quando</th><th>Parametro</th><th>Valore</th></tr></thead>' +
+      '<tbody>' + rows.join("") + '</tbody></table></div></div>';
+  }
+
   function headCells(mode, timeCols, dayLabels) {
     return timeCols.map(function (tc, i) {
       if (mode === "hourly") {
@@ -375,9 +514,11 @@
     }
     var hourlyClass = mode === "hourly" ? "hourly" : "";
     var openAttr = p.openDefault ? " open" : "";
+    var chartSvg = renderChartSvg(p, mode, timeCols, dayLabels, false);
 
     return '<details class="param"' + openAttr + '>' +
       '<summary><span class="arrow">&#9656;</span> ' + esc(p.label) + ' <span class="unit">' + esc(p.unit) + '</span>' + excludedHtml + '<span class="desc">' + p.threshTxt + '</span></summary>' +
+      '<div class="param-toolbar"><button type="button" class="chart-toggle-btn">Grafico</button></div>' +
       '<div class="table-wrap"><div class="pgrid ' + hourlyClass + '">' +
       '<div class="cell rowlabel" style="font-weight:700;">' + (mode === "hourly" ? "Ora" : "Giorno") + '</div>' +
       headCells(mode, timeCols, dayLabels) +
@@ -386,7 +527,9 @@
       '<div class="consensus-svg" style="grid-column:2/-1;grid-row:1;">' + trendSvg + '</div>' +
       consensusCells.join("") + '</div>' +
       modelRows.join("") +
-      '</div></div></details>';
+      '</div></div>' +
+      '<div class="chart-wrap" hidden>' + chartSvg + '</div>' +
+      '</details>';
   }
 
   function renderConvectiveSection(p, mode, timeCols, dayLabels) {
@@ -401,15 +544,19 @@
     }
     var hourlyClass = mode === "hourly" ? "hourly" : "";
     var openAttr = p.openDefault ? " open" : "";
+    var chartSvg = renderChartSvg(p, mode, timeCols, dayLabels, true);
     return '<details class="param"' + openAttr + '>' +
       '<summary><span class="arrow">&#9656;</span> ' + esc(p.label) + ' <span class="unit">' + esc(p.unit) + '</span><span class="desc">' + p.threshTxt + '</span></summary>' +
+      '<div class="param-toolbar"><button type="button" class="chart-toggle-btn">Grafico</button></div>' +
       '<div class="table-wrap"><div class="pgrid ' + hourlyClass + '">' +
       '<div class="cell rowlabel" style="font-weight:700;">' + (mode === "hourly" ? "Ora" : "Giorno") + '</div>' +
       headCells(mode, timeCols, dayLabels) +
       '<div class="consensus-row ' + hourlyClass + '">' +
       '<div class="cell rowlabel" style="grid-column:1;grid-row:1;">Best Match</div>' +
       '<div class="consensus-svg" style="grid-column:2/-1;grid-row:1;">' + trendSvg + '</div>' +
-      cells.join("") + '</div></div></div></details>';
+      cells.join("") + '</div></div>' +
+      '<div class="chart-wrap" hidden>' + chartSvg + '</div>' +
+      '</details>';
   }
 
   function renderAlmanac(dayLabels, alba, tramonto, luna) {
@@ -810,6 +957,7 @@
     var modelsKeyHtml = allModelsMeta.map(function (m) { return '<span class="mk" title="' + esc(m.full) + '"><b>' + esc(m.code) + '</b></span>'; }).join("");
     var sectionsHtml = params.map(function (p) { return renderSection(p, mode, timeCols, dayLabels, modelsLookup); }).join("\n");
     var convSectionsHtml = convParams.map(function (p) { return renderConvectiveSection(p, mode, timeCols, dayLabels); }).join("\n");
+    var alertsHtml = renderAlerts(computeAlerts(params, convParams, timeCols, dayLabels, mode));
 
     var notesItems = [
       "<strong>Dati reali</strong>: scaricati da Open-Meteo direttamente dal tuo browser (nessun server nel mezzo) il " + new Date().toLocaleString("it-IT") + ".",
@@ -833,6 +981,7 @@
       '<div class="sw sw-0">Bianco <em>nessun rischio</em></div><div class="sw sw-1">Giallo <em>moderato</em></div>' +
       '<div class="sw sw-2">Arancio <em>elevato</em></div><div class="sw sw-3">Rosso <em>molto elevato</em></div>' +
       '<div class="sw sw-4">Fucsia <em>estremo</em></div></div><div class="models-key">' + modelsKeyHtml + '</div></div>' +
+      alertsHtml +
       '<div class="sections" style="--ncols:' + ncols + ';">' + sectionsHtml + '</div>' +
       (convParams.length ? '<div style="margin:2px;"><span class="legend-title">Parametri convettivi (rischio temporali) &middot; sorgente singola: blend Best Match</span></div>' +
         '<div class="sections" style="--ncols:' + ncols + ';">' + convSectionsHtml + '</div>' : "") +
