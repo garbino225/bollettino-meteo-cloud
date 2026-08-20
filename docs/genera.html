@@ -13,6 +13,7 @@
 <script>(function(){try{var t=localStorage.getItem('meteo-garbino-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <button type="button" class="theme-toggle" aria-label="Cambia tema chiaro/scuro" title="Tema chiaro/scuro" onclick="(function(){var d=document.documentElement,mq=window.matchMedia('(prefers-color-scheme: dark)');var cur=d.getAttribute('data-theme')||(mq.matches?'dark':'light');var next=cur==='dark'?'light':'dark';d.setAttribute('data-theme',next);try{localStorage.setItem('meteo-garbino-theme',next);}catch(e){}})()"><span class="theme-toggle-icon icon-sun">☀️</span><span class="theme-toggle-icon icon-moon">🌙</span></button>
 <script>(function(){
+  var SVG_NS = 'http://www.w3.org/2000/svg';
   function svgPoint(svg, clientX, clientY){
     var pt = svg.createSVGPoint();
     pt.x = clientX; pt.y = clientY;
@@ -28,13 +29,16 @@
     }
     return best;
   }
+  function colorVar(c){ return c.indexOf('var(') === 0 ? c : ('var(' + c + ')'); }
   function updateCrosshair(svg, pt){
     var g = svg.querySelector('.chart-crosshair');
-    if (!g) return;
-    if (!pt) { g.style.display = 'none'; return; }
+    if (!g || !pt) return;
     var vb = svg.viewBox.baseVal;
     var x = parseFloat(pt.getAttribute('data-x')), y = parseFloat(pt.getAttribute('data-y'));
-    var text = pt.getAttribute('data-label') + '   ' + pt.getAttribute('data-value');
+    var rows = (pt.getAttribute('data-rows') || '').split('|').filter(Boolean).map(function(r){
+      var parts = r.split(',');
+      return { label: parts[0], value: parts[1], color: parts[2] };
+    });
     var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'),
         dot = g.querySelector('.ch-dot'), bg = g.querySelector('.ch-label-bg'), lbl = g.querySelector('.ch-label');
     vline.setAttribute('x1', x); vline.setAttribute('x2', x);
@@ -42,14 +46,30 @@
     hline.setAttribute('y1', y); hline.setAttribute('y2', y);
     hline.setAttribute('x1', vb.x); hline.setAttribute('x2', vb.x + vb.width);
     dot.setAttribute('cx', x); dot.setAttribute('cy', y);
-    lbl.textContent = text;
-    var approxW = text.length * 6.4 + 16;
+
+    while (lbl.firstChild) lbl.removeChild(lbl.firstChild);
+    var lineH = 13, padX = 8, padTop = 13;
+    var maxLen = 0;
+    rows.forEach(function(r){ maxLen = Math.max(maxLen, (r.label + ': ' + r.value).length); });
+    var boxW = maxLen * 5.9 + padX * 2;
+    var boxH = rows.length * lineH + 10;
     var lx = x + 10;
-    if (lx + approxW > vb.x + vb.width) lx = x - approxW - 10;
-    var ly = y - 28;
+    if (lx + boxW > vb.x + vb.width) lx = x - boxW - 10;
+    if (lx < vb.x) lx = vb.x + 2;
+    var ly = y - boxH - 8;
     if (ly < vb.y) ly = y + 12;
-    bg.setAttribute('x', lx); bg.setAttribute('y', ly); bg.setAttribute('width', approxW); bg.setAttribute('height', 22);
-    lbl.setAttribute('x', lx + 8); lbl.setAttribute('y', ly + 15);
+    if (ly + boxH > vb.y + vb.height) ly = vb.y + vb.height - boxH - 2;
+
+    rows.forEach(function(r, i){
+      var tspan = document.createElementNS(SVG_NS, 'tspan');
+      tspan.setAttribute('x', lx + padX);
+      tspan.setAttribute('y', ly + padTop + i * lineH);
+      tspan.setAttribute('fill', colorVar(r.color));
+      tspan.textContent = r.label + ': ' + r.value;
+      lbl.appendChild(tspan);
+    });
+
+    bg.setAttribute('x', lx); bg.setAttribute('y', ly); bg.setAttribute('width', boxW); bg.setAttribute('height', boxH);
     g.style.display = '';
   }
   function handleMove(e){
@@ -58,14 +78,11 @@
     var cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
     var p = svgPoint(svg, cx, cy);
     if (!p) return;
-    updateCrosshair(svg, nearestPoint(svg, p.x));
+    var pt = nearestPoint(svg, p.x);
+    if (pt) updateCrosshair(svg, pt);
   }
   document.addEventListener('pointermove', handleMove);
   document.addEventListener('pointerdown', handleMove);
-  document.addEventListener('pointerleave', function(e){
-    var svg = e.target && e.target.closest && e.target.closest('.chart-svg');
-    if (svg) updateCrosshair(svg, null);
-  }, true);
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest && e.target.closest('.chart-toggle-btn');
     if (!btn) return;
@@ -73,23 +90,23 @@
     if (!details) return;
     var tableWrap = details.querySelector(':scope > .table-wrap'), chartWrap = details.querySelector(':scope > .chart-wrap');
     if (!tableWrap || !chartWrap) return;
-    var showingChart = !chartWrap.hasAttribute('hidden');
-    if (showingChart) { chartWrap.setAttribute('hidden', ''); tableWrap.removeAttribute('hidden'); btn.textContent = 'Grafico'; }
-    else { tableWrap.setAttribute('hidden', ''); chartWrap.removeAttribute('hidden'); btn.textContent = 'Tabella'; }
+    var showingTable = !tableWrap.hasAttribute('hidden');
+    if (showingTable) { tableWrap.setAttribute('hidden', ''); chartWrap.removeAttribute('hidden'); btn.textContent = 'Tabella'; }
+    else { chartWrap.setAttribute('hidden', ''); tableWrap.removeAttribute('hidden'); btn.textContent = 'Grafico'; }
   });
 })();</script>
 <div class="page">
   <div class="masthead">
     <div class="masthead-row">
+      <div class="brand-stack">
+        <img class="brand-logo" src="assets/logo_garbino.png" alt="Meteo Garbino">
+      </div>
       <div class="masthead-main">
         <div class="eyebrow-row">
           <div class="eyebrow">Generatore live &middot; dati reali Open-Meteo</div>
         </div>
         <h1>Genera il tuo <em>bollettino</em></h1>
         <p class="sub">Scegli localit&agrave;, durata e risoluzione oraria: la tabella multi-modello viene calcolata al volo nel tuo browser, chiamando direttamente le API pubbliche di Open-Meteo (nessun server nel mezzo).</p>
-      </div>
-      <div class="brand-stack">
-        <img class="brand-logo" src="assets/logo_garbino.png" alt="Meteo Garbino">
       </div>
     </div>
     <div class="spectrum"></div>
@@ -146,6 +163,6 @@
 
   <div id="gen-result"></div>
 
-  <footer class="site-footer">MeteoGarbino225&reg; &middot; Rev. 1.0.10 &middot; <a href="revisioni.html">Revisioni e novit&agrave;</a></footer>
+  <footer class="site-footer">MeteoGarbino225&reg; &middot; Rev. 1.0.11 &middot; <a href="revisioni.html">Revisioni e novit&agrave;</a></footer>
 </div>
 <script src="assets/meteo-engine.js"></script>

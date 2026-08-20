@@ -152,15 +152,15 @@ def build():
 <div class="page">
   <div class="masthead">
     <div class="masthead-row">
+      <div class="brand-stack">
+        {logo_html}
+      </div>
       <div class="masthead-main">
         <div class="eyebrow-row">
           <div class="eyebrow">Dati reali &middot; confronto multi-modello</div>
         </div>
         <h1>Meteo Garbino</h1>
         <p class="sub">Tabelle di confronto multi-modello, generate da dati reali Open-Meteo. Pagine statiche e responsive; solo il generatore live e il selettore tema usano JavaScript.</p>
-      </div>
-      <div class="brand-stack">
-        {logo_html}
       </div>
     </div>
     <div class="spectrum"></div>

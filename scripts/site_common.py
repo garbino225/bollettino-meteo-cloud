@@ -26,17 +26,23 @@ THEME_TOGGLE_HTML = ('''<script>(function(){try{var t=localStorage.getItem('mete
 
 # Interazione tabella<->grafico: generica, guidata dai dati nel markup (non
 # sa nulla del parametro specifico). Un pulsante .chart-toggle-btn mostra/
-# nasconde i fratelli .table-wrap/.chart-wrap dentro lo stesso <details>;
-# sopra ogni .chart-svg, muovendo (o toccando) il puntatore, cerca il punto
-# dati piu' vicino tra i .chart-pt (cerchi invisibili con data-x/data-y in
-# coordinate SVG e data-value/data-label gia' formattati in Python/JS al
-# momento della generazione) e disegna il crosshair. Stesso script, sia nei
-# bollettini statici (embedded qui sotto) sia nel generatore live
-# (docs/genera.html carica lo stesso codice): il markup che produce e'
-# identico (stesse classi/attributi), quindi un solo script basta per
-# entrambi. Se non viene eseguito, tabella e grafico restano comunque
-# entrambi presenti nell'HTML: la tabella e' quella visibile di default.
+# nasconde i fratelli .table-wrap/.chart-wrap dentro lo stesso <details> (il
+# grafico e' la vista di default, la tabella si apre col pulsante); sopra
+# ogni .chart-svg, muovendo (o toccando) il puntatore, cerca il punto dati
+# piu' vicino tra i .chart-pt (cerchi invisibili con data-x/data-y in
+# coordinate SVG e data-rows gia' formattato in Python/JS al momento della
+# generazione: una riga "etichetta,valore,colore" per ogni serie, media
+# compresa) e disegna il crosshair con tutte le righe colorate. Una volta
+# mostrato il crosshair resta visibile (non sparisce quando il puntatore
+# esce dal grafico), cosi' il valore letto resta leggibile anche dopo aver
+# spostato lo sguardo. Stesso script, sia nei bollettini statici (embedded
+# qui sotto) sia nel generatore live (docs/genera.html carica lo stesso
+# codice): il markup che produce e' identico (stesse classi/attributi),
+# quindi un solo script basta per entrambi. Se non viene eseguito, tabella e
+# grafico restano comunque entrambi presenti nell'HTML: il grafico (SVG puro,
+# nessun JS necessario per disegnarlo) e' quello visibile di default.
 CHART_INTERACTION_JS = '''<script>(function(){
+  var SVG_NS = 'http://www.w3.org/2000/svg';
   function svgPoint(svg, clientX, clientY){
     var pt = svg.createSVGPoint();
     pt.x = clientX; pt.y = clientY;
@@ -52,13 +58,16 @@ CHART_INTERACTION_JS = '''<script>(function(){
     }
     return best;
   }
+  function colorVar(c){ return c.indexOf('var(') === 0 ? c : ('var(' + c + ')'); }
   function updateCrosshair(svg, pt){
     var g = svg.querySelector('.chart-crosshair');
-    if (!g) return;
-    if (!pt) { g.style.display = 'none'; return; }
+    if (!g || !pt) return;
     var vb = svg.viewBox.baseVal;
     var x = parseFloat(pt.getAttribute('data-x')), y = parseFloat(pt.getAttribute('data-y'));
-    var text = pt.getAttribute('data-label') + '   ' + pt.getAttribute('data-value');
+    var rows = (pt.getAttribute('data-rows') || '').split('|').filter(Boolean).map(function(r){
+      var parts = r.split(',');
+      return { label: parts[0], value: parts[1], color: parts[2] };
+    });
     var vline = g.querySelector('.ch-vline'), hline = g.querySelector('.ch-hline'),
         dot = g.querySelector('.ch-dot'), bg = g.querySelector('.ch-label-bg'), lbl = g.querySelector('.ch-label');
     vline.setAttribute('x1', x); vline.setAttribute('x2', x);
@@ -66,14 +75,30 @@ CHART_INTERACTION_JS = '''<script>(function(){
     hline.setAttribute('y1', y); hline.setAttribute('y2', y);
     hline.setAttribute('x1', vb.x); hline.setAttribute('x2', vb.x + vb.width);
     dot.setAttribute('cx', x); dot.setAttribute('cy', y);
-    lbl.textContent = text;
-    var approxW = text.length * 6.4 + 16;
+
+    while (lbl.firstChild) lbl.removeChild(lbl.firstChild);
+    var lineH = 13, padX = 8, padTop = 13;
+    var maxLen = 0;
+    rows.forEach(function(r){ maxLen = Math.max(maxLen, (r.label + ': ' + r.value).length); });
+    var boxW = maxLen * 5.9 + padX * 2;
+    var boxH = rows.length * lineH + 10;
     var lx = x + 10;
-    if (lx + approxW > vb.x + vb.width) lx = x - approxW - 10;
-    var ly = y - 28;
+    if (lx + boxW > vb.x + vb.width) lx = x - boxW - 10;
+    if (lx < vb.x) lx = vb.x + 2;
+    var ly = y - boxH - 8;
     if (ly < vb.y) ly = y + 12;
-    bg.setAttribute('x', lx); bg.setAttribute('y', ly); bg.setAttribute('width', approxW); bg.setAttribute('height', 22);
-    lbl.setAttribute('x', lx + 8); lbl.setAttribute('y', ly + 15);
+    if (ly + boxH > vb.y + vb.height) ly = vb.y + vb.height - boxH - 2;
+
+    rows.forEach(function(r, i){
+      var tspan = document.createElementNS(SVG_NS, 'tspan');
+      tspan.setAttribute('x', lx + padX);
+      tspan.setAttribute('y', ly + padTop + i * lineH);
+      tspan.setAttribute('fill', colorVar(r.color));
+      tspan.textContent = r.label + ': ' + r.value;
+      lbl.appendChild(tspan);
+    });
+
+    bg.setAttribute('x', lx); bg.setAttribute('y', ly); bg.setAttribute('width', boxW); bg.setAttribute('height', boxH);
     g.style.display = '';
   }
   function handleMove(e){
@@ -82,14 +107,11 @@ CHART_INTERACTION_JS = '''<script>(function(){
     var cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
     var p = svgPoint(svg, cx, cy);
     if (!p) return;
-    updateCrosshair(svg, nearestPoint(svg, p.x));
+    var pt = nearestPoint(svg, p.x);
+    if (pt) updateCrosshair(svg, pt);
   }
   document.addEventListener('pointermove', handleMove);
   document.addEventListener('pointerdown', handleMove);
-  document.addEventListener('pointerleave', function(e){
-    var svg = e.target && e.target.closest && e.target.closest('.chart-svg');
-    if (svg) updateCrosshair(svg, null);
-  }, true);
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest && e.target.closest('.chart-toggle-btn');
     if (!btn) return;
@@ -97,9 +119,9 @@ CHART_INTERACTION_JS = '''<script>(function(){
     if (!details) return;
     var tableWrap = details.querySelector(':scope > .table-wrap'), chartWrap = details.querySelector(':scope > .chart-wrap');
     if (!tableWrap || !chartWrap) return;
-    var showingChart = !chartWrap.hasAttribute('hidden');
-    if (showingChart) { chartWrap.setAttribute('hidden', ''); tableWrap.removeAttribute('hidden'); btn.textContent = 'Grafico'; }
-    else { tableWrap.setAttribute('hidden', ''); chartWrap.removeAttribute('hidden'); btn.textContent = 'Tabella'; }
+    var showingTable = !tableWrap.hasAttribute('hidden');
+    if (showingTable) { tableWrap.setAttribute('hidden', ''); chartWrap.removeAttribute('hidden'); btn.textContent = 'Tabella'; }
+    else { chartWrap.setAttribute('hidden', ''); tableWrap.removeAttribute('hidden'); btn.textContent = 'Grafico'; }
   });
 })();</script>'''
 
@@ -107,6 +129,14 @@ CHART_INTERACTION_JS = '''<script>(function(){
 # modifica rilasciata; viene stampata in fondo a ogni file HTML generato e
 # nella pagina dedicata docs/revisioni.html.
 CHANGELOG = [
+    {"version": "1.0.11", "date": "20/08/2026", "changes": [
+        "Rimossa la sezione \"Attenzione\": generava confusione, l'informazione era gia' leggibile nelle celle colorate delle tabelle.",
+        "Il grafico e' ora la vista di default di ogni parametro (prima era la tabella); un pulsante la converte in tabella e viceversa.",
+        "Grafico: ogni modello ha una linea di colore diverso per riconoscerlo a colpo d'occhio, con legenda sotto il grafico.",
+        "Puntatore del grafico: resta visibile una volta usato (prima spariva non appena il mouse usciva dal grafico), e la sua etichetta mostra sempre tutti i valori (media e ogni singolo modello), non solo la media.",
+        "Grafico: larghezza sempre adattata allo schermo del dispositivo, niente piu' scorrimento orizzontale interno (restava solo per le tabelle orarie, che continuano a scorrere verso destra).",
+        "Intestazione: il logo Meteo Garbino ora sta sopra al titolo/descrizione invece che di fianco.",
+    ]},
     {"version": "1.0.10", "date": "20/08/2026", "changes": [
         "Nuova sezione \"Attenzione\" in ogni tabella: scansiona automaticamente tutti i parametri e segnala giorni/ore con valori in soglia rossa o fucsia (rischio elevato/estremo), con motivo e valore.",
         "Nuova pagina dedicata Revisioni (docs/revisioni.html), separata dalla tabella: raccoglie tutto lo storico che prima stava solo in fondo ad ogni bollettino.",

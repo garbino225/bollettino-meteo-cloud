@@ -171,14 +171,31 @@ def col_label(mode, tc, day_labels):
     return f"{tc['d']} {tc['date']}"
 
 
+def series_color(i):
+    return f"--series-{i % 12}"
+
+
+def render_chart_legend(model_codes):
+    items = "".join(
+        f'<span class="chart-legend-item"><span class="chart-legend-sw" '
+        f'style="background:var({series_color(i)})"></span>{c}</span>'
+        for i, c in enumerate(model_codes)
+    )
+    return f'<div class="chart-legend">{items}</div>'
+
+
 def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
     """Grafico a linee grande e interattivo (a differenza del mini-trend di
     render_trend_svg, gia' usato come sfondo della riga media): una linea
-    per modello sovrapposte per il confronto, la media in evidenza, e un
-    cerchio invisibile per colonna con i dati gia' formattati (valore,
-    etichetta data/ora) che lo script CHART_INTERACTION_JS usa per
-    disegnare il crosshair al passaggio del mouse o al tocco."""
+    colorata per modello per riconoscerli a colpo d'occhio, la media in
+    evidenza, e un cerchio invisibile per colonna con tutti i valori gia'
+    formattati (media + ogni modello) che lo script CHART_INTERACTION_JS usa
+    per disegnare il crosshair, persistente, al passaggio del mouse o al
+    tocco."""
     ncols = len(time_cols)
+    unit = p["unit"]
+    decimals = p["decimals"]
+    mean_label = "Best Match" if is_conv else "Media modelli"
     if is_conv:
         model_codes = []
         mean_vals = p["values"]
@@ -201,9 +218,8 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
     lo -= pad
     hi += pad
 
-    margin_l, margin_r, margin_t, plot_h, margin_b = 48, 14, 14, 220, 34
-    hourly_wide = mode == "hourly"
-    W = max(860, ncols * 16) if hourly_wide else 860
+    margin_l, margin_r, margin_t, plot_h, margin_b = 46, 14, 14, 230, 32
+    W = 760
     H = plot_h + margin_t + margin_b
 
     def x(i):
@@ -224,11 +240,11 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
 
     lines = []
     if not is_conv:
-        for c in model_codes:
+        for idx, c in enumerate(model_codes):
             pts = [f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(p["values"].get(c, [])) if v is not None]
             if len(pts) >= 2:
-                lines.append(f'<polyline points="{" ".join(pts)}" fill="none" stroke="var(--ink-faint)" '
-                              f'stroke-width="1" opacity="0.35"/>')
+                lines.append(f'<polyline points="{" ".join(pts)}" fill="none" stroke="var({series_color(idx)})" '
+                              f'stroke-width="1.3" opacity="0.75"/>')
 
     mean_pts, circles = [], []
     for i, v in enumerate(mean_vals):
@@ -237,9 +253,15 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
         px, py = x(i), y(v)
         mean_pts.append(f"{px:.1f},{py:.1f}")
         lbl = col_label(mode, time_cols[i], day_labels)
+        rows = [f"{mean_label},{fmt_val(v, decimals)} {unit},--accent"]
+        for idx, c in enumerate(model_codes):
+            mv = p["values"].get(c, [None] * ncols)[i]
+            mv_txt = f"{fmt_val(mv, decimals)} {unit}" if mv is not None else "—"
+            rows.append(f"{c},{mv_txt},{series_color(idx)}")
+        data_rows = "|".join(rows)
         circles.append(f'<circle class="chart-pt" cx="{px:.1f}" cy="{py:.1f}" r="10" fill="transparent" '
                         f'data-x="{px:.1f}" data-y="{py:.1f}" '
-                        f'data-value="{fmt_val(v, p["decimals"])} {p["unit"]}" data-label="{lbl}"/>')
+                        f'data-label="{lbl}" data-rows="{data_rows}"/>')
     mean_line = (f'<polyline points="{" ".join(mean_pts)}" fill="none" stroke="var(--accent)" stroke-width="2.4" '
                  f'stroke-linejoin="round" stroke-linecap="round"/>') if len(mean_pts) >= 2 else ""
 
@@ -258,18 +280,16 @@ def render_chart_svg(p, mode, time_cols, day_labels, is_conv=False):
     crosshair = ('<g class="chart-crosshair" style="display:none">'
                  '<line class="ch-vline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>'
                  '<line class="ch-hline" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>'
-                 '<rect class="ch-label-bg" rx="4" ry="4" fill="var(--ink)"/>'
-                 '<text class="ch-label" font-size="11" fill="var(--panel)" font-family="IBM Plex Mono, monospace"></text>'
+                 '<rect class="ch-label-bg" rx="4" ry="4" fill="var(--panel)" stroke="var(--panel-line)"/>'
+                 '<text class="ch-label" font-size="10.5" font-family="IBM Plex Mono, monospace"></text>'
                  '<circle class="ch-dot" r="4" fill="var(--accent)"/>'
                  '</g>')
 
-    style = f'width:{W}px;height:{H}px;' if hourly_wide else f'width:100%;height:{H}px;'
-    scroll_class = "chart-scroll" if hourly_wide else ""
-
-    svg = (f'<svg class="chart-svg" viewBox="0 0 {W} {H}" preserveAspectRatio="none" style="{style}">'
+    svg = (f'<svg class="chart-svg" viewBox="0 0 {W} {H}">'
            + "".join(grid) + "".join(lines) + mean_line + "".join(circles) + "".join(xlabels) + crosshair
            + '</svg>')
-    return f'<div class="{scroll_class}">{svg}</div>'
+    legend = render_chart_legend(model_codes) if model_codes else ""
+    return f'<div>{svg}{legend}</div>'
 
 
 def render_section(p, mode, time_cols, day_labels, models_lookup):
@@ -363,8 +383,8 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
 
     return f'''<details class="param"{open_attr}>
     <summary><span class="arrow">&#9656;</span> {p["label"]} <span class="unit">{p["unit"]}</span>{excluded_html}<span class="desc">{p["threshTxt"]}</span></summary>
-    <div class="param-toolbar"><button type="button" class="chart-toggle-btn">Grafico</button></div>
-    <div class="table-wrap">
+    <div class="param-toolbar"><button type="button" class="chart-toggle-btn">Tabella</button></div>
+    <div class="table-wrap" hidden>
       <div class="pgrid {hourly_class}">
         <div class="cell rowlabel" style="font-weight:700;">{"Ora" if mode == "hourly" else "Giorno"}</div>
         {"".join(head_cells)}
@@ -376,7 +396,7 @@ def render_section(p, mode, time_cols, day_labels, models_lookup):
         {"".join(model_rows)}
       </div>
     </div>
-    <div class="chart-wrap" hidden>{chart_svg}</div>
+    <div class="chart-wrap">{chart_svg}</div>
   </details>'''
 
 
@@ -415,8 +435,8 @@ def render_convective_section(p, mode, time_cols, day_labels):
 
     return f'''<details class="param"{open_attr}>
     <summary><span class="arrow">&#9656;</span> {p["label"]} <span class="unit">{p["unit"]}</span><span class="desc">{p["threshTxt"]}</span></summary>
-    <div class="param-toolbar"><button type="button" class="chart-toggle-btn">Grafico</button></div>
-    <div class="table-wrap">
+    <div class="param-toolbar"><button type="button" class="chart-toggle-btn">Tabella</button></div>
+    <div class="table-wrap" hidden>
       <div class="pgrid {hourly_class}">
         <div class="cell rowlabel" style="font-weight:700;">{"Ora" if mode == "hourly" else "Giorno"}</div>
         {"".join(head_cells)}
@@ -427,7 +447,7 @@ def render_convective_section(p, mode, time_cols, day_labels):
         </div>
       </div>
     </div>
-    <div class="chart-wrap" hidden>{chart_svg}</div>
+    <div class="chart-wrap">{chart_svg}</div>
   </details>'''
 
 
@@ -456,62 +476,6 @@ def render_almanac(day_labels, alba, tramonto, luna):
       <div class="cell rowlabel" style="border-bottom:none;">Fase lunare</div>
       {luna_html}
     </div>'''
-
-
-SEV_LABELS = {3: "Rosso", 4: "Fucsia"}
-
-
-def compute_alerts(params, conv_params, time_cols, day_labels, mode):
-    """Scansiona il valore medio (o, per i convettivi, l'unico valore) di
-    ogni parametro/colonna e segnala le soglie rosso/fucsia (severita' 3-4):
-    una vista rapida di cosa merita attenzione, senza dover aprire ogni
-    singola tabella."""
-    ncols = len(time_cols)
-
-    def time_label(i):
-        tc = time_cols[i]
-        if mode == "hourly":
-            return f"{day_labels[tc['dayIndex']]} {tc['hod']:02d}:00"
-        return f"{tc['d']} {tc['date']}"
-
-    alerts = []
-    for p in params:
-        classify_as = p.get("classifyAs", p["key"])
-        codes = p["modelCodes"]
-        for i in range(ncols):
-            vals = [p["values"][c][i] for c in codes if p["values"].get(c) and p["values"][c][i] is not None]
-            v = sum(vals) / len(vals) if vals else None
-            sev = classify(classify_as, v)
-            if sev is not None and sev >= 3:
-                alerts.append({"col": i, "time": time_label(i), "label": p["label"],
-                                "value": fmt_val(v, p["decimals"]), "unit": p["unit"], "sev": sev})
-    for p in conv_params:
-        classify_as = p.get("classifyAs", p["key"])
-        for i in range(ncols):
-            v = p["values"][i]
-            sev = classify(classify_as, v)
-            if sev is not None and sev >= 3:
-                alerts.append({"col": i, "time": time_label(i), "label": p["label"],
-                                "value": fmt_val(v, p["decimals"]), "unit": p["unit"], "sev": sev})
-    alerts.sort(key=lambda a: (a["col"], -a["sev"]))
-    return alerts
-
-
-def render_alerts(alerts):
-    if not alerts:
-        return ('<div class="alert-panel alert-panel-clear"><span class="legend-title">&#9888; Attenzione</span>'
-                '<p class="alert-empty">Nessuna criticit&agrave; rilevata nel periodo: nessun valore medio in soglia rossa o fucsia.</p></div>')
-    rows = []
-    for a in alerts:
-        rows.append(f'<tr><td class="al-time">{a["time"]}</td><td class="al-label">{a["label"]}</td>'
-                     f'<td class="al-value"><span class="sev-{a["sev"]} al-badge">{a["value"]} {a["unit"]}</span> '
-                     f'<span class="al-sevlabel">{SEV_LABELS[a["sev"]]}</span></td></tr>')
-    n = len(alerts)
-    return (f'<div class="alert-panel"><span class="legend-title">&#9888; Attenzione &middot; '
-            f'{n} segnalazion{"e" if n == 1 else "i"}</span>'
-            f'<div class="table-wrap" style="padding:0;"><table class="alert-table">'
-            f'<thead><tr><th>Quando</th><th>Parametro</th><th>Valore</th></tr></thead>'
-            f'<tbody>{"".join(rows)}</tbody></table></div></div>')
 
 
 def lcl_km(t, td):
@@ -966,7 +930,6 @@ def build(args):
     models_key_html = "".join(f'<span class="mk" title="{m["full"]}"><b>{m["code"]}</b></span>' for m in all_models_meta)
     sections_html = "\n".join(render_section(p, args.mode, time_cols, day_labels, models_lookup) for p in params)
     conv_sections_html = "\n".join(render_convective_section(p, args.mode, time_cols, day_labels) for p in conv_params)
-    alerts_html = render_alerts(compute_alerts(params, conv_params, time_cols, day_labels, args.mode))
 
     css = open(os.path.join(SCRIPT_DIR, "table_engine.css"), encoding="utf-8").read()
     page_style = f' style="--ncols:{n};"'
@@ -988,6 +951,10 @@ def build(args):
 <div class="page"{page_style}>
   <div class="masthead">
     <div class="masthead-row">
+      <div class="brand-stack">
+        {logo_html}
+        <div class="version-badge">{args.version}</div>
+      </div>
       <div class="masthead-main">
         <div class="eyebrow-row">
           <div class="eyebrow">{eyebrow}</div>
@@ -995,10 +962,6 @@ def build(args):
         <h1>{title_html}</h1>
         <p class="sub">{sub_html}</p>
         <div class="meta-strip">{meta_strip}</div>
-      </div>
-      <div class="brand-stack">
-        {logo_html}
-        <div class="version-badge">{args.version}</div>
       </div>
     </div>
     <div class="spectrum"></div>
@@ -1022,8 +985,6 @@ def build(args):
     </div>
     <div class="models-key">{models_key_html}</div>
   </div>
-
-  {alerts_html}
 
   <div class="sections">
     {sections_html}
