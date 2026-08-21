@@ -1,0 +1,18 @@
+name = "ecowitt-relay"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# "*" = qualunque sito puo' incorporare il widget; per limitarlo al tuo
+# dominio usa una lista separata da virgole, es. "https://tuosito.it"
+ALLOWED_ORIGINS = "*"
+CACHE_TTL_SECONDS = "60"
+# Mappa nome-stazione (a scelta) -> identificativo del dispositivo su
+# ecowitt.net. Usa il MAC del gateway (es. "AA:BB:CC:DD:EE:FF", dalla
+# pagina "My Devices" su ecowitt.net) oppure, per dispositivi cellulari
+# senza gateway WiFi, "imei:<numero>".
+STATIONS = "{\"casa\":\"AA:BB:CC:DD:EE:FF\"}"
+
+# Le chiavi Ecowitt NON vanno qui (finirebbero in chiaro nel repo):
+#   wrangler secret put ECOWITT_APPLICATION_KEY
+#   wrangler secret put ECOWITT_API_KEY

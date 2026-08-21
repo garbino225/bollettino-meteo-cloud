@@ -1,0 +1,62 @@
+.ecowitt-widget {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  max-width: 320px;
+  border: 1px solid #d8dee4;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #ffffff;
+  color: #1b1f23;
+  box-sizing: border-box;
+}
+.ecowitt-widget * {
+  box-sizing: border-box;
+}
+@media (prefers-color-scheme: dark) {
+  .ecowitt-widget {
+    background: #1b1f23;
+    color: #e6edf3;
+    border-color: #30363d;
+  }
+}
+.ecowitt-widget .ecowitt-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.ecowitt-widget .ecowitt-category {
+  margin-bottom: 10px;
+}
+.ecowitt-widget .ecowitt-category:last-child {
+  margin-bottom: 0;
+}
+.ecowitt-widget .ecowitt-category h4 {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.6;
+  font-weight: 600;
+}
+.ecowitt-widget .ecowitt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.9rem;
+  padding: 2px 0;
+}
+.ecowitt-widget .ecowitt-label {
+  opacity: 0.75;
+}
+.ecowitt-widget .ecowitt-value {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ecowitt-widget .ecowitt-updated {
+  margin-top: 10px;
+  font-size: 0.72rem;
+  opacity: 0.5;
+}
+.ecowitt-widget .ecowitt-error {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}

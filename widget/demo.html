@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Demo widget Ecowitt</title>
+<link rel="stylesheet" href="ecowitt-widget.css">
+</head>
+<body style="font-family: sans-serif; padding: 24px;">
+<h1>Demo widget meteo in tempo reale</h1>
+<p>
+  Sostituisci <code>data-endpoint</code> con l'URL del tuo Worker
+  (<code>https://&lt;nome-worker&gt;.&lt;account&gt;.workers.dev/realtime</code>)
+  e <code>data-station</code> con uno dei nomi definiti in <code>STATIONS</code>
+  nel <code>wrangler.toml</code> del Worker.
+</p>
+
+<div
+  data-ecowitt-widget
+  data-endpoint="https://ecowitt-relay.example.workers.dev/realtime"
+  data-station="casa"
+  data-refresh="60"
+  data-title="Meteo Casa"
+></div>
+
+<script src="ecowitt-widget.js"></script>
+</body>
+</html>
